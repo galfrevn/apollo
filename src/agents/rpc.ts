@@ -6,12 +6,6 @@ export const notifyBackgroundResultInputSchema = z.object({
   documentKey: z.string().min(1).optional(),
 });
 
-export type NotifyBackgroundResultInput = z.infer<
-  typeof notifyBackgroundResultInputSchema
->;
-
 export const deliverReminderPayloadSchema = z.object({
   message: z.string().min(1),
 });
-
-export type DeliverReminderPayload = z.infer<typeof deliverReminderPayloadSchema>;

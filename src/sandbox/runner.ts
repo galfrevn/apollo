@@ -4,9 +4,6 @@ import {
   type SandboxCodeLanguage,
 } from '@/sandbox/helpers';
 
-export type { SandboxCodeLanguage };
-export { buildApolloSandboxId, formatSandboxCodeSummary };
-
 export type SandboxCodeRunResult = {
   readonly ok: boolean;
   readonly summary: string;

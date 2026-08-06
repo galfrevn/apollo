@@ -38,10 +38,6 @@ const deskSpeechModeCatalog: readonly DeskSpeechMode[] = [
   },
 ];
 
-export function listDeskSpeechModeCatalog(): readonly DeskSpeechMode[] {
-  return deskSpeechModeCatalog;
-}
-
 export function migrateLegacySpeechModeId(rawSpeechModeId: string): DeskSpeechModeId {
   if (rawSpeechModeId === 'seco') {
     return 'default';

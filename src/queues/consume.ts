@@ -27,12 +27,6 @@ export async function consumeApolloQueueBatch(
         continue;
       }
 
-      if (job.type === 'cache_tts') {
-        // Producer already wrote the object; this job is a no-op ack for now.
-        message.ack();
-        continue;
-      }
-
       if (job.type === 'run_background') {
         await environment.BACKGROUND.create({
           id: crypto.randomUUID(),
@@ -99,9 +93,5 @@ export async function cacheTtsInMediaBucket(
 ): Promise<void> {
   await putMediaObject(environment.MEDIA, input.objectKey, input.audioBuffer, {
     contentType: 'audio/mpeg',
-  });
-  await environment.APOLLO_QUEUE.send({
-    type: 'cache_tts',
-    objectKey: input.objectKey,
   });
 }
