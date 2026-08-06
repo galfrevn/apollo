@@ -573,6 +573,14 @@ export class Apollo extends Agent<Env, ApolloState> {
         turnPart,
       );
     } catch (error) {
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          message: 'apollo_turn_failed',
+          deviceId,
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
       this.#pendingConfirmation = undefined;
       this.#applyUiEvent('CANCEL');
       this.setState({
