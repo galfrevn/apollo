@@ -1,3 +1,9 @@
+import { z } from 'zod';
+
+const openRouterTranscriptionResponseSchema = z.object({
+  text: z.string().optional(),
+});
+
 function encodeArrayBufferAsBase64(arrayBuffer: ArrayBuffer): string {
   const byteArray = new Uint8Array(arrayBuffer);
   let binaryString = '';
@@ -34,7 +40,7 @@ export async function transcribeAudioWithOpenRouter(input: {
     throw new Error(`STT falló con status ${response.status}`);
   }
 
-  const payload = (await response.json()) as { text?: string };
+  const payload = openRouterTranscriptionResponseSchema.parse(await response.json());
   const transcript = payload.text?.trim() ?? '';
   if (transcript.length === 0) {
     throw new Error('STT devolvió texto vacío');
