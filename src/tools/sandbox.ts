@@ -14,9 +14,9 @@ const sandboxExecArgsSchema = z.object({
 
 export const sandboxRunCodeTool: ToolDefinition = {
   name: 'sandbox_run_code',
-  safety: 'safe',
+  safety: 'unsafe',
   description:
-    'Ejecuta código en un sandbox aislado de Cloudflare (python/javascript/typescript)',
+    'Ejecuta código en un sandbox aislado de Cloudflare (python/javascript/typescript, requiere confirmación)',
   parameters: {
     type: 'object',
     properties: {
@@ -28,6 +28,10 @@ export const sandboxRunCodeTool: ToolDefinition = {
     },
     required: ['code'],
     additionalProperties: false,
+  },
+  buildConfirmSummary(args) {
+    const parsedArgs = sandboxRunCodeArgsSchema.parse(args);
+    return `Ejecutar código ${parsedArgs.language} en sandbox`;
   },
   async handler(args, context) {
     const { runCodeInApolloSandbox } = await import('@/sandbox/runner');

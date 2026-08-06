@@ -45,9 +45,15 @@ describe('sandbox helpers', () => {
     ).toBe('Sandbox python: sin salida');
   });
 
-  it('exposes safe run_code and unsafe exec tools', () => {
+  it('exposes unsafe run_code and exec tools that both require confirmation', () => {
     expect(sandboxRunCodeTool.name).toBe('sandbox_run_code');
-    expect(sandboxRunCodeTool.safety).toBe('safe');
+    expect(sandboxRunCodeTool.safety).toBe('unsafe');
+    expect(
+      sandboxRunCodeTool.buildConfirmSummary?.({
+        code: 'print(42)',
+        language: 'python',
+      }),
+    ).toBe('Ejecutar código python en sandbox');
     expect(sandboxExecTool.name).toBe('sandbox_exec');
     expect(sandboxExecTool.safety).toBe('unsafe');
     expect(
