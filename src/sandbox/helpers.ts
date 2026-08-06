@@ -1,5 +1,14 @@
 export type SandboxCodeLanguage = 'python' | 'javascript' | 'typescript';
 
+export const MAX_SANDBOX_TOOL_RESULT_OUTPUT_CHARACTERS = 4000;
+
+export function truncateSandboxOutputForToolResult(outputText: string): string {
+  if (outputText.length <= MAX_SANDBOX_TOOL_RESULT_OUTPUT_CHARACTERS) {
+    return outputText;
+  }
+  return `${outputText.slice(0, MAX_SANDBOX_TOOL_RESULT_OUTPUT_CHARACTERS)}\n… (truncado)`;
+}
+
 export function buildApolloSandboxId(deviceId: string): string {
   const normalizedDeviceId = deviceId.trim().toLowerCase() || 'default';
   return `apollo-${normalizedDeviceId}`;

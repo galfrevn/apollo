@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
-import type { SandboxCodeLanguage } from '@/sandbox/helpers';
+import {
+  truncateSandboxOutputForToolResult,
+  type SandboxCodeLanguage,
+} from '@/sandbox/helpers';
 import type { ToolDefinition } from '@/tools/types';
 
 const sandboxRunCodeArgsSchema = z.object({
@@ -47,8 +50,8 @@ export const sandboxRunCodeTool: ToolDefinition = {
       ok: result.ok,
       summary: result.summary,
       data: {
-        stdout: result.stdout,
-        stderr: result.stderr,
+        stdout: truncateSandboxOutputForToolResult(result.stdout),
+        stderr: truncateSandboxOutputForToolResult(result.stderr),
       },
     };
   },
@@ -81,8 +84,8 @@ export const sandboxExecTool: ToolDefinition = {
       ok: result.ok,
       summary: result.summary,
       data: {
-        stdout: result.stdout,
-        stderr: result.stderr,
+        stdout: truncateSandboxOutputForToolResult(result.stdout),
+        stderr: truncateSandboxOutputForToolResult(result.stderr),
         exitCode: result.exitCode,
       },
     };

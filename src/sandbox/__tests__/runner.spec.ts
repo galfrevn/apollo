@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 
-import { buildApolloSandboxId, formatSandboxCodeSummary } from '@/sandbox/helpers';
+import {
+  buildApolloSandboxId,
+  formatSandboxCodeSummary,
+  MAX_SANDBOX_TOOL_RESULT_OUTPUT_CHARACTERS,
+  truncateSandboxOutputForToolResult,
+} from '@/sandbox/helpers';
 import { sandboxExecTool, sandboxRunCodeTool } from '@/tools/sandbox';
 
 describe('sandbox helpers', () => {
@@ -43,6 +48,18 @@ describe('sandbox helpers', () => {
         stderr: '',
       }),
     ).toBe('Sandbox python: sin salida');
+  });
+
+  it('leaves short output untouched and truncates long output', () => {
+    expect(truncateSandboxOutputForToolResult('short output')).toBe('short output');
+
+    const longOutput = 'x'.repeat(MAX_SANDBOX_TOOL_RESULT_OUTPUT_CHARACTERS + 500);
+    const truncated = truncateSandboxOutputForToolResult(longOutput);
+    expect(
+      truncated.startsWith('x'.repeat(MAX_SANDBOX_TOOL_RESULT_OUTPUT_CHARACTERS)),
+    ).toBe(true);
+    expect(truncated.endsWith('… (truncado)')).toBe(true);
+    expect(truncated.length).toBeLessThan(longOutput.length);
   });
 
   it('exposes unsafe run_code and exec tools that both require confirmation', () => {
