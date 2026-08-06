@@ -87,6 +87,7 @@ export async function chatWithOpenRouter(input: {
     readonly description: string;
     readonly parameters: Record<string, unknown>;
   }[];
+  readonly fetchImplementation?: typeof fetch;
 }): Promise<OpenRouterChatResult> {
   const toolDefinitionPayloadList =
     input.toolDefinitionList !== undefined && input.toolDefinitionList.length > 0
@@ -100,20 +101,24 @@ export async function chatWithOpenRouter(input: {
         }))
       : undefined;
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${input.openRouterApiKey}`,
-      'Content-Type': 'application/json',
+  const fetchImplementation = input.fetchImplementation ?? globalThis.fetch;
+  const response = await fetchImplementation(
+    'https://openrouter.ai/api/v1/chat/completions',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${input.openRouterApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: input.modelId,
+        messages: input.messageList,
+        ...(toolDefinitionPayloadList !== undefined
+          ? { tools: toolDefinitionPayloadList }
+          : {}),
+      }),
     },
-    body: JSON.stringify({
-      model: input.modelId,
-      messages: input.messageList,
-      ...(toolDefinitionPayloadList !== undefined
-        ? { tools: toolDefinitionPayloadList }
-        : {}),
-    }),
-  });
+  );
 
   if (!response.ok) {
     throw new Error(`LLM falló con status ${response.status}`);
