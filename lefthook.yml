@@ -1,0 +1,27 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: format
+      glob:
+        - '*.ts'
+        - '*.tsx'
+        - '*.js'
+        - '*.jsx'
+        - '*.mjs'
+        - '*.cjs'
+      run: bunx oxfmt --write {staged_files}
+      stage_fixed: true
+    - name: lint
+      glob:
+        - '*.ts'
+        - '*.tsx'
+        - '*.js'
+        - '*.jsx'
+        - '*.mjs'
+        - '*.cjs'
+      run: bunx oxlint --deny-warnings {staged_files}
+
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: bunx commitlint --edit {1}

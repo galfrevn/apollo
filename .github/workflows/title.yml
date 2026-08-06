@@ -1,0 +1,34 @@
+name: Title
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - reopened
+
+concurrency:
+  group: title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  title:
+    name: Conventional title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Validate pull request title
+        env:
+          PULL_REQUEST_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$PULL_REQUEST_TITLE" | bunx commitlint --config commitlint.config.ts

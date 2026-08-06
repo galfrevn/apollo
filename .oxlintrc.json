@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "node", "promise"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "rules": {
+    "typescript/no-extraneous-class": [
+      "error",
+      {
+        "allowWithDecorator": true,
+        "allowStaticOnly": true
+      }
+    ],
+    "unicorn/require-module-specifiers": "off",
+    "import/no-unassigned-import": "off",
+    "promise/valid-params": "off"
+  },
+  "env": {
+    "builtin": true
+  },
+  "ignorePatterns": []
+}

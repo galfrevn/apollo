@@ -1,0 +1,32 @@
+{
+  "name": "apollo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "types": "wrangler types",
+    "lint": "oxlint --deny-warnings",
+    "format": "oxfmt --write",
+    "format:check": "oxfmt --check",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage"
+  },
+  "dependencies": {
+    "@cloudflare/sandbox": "^0.12.4",
+    "agents": "^0.20.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "wrangler": "^4.119.0",
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@types/bun": "latest",
+    "@types/node": "^25.9.5",
+    "lefthook": "^2.1.10",
+    "oxfmt": "^0.47.0",
+    "oxlint": "^1.77.0"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 90,
+  "singleQuote": true,
+  "endOfLine": "lf",
+  "ignorePatterns": ["*.md", "*.yml", "*.yaml", "*.toml", "*.json"]
+}

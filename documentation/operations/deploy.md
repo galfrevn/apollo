@@ -1,0 +1,25 @@
+# Deploy
+
+Apollo deploys as a Cloudflare Worker named `apollo` with several bindings.
+
+## Notable bindings
+
+| Binding | Purpose |
+|---------|---------|
+| `Apollo` Durable Object | Per-desk agent session (SQLite) |
+| `Sandbox` | Sandbox container DO |
+| `MEDIA` R2 | Media objects |
+| `VECTORIZE` | Memory embeddings index |
+| `WEBSEARCH` | Web search binding |
+| `APOLLO_QUEUE` | Background job queue |
+| Workflows | `apollo-background` long-running work |
+
+See `wrangler.jsonc` for the authoritative list, migrations, and model vars.
+
+## Deploy command
+
+Use your usual Wrangler deploy flow after secrets and resources exist in the target account. Do not invent resource names beyond what the config declares.
+
+## Navigation
+
+Prev: [Setup](setup.md) · Next: [Auth](auth.md)

@@ -1,0 +1,19 @@
+{
+  "extends": ["agents/tsconfig"],
+  "compilerOptions": {
+    "types": ["bun"],
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+
+
+  "include": [
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "worker-configuration.d.ts"
+  ]
+}

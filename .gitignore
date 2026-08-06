@@ -1,0 +1,42 @@
+# dependencies
+node_modules/
+
+# build
+dist/
+*.tsbuildinfo
+.turbo/
+
+# development
+worker-configuration.d.ts
+.wrangler/
+.evlog/
+.superpowers/
+*.local
+
+# testing
+coverage/
+
+# environment
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# os
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# editor
+*.swp
+*.swo
+*~
+.idea/

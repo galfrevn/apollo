@@ -1,0 +1,11 @@
+DEVICE_SHARED_SECRET=dev-change-me
+OPENROUTER_API_KEY=
+MOCK_VOICE=1
+
+# Remote one-time setup (when you deploy):
+# bunx wrangler vectorize create apollo-memory --dimensions=1536 --metric=cosine
+# bunx wrangler r2 bucket create apollo-media
+# bunx wrangler queues create apollo-jobs
+#
+# Sandbox (Containers) needs Docker running for wrangler deploy / local container runs.
+# Base image: cloudflare/sandbox matching @cloudflare/sandbox (see Dockerfile).
