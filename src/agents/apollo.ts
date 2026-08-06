@@ -38,6 +38,7 @@ import { APOLLO_TTS_VOICE } from '@/persona/soul';
 import {
   encodeServerToDeviceMessage,
   parseDeviceToServerMessage,
+  type DeviceToServerMessage,
 } from '@/protocol/schema';
 import {
   mapAgentScheduleListToReminderList,
@@ -203,7 +204,27 @@ export class Apollo extends Agent<Env, ApolloState> {
       return;
     }
 
-    const deviceMessage = parseDeviceToServerMessage(message);
+    let deviceMessage: DeviceToServerMessage;
+    try {
+      deviceMessage = parseDeviceToServerMessage(message);
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          message: 'apollo_device_message_invalid',
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+      connection.send(
+        encodeServerToDeviceMessage({
+          type: 'error',
+          code: 'invalid_message',
+          message: 'Mensaje no reconocido',
+        }),
+      );
+      return;
+    }
+
     switch (deviceMessage.type) {
       case 'hello': {
         this.#pushUiState(connection);
