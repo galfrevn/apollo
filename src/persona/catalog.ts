@@ -1,4 +1,4 @@
-export type DeskSpeechModeId = 'default' | 'nerd' | 'gracioso' | 'warm';
+export type DeskSpeechModeId = 'default' | 'nerd' | 'playful' | 'warm';
 
 export type DeskSpeechMode = {
   readonly id: DeskSpeechModeId;
@@ -23,10 +23,10 @@ const deskSpeechModeCatalog: readonly DeskSpeechMode[] = [
     accentColor: '#4B6CB7',
   },
   {
-    id: 'gracioso',
-    name: 'gracioso',
+    id: 'playful',
+    name: 'playful',
     promptOverride:
-      'Modo gracioso: muy argentino, joda liviana, jerga natural (boludo, etc.) solo cuando cae bien. Picá un toque; nunca humilles ni toques temas sensibles; no fuerces slang en cada frase.',
+      'Modo playful: muy argentino, joda liviana, jerga natural (boludo, etc.) solo cuando cae bien. Picá un toque; nunca humilles ni toques temas sensibles; no fuerces slang en cada frase.',
     accentColor: '#C45C26',
   },
   {
@@ -41,6 +41,9 @@ const deskSpeechModeCatalog: readonly DeskSpeechMode[] = [
 export function migrateLegacySpeechModeId(rawSpeechModeId: string): DeskSpeechModeId {
   if (rawSpeechModeId === 'seco') {
     return 'default';
+  }
+  if (rawSpeechModeId === 'gracioso') {
+    return 'playful';
   }
   const matchedSpeechMode = deskSpeechModeCatalog.find(
     (speechMode) => speechMode.id === rawSpeechModeId,

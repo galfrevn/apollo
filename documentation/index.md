@@ -17,24 +17,25 @@ This handbook is meant to be read in order. Later chapters assume the concepts i
 4. [Protocol](runtime/protocol.md) — Device ↔ server messages
 5. [Voice](runtime/voice.md) — Speech in and speech out
 6. [Persona](runtime/persona.md) — Soul prompt and speech modes
+7. [Face](runtime/face.md) — Emotion and accent color for the on-device screen
 
 ### Part III — Capabilities
 
-7. [Tools](capabilities/tools.md) — Router and built-in catalog
-8. [Memory](capabilities/memory.md) — Preferences, facts, and vectors
-9. [Research](capabilities/research.md) — Quick search and deep research
-10. [Weather](capabilities/weather.md) — Location, forecast, dashboard
-11. [Focus](capabilities/focus.md) — Focus timer behavior
-12. [Reminders](capabilities/reminders.md) — Schedules and delivery
-13. [Sandbox](capabilities/sandbox.md) — Isolated code execution
+8. [Tools](capabilities/tools.md) — Router and built-in catalog
+9. [Memory](capabilities/memory.md) — Preferences, facts, and vectors
+10. [Research](capabilities/research.md) — Quick search and deep research
+11. [Weather](capabilities/weather.md) — Location, forecast, dashboard
+12. [Focus](capabilities/focus.md) — Focus timer behavior
+13. [Reminders](capabilities/reminders.md) — Schedules and delivery
+14. [Sandbox](capabilities/sandbox.md) — Isolated code execution
 
 ### Part IV — Operations
 
-14. [Setup](operations/setup.md) — Local development
-15. [Deploy](operations/deploy.md) — Workers, bindings, and containers
-16. [Auth](operations/auth.md) — Device shared secret
-17. [Testing](operations/testing.md) — How this repo verifies behavior
+15. [Setup](operations/setup.md) — Local development
+16. [Deploy](operations/deploy.md) — Workers, bindings, and containers
+17. [Auth](operations/auth.md) — Device shared secret
+18. [Testing](operations/testing.md) — How this repo verifies behavior
 
 ### Part V — Reference
 
-18. [Mapping](reference/mapping.md) — Handbook topics to `src/` folders
+19. [Mapping](reference/mapping.md) — Handbook topics to `src/` folders

@@ -18,7 +18,7 @@ Device and server speak a Zod-validated JSON protocol defined in `src/protocol/s
 
 | Type | Role |
 |------|------|
-| `ui_state` | Mode, speech mode, caption, focus remaining |
+| `ui_state` | Mode, speech mode, caption, focus remaining, face emotion, accent color |
 | `confirm_request` | Ask the user to approve a tool side effect |
 | `tts_start` | Announce upcoming speech audio |
 | `error` | Structured failure |
@@ -29,7 +29,8 @@ Device and server speak a Zod-validated JSON protocol defined in `src/protocol/s
 ## Design notes
 
 - Discriminated unions keep parsing strict on both sides
-- Optional fields stay optional — the device should tolerate missing captions or focus seconds
+- Optional fields stay optional — the device should tolerate missing captions, focus seconds, emotion, or accent color
+- `ui_state.emotion` and `ui_state.accentColor` tell the device what to render on the face; see [Face](face.md) for the full mapping
 - Firmware details beyond this wire contract are out of scope for this handbook
 
 ## Navigation

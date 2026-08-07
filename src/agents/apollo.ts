@@ -34,6 +34,7 @@ import {
   type MemorySqlExecutor,
 } from '@/memory/store';
 import { cycleDeskSpeechMode, resolveDeskSpeechMode } from '@/persona/catalog';
+import { resolveDeskFaceEmotion } from '@/persona/face';
 import { APOLLO_TTS_VOICE } from '@/persona/soul';
 import {
   encodeServerToDeviceMessage,
@@ -395,6 +396,8 @@ export class Apollo extends Agent<Env, ApolloState> {
         speechMode: this.state.speechMode,
         caption: this.state.caption ?? undefined,
         focusRemainingSec,
+        emotion: resolveDeskFaceEmotion(this.state.uiState),
+        accentColor: resolveDeskSpeechMode(this.state.speechMode).accentColor,
       }),
     );
   }

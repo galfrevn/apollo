@@ -14,15 +14,15 @@ Modes are catalogued in `src/persona/catalog.ts`:
 |----|--------|
 | `default` | Clear and useful, short spoken answers |
 | `nerd` | Precise / technical |
-| `gracioso` | Playful Argentine tone, never mean |
+| `playful` | Playful Argentine tone, never mean |
 | `warm` | Warmer check-ins, still practical |
 
 Gestures on the device can cycle modes; the current mode is echoed in every `ui_state`.
 
 ## Why it matters on ESP32
 
-Speech mode is a first-class desk control, not a settings-page afterthought. The user should feel the change immediately in the next reply.
+Speech mode is a first-class desk control, not a settings-page afterthought. The user should feel the change immediately in the next reply. Each mode's `accentColor` also drives the on-device face — see [Face](face.md).
 
 ## Navigation
 
-Prev: [Voice](voice.md) · Next: [Tools](../capabilities/tools.md)
+Prev: [Voice](voice.md) · Next: [Face](face.md)

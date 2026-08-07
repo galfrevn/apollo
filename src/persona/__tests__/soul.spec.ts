@@ -20,9 +20,9 @@ describe('apollo soul prompt', () => {
     expect(buildApolloSoulPrompt('nerd')).toContain('técnico');
   });
 
-  it('includes gracioso slang guidance', () => {
-    const soulPrompt = buildApolloSoulPrompt('gracioso');
-    expect(soulPrompt).toContain('Modo gracioso');
+  it('includes playful slang guidance', () => {
+    const soulPrompt = buildApolloSoulPrompt('playful');
+    expect(soulPrompt).toContain('Modo playful');
     expect(soulPrompt).toContain('boludo');
     expect(soulPrompt).toContain('nunca humilles');
   });

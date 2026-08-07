@@ -10,6 +10,7 @@ Thin map from handbook topics to code folders. Prefer the narrative chapters for
 | Protocol | `src/protocol/` |
 | Voice (STT/LLM/TTS) | `src/voice/` |
 | Persona / speech modes | `src/persona/` |
+| Face (emotion, accent color) | `src/persona/face.ts` |
 | Tools | `src/tools/` |
 | Memory | `src/memory/` |
 | Search / research pipeline | `src/search/`, `src/tools/research.ts`, `src/tools/web.ts` |

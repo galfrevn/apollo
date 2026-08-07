@@ -22,4 +22,4 @@ On a desk device, tools should be obvious in speech (“reminder set for six”)
 
 ## Navigation
 
-Prev: [Persona](../runtime/persona.md) · Next: [Memory](memory.md)
+Prev: [Face](../runtime/face.md) · Next: [Memory](memory.md)

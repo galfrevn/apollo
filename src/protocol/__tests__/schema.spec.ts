@@ -35,6 +35,21 @@ describe('protocol schema', () => {
     });
   });
 
+  it('encodes ui_state with face emotion and accent color', () => {
+    const raw = encodeServerToDeviceMessage({
+      type: 'ui_state',
+      state: 'speaking',
+      speechMode: 'warm',
+      emotion: 'talking',
+      accentColor: '#B56B7A',
+    });
+    expect(JSON.parse(raw)).toMatchObject({
+      type: 'ui_state',
+      emotion: 'talking',
+      accentColor: '#B56B7A',
+    });
+  });
+
   it('encodes dashboard with clock and weather', () => {
     const raw = encodeServerToDeviceMessage({
       type: 'dashboard',

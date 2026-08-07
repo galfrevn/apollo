@@ -7,6 +7,8 @@ import { buildTtsObjectKey } from '@/media/bucket';
 import { buildSessionSystemPrompt } from '@/memory/session';
 import type { MemorySqlExecutor } from '@/memory/store';
 import { recallSemanticMemoryContent } from '@/memory/vector';
+import { resolveDeskSpeechMode } from '@/persona/catalog';
+import { resolveDeskFaceEmotion } from '@/persona/face';
 import { encodeServerToDeviceMessage } from '@/protocol/schema';
 import { cacheTtsInMediaBucket } from '@/queues/consume';
 import type { DeskUiMachine } from '@/session/machine';
@@ -101,6 +103,8 @@ export async function executeApolloTurn(
           state: 'thinking',
           speechMode: liveState.speechMode,
           caption,
+          emotion: resolveDeskFaceEmotion('thinking'),
+          accentColor: resolveDeskSpeechMode(liveState.speechMode).accentColor,
           ...(liveState.focusEndsAt !== null
             ? {
                 focusRemainingSec: Math.max(

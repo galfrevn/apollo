@@ -12,6 +12,17 @@ export const deskUiStateSchema = z.enum([
 
 export type DeskUiStateName = z.infer<typeof deskUiStateSchema>;
 
+export const deskFaceEmotionSchema = z.enum([
+  'neutral',
+  'curious',
+  'focused',
+  'questioning',
+  'talking',
+  'calm',
+]);
+
+export type DeskFaceEmotionName = z.infer<typeof deskFaceEmotionSchema>;
+
 export const deviceGestureSchema = z.enum([
   'tap',
   'double_tap',
@@ -67,6 +78,8 @@ export const serverToDeviceMessageSchema = z.discriminatedUnion('type', [
     speechMode: z.string().min(1),
     caption: z.string().optional(),
     focusRemainingSec: z.number().int().nonnegative().optional(),
+    emotion: deskFaceEmotionSchema.optional(),
+    accentColor: z.string().optional(),
   }),
   z.object({
     type: z.literal('confirm_request'),

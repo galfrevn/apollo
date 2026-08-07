@@ -18,10 +18,14 @@ describe('speech mode catalog', () => {
     expect(migrateLegacySpeechModeId('nope')).toBe('default');
   });
 
-  it('cycles default → nerd → gracioso → warm → default', () => {
+  it('migrates legacy gracioso to playful', () => {
+    expect(migrateLegacySpeechModeId('gracioso')).toBe('playful');
+  });
+
+  it('cycles default → nerd → playful → warm → default', () => {
     expect(cycleDeskSpeechMode('default', 1).id).toBe('nerd');
-    expect(cycleDeskSpeechMode('nerd', 1).id).toBe('gracioso');
-    expect(cycleDeskSpeechMode('gracioso', 1).id).toBe('warm');
+    expect(cycleDeskSpeechMode('nerd', 1).id).toBe('playful');
+    expect(cycleDeskSpeechMode('playful', 1).id).toBe('warm');
     expect(cycleDeskSpeechMode('warm', 1).id).toBe('default');
     expect(cycleDeskSpeechMode('default', -1).id).toBe('warm');
   });
