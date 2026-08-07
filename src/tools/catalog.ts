@@ -10,7 +10,9 @@ import { buildToolDefinitionMap } from '@/tools/router';
 import { startResearchTool } from '@/tools/research';
 import { translateTool } from '@/tools/translate';
 import { webSearchTool } from '@/tools/web';
-import { sandboxExecTool, sandboxRunCodeTool } from '@/tools/sandbox';
+// Sandbox tools disabled: Cloudflare Containers require the Workers Paid
+// plan. Re-enable this import and the two entries below once upgraded.
+// import { sandboxExecTool, sandboxRunCodeTool } from '@/tools/sandbox';
 import type { ToolDefinition } from '@/tools/types';
 import { weatherNowTool } from '@/tools/weather';
 
@@ -28,8 +30,8 @@ export function listBuiltinToolDefinitionList(): readonly ToolDefinition[] {
     setReminderTool,
     listRemindersTool,
     cancelReminderTool,
-    sandboxRunCodeTool,
-    sandboxExecTool,
+    // sandboxRunCodeTool,
+    // sandboxExecTool,
   ];
 }
 

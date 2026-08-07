@@ -14,24 +14,26 @@
     "OPENROUTER_TTS_MODEL": "hexgrad/kokoro-82m",
     "OPENROUTER_EMBEDDING_MODEL": "openai/text-embedding-3-small",
   },
-  "containers": [
-    {
-      "class_name": "Sandbox",
-      "image": "./Dockerfile",
-      "instance_type": "lite",
-      "max_instances": 1,
-    },
-  ],
+  // "containers" disabled: requires the Workers Paid plan. Re-enable this
+  // block (and the "Sandbox" durable_objects binding below) once upgraded.
+  // "containers": [
+  //   {
+  //     "class_name": "Sandbox",
+  //     "image": "./Dockerfile",
+  //     "instance_type": "lite",
+  //     "max_instances": 1,
+  //   },
+  // ],
   "durable_objects": {
     "bindings": [
       {
         "name": "Apollo",
         "class_name": "Apollo",
       },
-      {
-        "name": "Sandbox",
-        "class_name": "Sandbox",
-      },
+      // {
+      //   "name": "Sandbox",
+      //   "class_name": "Sandbox",
+      // },
     ],
   },
   "migrations": [
