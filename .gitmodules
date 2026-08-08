@@ -1,0 +1,3 @@
+[submodule "firmware/apollo-firmware"]
+	path = firmware/apollo-firmware
+	url = https://github.com/galfrevn/apollo-firmware.git
