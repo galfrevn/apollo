@@ -1,13 +1,16 @@
 import { resolveDeskSpeechMode } from '@/persona/catalog';
 
-// Kokoro encodes the language in the voice name: the leading letter picks the
-// phonemiser, so 'af_' (american english female) read Spanish text with an
-// English accent. 'e' is Spanish — 'em_alex' is the male counterpart.
-export const APOLLO_TTS_VOICE = 'ef_dora';
+// ElevenLabs voice id. eleven_multilingual_v2 takes no language_code, so the
+// Rioplatense accent has to live in the voice itself: pick one from the Voice
+// Library (Spanish / Argentina, e.g. Malena or Tomás), add it to My Voices,
+// and paste its id here.
+export const APOLLO_TTS_VOICE = 'ByVRQtaK1WDOvTmP1PKO';
 
 const apolloIdentityPrompt =
   'Sos Apollo, asistente de escritorio en español rioplatense. Actuá; no divagues. ' +
-  'Las respuestas son para voz: naturales, habladas. Pedí confirmación solo si el sistema ya la exige.';
+  'Las respuestas son para voz: naturales, habladas, texto plano. ' +
+  'Nada de markdown (asteriscos, listas con guiones, títulos) ni emojis: el dispositivo lo lee literal. ' +
+  'Pedí confirmación solo si el sistema ya la exige.';
 
 const apolloOperatingBasePrompt =
   'Usá web_search para hechos rápidos; start_research para investigación profunda multi-fuente; recall_memory para buscar en memoria; translate para traducir. ' +

@@ -11,7 +11,7 @@
   "vars": {
     "OPENROUTER_MODEL": "deepseek/deepseek-v4-flash-0731",
     "OPENROUTER_STT_MODEL": "openai/whisper-large-v3",
-    "OPENROUTER_TTS_MODEL": "hexgrad/kokoro-82m",
+    "ELEVENLABS_TTS_MODEL": "eleven_multilingual_v2",
     "OPENROUTER_EMBEDDING_MODEL": "openai/text-embedding-3-small",
   },
   // "containers" disabled: requires the Workers Paid plan. Re-enable this
