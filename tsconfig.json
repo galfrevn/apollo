@@ -2,6 +2,7 @@
   "extends": ["agents/tsconfig"],
   "compilerOptions": {
     "types": ["bun"],
+    "lib": ["es2023"],
     "paths": {
       "@/*": ["./src/*"]
     },

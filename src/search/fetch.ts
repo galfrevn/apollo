@@ -31,7 +31,7 @@ export async function fetchPageText(input: {
       arrayBuffer.byteLength > maxBytes
         ? arrayBuffer.slice(0, maxBytes)
         : arrayBuffer;
-    const decoder = new TextDecoder('utf-8', { fatal: false });
+    const decoder = new TextDecoder('utf-8', { fatal: false, ignoreBOM: false });
     const rawBody = decoder.decode(truncatedBuffer);
     const contentType = response.headers.get('content-type') ?? '';
     const plainText =

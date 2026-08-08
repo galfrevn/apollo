@@ -94,7 +94,7 @@ export async function executeApolloTurn(
             toolCallList: [],
           };
         },
-        tts: async (text) => new TextEncoder().encode(text).buffer,
+        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
       }
     : {
         stt: async (audioBuffer) =>

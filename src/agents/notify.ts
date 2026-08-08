@@ -115,7 +115,7 @@ async function announceNotificationWithTts(input: {
     extractNotificationSpokenText(input.notification),
   );
   const ttsAudio = input.isMockVoice
-    ? new TextEncoder().encode(spokenText).buffer
+    ? (new TextEncoder().encode(spokenText).buffer as ArrayBuffer)
     : await synthesizeSpeechWithElevenLabs({
         text: spokenText,
         voiceId: input.ttsVoiceId,

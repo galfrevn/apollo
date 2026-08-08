@@ -70,7 +70,7 @@ describe('runDeskTurn', () => {
             toolCallList: [],
           };
         },
-        tts: async (text) => new TextEncoder().encode(text).buffer,
+        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
       },
     });
 
@@ -153,7 +153,7 @@ describe('runDeskTurn', () => {
           }
           return { text: 'Hay 18 grados.', toolCallList: [] };
         },
-        tts: async (text) => new TextEncoder().encode(text).buffer,
+        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
       },
     });
     expect(captionList[0]).toBe('Pensando…');
@@ -196,7 +196,7 @@ describe('runDeskTurn', () => {
             toolCallList: [],
           };
         },
-        tts: async (text) => new TextEncoder().encode(text).buffer,
+        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
       },
     });
     expect(callCount).toBe(2);
@@ -222,7 +222,7 @@ describe('runDeskTurn', () => {
         llm: async () => ({ text: longReply, toolCallList: [] }),
         tts: async (text) => {
           synthesizedTextList.push(text);
-          return new TextEncoder().encode(text).buffer;
+          return new TextEncoder().encode(text).buffer as ArrayBuffer;
         },
       },
     });
