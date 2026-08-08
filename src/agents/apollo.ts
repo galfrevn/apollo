@@ -55,6 +55,10 @@ import {
   WEATHER_LOCATION_PREFERENCE_KEY,
 } from '@/weather/location';
 
+// A quarter second of 16 kHz mono 16-bit PCM. Below this there is no word to
+// transcribe, only the tail of a press that ended too early.
+const MINIMUM_TURN_AUDIO_BYTE_LENGTH = 8000;
+
 function mapUnknownScheduleListToAgentScheduleLikeList(
   scheduleList: readonly {
     readonly id: string;
@@ -89,7 +93,6 @@ export type DeskUiState =
 export type ApolloState = {
   readonly uiState: DeskUiState;
   readonly speechMode: string;
-  readonly isMuted: boolean;
   readonly focusEndsAt: number | null;
   readonly caption: string | null;
   readonly pendingConfirmId: string | null;
@@ -100,7 +103,6 @@ export class Apollo extends Agent<Env, ApolloState> {
   initialState: ApolloState = {
     uiState: 'idle',
     speechMode: 'default',
-    isMuted: false,
     focusEndsAt: null,
     caption: null,
     pendingConfirmId: null,
@@ -111,6 +113,7 @@ export class Apollo extends Agent<Env, ApolloState> {
   #audioChunkList: ArrayBuffer[] = [];
   #pendingConfirmation: PendingToolConfirmation | undefined;
   #didLoadPreferences = false;
+  #isSpeechAborted = false;
   #session: Session | undefined;
   #lastKnownWeatherSnapshot: DeskWeatherSnapshot | undefined;
 
@@ -191,6 +194,12 @@ export class Apollo extends Agent<Env, ApolloState> {
 
   async onConnect(connection: Connection): Promise<void> {
     await this.#ensurePreferencesLoaded();
+    // A caption describes the turn that produced it, not the session. Left in
+    // durable state, a failure message greets the user on every reconnect long
+    // after the turn that failed.
+    if (this.state.caption !== null) {
+      this.setState({ ...this.state, caption: null });
+    }
     this.#pushUiState(connection);
     await this.#pushDashboard(connection);
     await this.#flushPendingDeviceMessages(connection);
@@ -198,9 +207,6 @@ export class Apollo extends Agent<Env, ApolloState> {
 
   async onMessage(connection: Connection, message: WSMessage): Promise<void> {
     if (typeof message !== 'string') {
-      if (this.state.isMuted) {
-        return;
-      }
       this.#audioChunkList.push(message as ArrayBuffer);
       return;
     }
@@ -235,6 +241,9 @@ export class Apollo extends Agent<Env, ApolloState> {
       case 'wake': {
         this.#audioChunkList = [];
         this.#applyUiEvent('START_LISTEN');
+        // Whatever the previous turn left on screen is stale the moment a new
+        // one starts, including an error from a turn the user has moved on from.
+        this.setState({ ...this.state, caption: null });
         this.#pushUiState(connection);
         break;
       }
@@ -245,6 +254,12 @@ export class Apollo extends Agent<Env, ApolloState> {
       }
       case 'text_input': {
         await this.#runTurnFromText(connection, deviceMessage.text);
+        break;
+      }
+      case 'abort': {
+        // Only a flag: the paced TTS loop is awaiting between chunks, so it
+        // picks this up on its next turn and stops sending.
+        this.#isSpeechAborted = true;
         break;
       }
       case 'confirm': {
@@ -275,7 +290,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     this.setState({
       ...this.state,
       speechMode: speechMode.id,
-      caption: `Modo: ${speechMode.name}`,
+      caption: null,
     });
     return this.state;
   }
@@ -301,7 +316,6 @@ export class Apollo extends Agent<Env, ApolloState> {
       notification: { type: 'reminder', message: parsedPayload.message },
       connectionList: [...this.getConnections()],
       sqlExecutor: this.#sqlExecutor(),
-      isMuted: this.state.isMuted,
       focusState: this.#currentFocusState(),
       environment: this.env,
       deviceId: this.name ?? 'default',
@@ -324,7 +338,6 @@ export class Apollo extends Agent<Env, ApolloState> {
       },
       connectionList: [...this.getConnections()],
       sqlExecutor: this.#sqlExecutor(),
-      isMuted: this.state.isMuted,
       focusState: this.#currentFocusState(),
       environment: this.env,
       deviceId: this.name ?? 'default',
@@ -451,13 +464,9 @@ export class Apollo extends Agent<Env, ApolloState> {
       return;
     }
     if (gesture === 'double_tap') {
-      const nextMuted = !this.state.isMuted;
-      this.setState({
-        ...this.state,
-        isMuted: nextMuted,
-        caption: nextMuted ? 'Mic mute' : 'Mic activo',
-      });
-      this.#pushUiState(connection);
+      // Muting used to live here. With press-and-hold the microphone is only
+      // ever open while a finger is down, so there is nothing to mute, and an
+      // accidental double tap silently swallowing every turn was a trap.
       return;
     }
     const direction = gesture === 'swipe_right' ? 1 : -1;
@@ -466,7 +475,9 @@ export class Apollo extends Agent<Env, ApolloState> {
     this.setState({
       ...this.state,
       speechMode: nextSpeechMode.id,
-      caption: `Modo: ${nextSpeechMode.name}`,
+      // No caption on purpose: the mode change is announced by the accent ring
+      // color (and the switch sound), not by a text label.
+      caption: null,
     });
     this.#pushUiState(connection);
   }
@@ -479,6 +490,22 @@ export class Apollo extends Agent<Env, ApolloState> {
   async #runTurnFromAudio(connection: Connection): Promise<void> {
     const audioBuffer = concatenateArrayBufferList(this.#audioChunkList);
     this.#audioChunkList = [];
+
+
+    // A press that ends before the audio channel finishes opening leaves nothing
+    // recorded. Sending that to the transcriber earns a 400 and shows the user a
+    // failure for something that was never their mistake.
+    if (audioBuffer.byteLength < MINIMUM_TURN_AUDIO_BYTE_LENGTH) {
+      this.#applyUiEvent('CANCEL');
+      this.setState({
+        ...this.state,
+        uiState: this.#uiMachine.state,
+        caption: 'No llegué a escucharte, mantené apretado un momento más.',
+      });
+      this.#pushUiState(connection);
+      return;
+    }
+
     await this.#executeTurn(connection, { audioBuffer });
   }
 
@@ -503,6 +530,8 @@ export class Apollo extends Agent<Env, ApolloState> {
     },
   ): Promise<void> {
     const deviceId = this.name ?? 'default';
+    // A new turn clears any interruption left over from the previous one.
+    this.#isSpeechAborted = false;
     const deskToolEffects = createDeskToolEffects({
       sqlExecutor: this.#sqlExecutor(),
       environment: this.env,
@@ -572,6 +601,7 @@ export class Apollo extends Agent<Env, ApolloState> {
           session: this.session,
           deviceId,
           effects: deskToolEffects,
+          isSpeechAborted: () => this.#isSpeechAborted,
         },
         turnPart,
       );

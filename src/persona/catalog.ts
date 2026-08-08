@@ -13,14 +13,14 @@ const deskSpeechModeCatalog: readonly DeskSpeechMode[] = [
     name: 'default',
     promptOverride:
       'Modo default: claro y útil; 1–3 oraciones habladas; sin payasadas ni jerga técnica de más.',
-    accentColor: '#3D8B7A',
+    accentColor: '#FFFFFF',
   },
   {
     id: 'nerd',
     name: 'nerd',
     promptOverride:
       'Modo nerd: preciso y técnico; asumí contexto de código/sistemas; podés alargar un poco si hace falta exactitud; jargon OK.',
-    accentColor: '#4B6CB7',
+    accentColor: '#F5C518',
   },
   {
     id: 'playful',
