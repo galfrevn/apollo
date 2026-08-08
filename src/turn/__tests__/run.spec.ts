@@ -203,4 +203,41 @@ describe('runDeskTurn', () => {
     expect(output.spokenText).toContain('18');
     expect(output.toolResultList[0]?.summary).toContain('18');
   });
+
+  it('synthesizes only the first segment of a long reply and returns the rest as text', async () => {
+    const sentence = 'Esta es una respuesta larga que sigue y sigue con más detalle.';
+    const longReply = Array.from({ length: 12 }, () => sentence).join(' ');
+    const synthesizedTextList: string[] = [];
+
+    const output = await runDeskTurn({
+      text: 'contame todo',
+      speechMode: 'default',
+      focusState: createInactiveDeskFocusState(),
+      sqlExecutor: createInMemorySqlExecutor(),
+      environment: fakeEnvironment,
+      toolDefinitionMap: buildToolDefinitionMap([]),
+      nowMilliseconds: 10,
+      adapters: {
+        stt: async () => '',
+        llm: async () => ({ text: longReply, toolCallList: [] }),
+        tts: async (text) => {
+          synthesizedTextList.push(text);
+          return new TextEncoder().encode(text).buffer;
+        },
+      },
+    });
+
+    // Only the first segment renders inside the turn; the caller speaks the
+    // rest while the device is already playing.
+    expect(synthesizedTextList).toHaveLength(1);
+    expect(longReply.startsWith(synthesizedTextList[0])).toBe(true);
+    expect(output.ttsFollowUpSegmentTextList?.length).toBeGreaterThan(0);
+    const reassembledText = [
+      synthesizedTextList[0],
+      ...(output.ttsFollowUpSegmentTextList ?? []),
+    ]
+      .join(' ')
+      .replaceAll(/\s+/g, ' ');
+    expect(reassembledText).toBe(longReply.replaceAll(/\s+/g, ' '));
+  });
 });

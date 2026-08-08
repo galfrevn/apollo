@@ -11,6 +11,8 @@ import type {
 } from '@/tools/types';
 import { mapToolNameToThinkingCaption } from '@/turn/caption';
 import { buildOpenRouterSystemPrompt, type OpenRouterChatMessage } from '@/voice/llm';
+import { sanitizeTextForSpeech } from '@/voice/sanitize';
+import { splitTextIntoSpeechSegmentList } from '@/voice/segment';
 
 const DEFAULT_MAX_TOOL_ROUND_COUNT = 3;
 
@@ -58,6 +60,9 @@ export type TurnOutput = {
   readonly uiEventList: readonly DeskUiEventName[];
   readonly spokenText: string;
   readonly ttsAudio?: ArrayBuffer;
+  // Segments after the first, still as text: the caller synthesizes them while
+  // the device is already playing ttsAudio, hiding synthesis latency.
+  readonly ttsFollowUpSegmentTextList?: readonly string[];
   readonly pendingConfirmation?: PendingToolConfirmation;
   readonly speechMode: string;
   readonly focusState: DeskFocusState;
@@ -241,15 +246,26 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
   if (spokenText.length === 0) {
     spokenText = toolResultList.map((result) => result.summary).join(' ');
   }
+  spokenText = sanitizeTextForSpeech(spokenText);
+
+  // Only the first sentence-sized segment is synthesized here, so the reply
+  // starts playing without waiting for the whole utterance to render; the rest
+  // goes back as text for the caller to synthesize during playback.
+  const [firstSegmentText, ...ttsFollowUpSegmentTextList] =
+    splitTextIntoSpeechSegmentList(spokenText);
 
   uiEventList.push('START_SPEAK');
-  const ttsAudio = await input.adapters.tts(spokenText, APOLLO_TTS_VOICE);
+  const ttsAudio = await input.adapters.tts(
+    firstSegmentText ?? spokenText,
+    APOLLO_TTS_VOICE,
+  );
   uiEventList.push('SPEAK_DONE');
 
   return {
     uiEventList,
     spokenText,
     ttsAudio,
+    ttsFollowUpSegmentTextList,
     speechMode: input.speechMode,
     focusState: input.focusState,
     memoryContentList,

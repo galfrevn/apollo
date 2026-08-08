@@ -42,7 +42,14 @@ export async function transcribeAudioWithOpenRouter(input: {
   );
 
   if (!response.ok) {
-    throw new Error(`STT falló con status ${response.status}`);
+    // The status alone says nothing actionable: the reason a transcription is
+    // rejected (audio too long, unsupported format, bad model) only ever comes
+    // back in the body.
+    const failureDetail = await response.text().catch(() => '');
+    const audioKilobytes = Math.round(input.audioBuffer.byteLength / 1024);
+    throw new Error(
+      `STT falló con status ${response.status} (${audioKilobytes} kB de audio): ${failureDetail.slice(0, 500)}`,
+    );
   }
 
   const payload = openRouterTranscriptionResponseSchema.parse(await response.json());

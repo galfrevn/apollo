@@ -1,10 +1,7 @@
 import { putMediaObject } from '@/media/bucket';
 import { embedTextWithOpenRouter, upsertMemoryVector } from '@/memory/vector';
 import { parseApolloQueueJob } from '@/queues/jobs';
-import {
-  OPENROUTER_TTS_PCM_CHANNEL_COUNT,
-  OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
-} from '@/voice/speech';
+import { TTS_PCM_CHANNEL_COUNT, TTS_PCM_SAMPLE_RATE_HZ } from '@/voice/elevenlabs';
 import { wrapPcmAsWavBuffer } from '@/voice/wav';
 
 export async function consumeApolloQueueBatch(
@@ -100,8 +97,8 @@ export async function cacheTtsInMediaBucket(
   // object is playable straight out of R2 when debugging a turn.
   const wavBuffer = wrapPcmAsWavBuffer({
     pcmBuffer: input.audioBuffer,
-    sampleRateHz: OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
-    channelCount: OPENROUTER_TTS_PCM_CHANNEL_COUNT,
+    sampleRateHz: TTS_PCM_SAMPLE_RATE_HZ,
+    channelCount: TTS_PCM_CHANNEL_COUNT,
   });
   await putMediaObject(environment.MEDIA, input.objectKey, wavBuffer, {
     contentType: 'audio/wav',

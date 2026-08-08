@@ -1,5 +1,6 @@
 DEVICE_SHARED_SECRET=dev-change-me
 OPENROUTER_API_KEY=
+ELEVENLABS_API_KEY=
 MOCK_VOICE=1
 
 # Remote one-time setup (when you deploy):

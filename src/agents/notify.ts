@@ -12,10 +12,11 @@ import type { MemorySqlExecutor } from '@/memory/store';
 import { encodeServerToDeviceMessage } from '@/protocol/schema';
 import { cacheTtsInMediaBucket } from '@/queues/consume';
 import {
-  OPENROUTER_TTS_PCM_CHANNEL_COUNT,
-  OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
-  synthesizeSpeechWithOpenRouter,
-} from '@/voice/speech';
+  synthesizeSpeechWithElevenLabs,
+  TTS_PCM_CHANNEL_COUNT,
+  TTS_PCM_SAMPLE_RATE_HZ,
+} from '@/voice/elevenlabs';
+import { sanitizeTextForSpeech } from '@/voice/sanitize';
 import { streamAudioChunksAtPlaybackPace } from '@/voice/stream';
 
 export type DeskDeviceNotification =
@@ -75,7 +76,6 @@ export async function deliverDeskDeviceNotification(input: {
   readonly notification: DeskDeviceNotification;
   readonly connectionList: readonly Connection[];
   readonly sqlExecutor: MemorySqlExecutor;
-  readonly isMuted: boolean;
   readonly focusState: DeskFocusState;
   readonly environment: Env;
   readonly deviceId: string;
@@ -95,8 +95,7 @@ export async function deliverDeskDeviceNotification(input: {
     connection.send(encodedMessage);
   }
 
-  const shouldAnnounce =
-    !input.isMuted && shouldAnnounceDuringFocus(input.focusState, 'normal');
+  const shouldAnnounce = shouldAnnounceDuringFocus(input.focusState, 'normal');
   if (!shouldAnnounce) {
     return;
   }
@@ -112,15 +111,16 @@ async function announceNotificationWithTts(input: {
   readonly ttsVoiceId: string;
   readonly isMockVoice: boolean;
 }): Promise<void> {
-  const spokenText = extractNotificationSpokenText(input.notification);
+  const spokenText = sanitizeTextForSpeech(
+    extractNotificationSpokenText(input.notification),
+  );
   const ttsAudio = input.isMockVoice
     ? new TextEncoder().encode(spokenText).buffer
-    : await synthesizeSpeechWithOpenRouter({
+    : await synthesizeSpeechWithElevenLabs({
         text: spokenText,
         voiceId: input.ttsVoiceId,
-        openRouterApiKey: input.environment.OPENROUTER_API_KEY,
-        modelId: input.environment.OPENROUTER_TTS_MODEL,
-        responseFormat: 'pcm',
+        elevenLabsApiKey: input.environment.ELEVENLABS_API_KEY,
+        modelId: input.environment.ELEVENLABS_TTS_MODEL,
       });
 
   if (!input.isMockVoice) {
@@ -134,8 +134,8 @@ async function announceNotificationWithTts(input: {
     type: 'tts_start',
     format: 'pcm',
     bytes: ttsAudio.byteLength,
-    sampleRate: OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
-    channels: OPENROUTER_TTS_PCM_CHANNEL_COUNT,
+    sampleRate: TTS_PCM_SAMPLE_RATE_HZ,
+    channels: TTS_PCM_CHANNEL_COUNT,
   });
   for (const connection of input.connectionList) {
     connection.send(ttsStartMessage);
@@ -145,8 +145,8 @@ async function announceNotificationWithTts(input: {
   // the same announcement at the same time.
   await streamAudioChunksAtPlaybackPace({
     audioBuffer: ttsAudio,
-    sampleRateHz: OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
-    channelCount: OPENROUTER_TTS_PCM_CHANNEL_COUNT,
+    sampleRateHz: TTS_PCM_SAMPLE_RATE_HZ,
+    channelCount: TTS_PCM_CHANNEL_COUNT,
     send: (audioChunk) => {
       for (const connection of input.connectionList) {
         connection.send(audioChunk);

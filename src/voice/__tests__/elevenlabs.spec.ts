@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { synthesizeSpeechWithOpenRouter } from '@/voice/speech';
+import { synthesizeSpeechWithElevenLabs } from '@/voice/elevenlabs';
 
 type CapturedFetchCall = {
   readonly url: string;
@@ -36,63 +36,60 @@ function buildArrayBuffer(byteList: readonly number[]): ArrayBuffer {
   return arrayBuffer;
 }
 
-describe('synthesizeSpeechWithOpenRouter', () => {
-  it('posts text, voice, and model, defaulting to mp3', async () => {
+describe('synthesizeSpeechWithElevenLabs', () => {
+  it('posts text and model to the voice endpoint, defaulting to pcm_24000', async () => {
     const { fetchImplementation, callList } = createCapturingFetchMock(
       buildArrayBuffer([1, 2, 3]),
     );
 
-    const audioBuffer = await synthesizeSpeechWithOpenRouter({
+    const audioBuffer = await synthesizeSpeechWithElevenLabs({
       text: 'hola mundo',
-      voiceId: 'af_alloy',
-      openRouterApiKey: 'key-123',
-      modelId: 'hexgrad/kokoro-82m',
+      voiceId: 'voz-rioplatense',
+      elevenLabsApiKey: 'key-123',
+      modelId: 'eleven_multilingual_v2',
       fetchImplementation,
     });
 
     expect(new Uint8Array(audioBuffer)).toEqual(new Uint8Array([1, 2, 3]));
-    expect(callList[0].url).toBe('https://openrouter.ai/api/v1/audio/speech');
-    expect(callList[0].init.headers).toMatchObject({ Authorization: 'Bearer key-123' });
+    expect(callList[0].url).toBe(
+      'https://api.elevenlabs.io/v1/text-to-speech/voz-rioplatense?output_format=pcm_24000',
+    );
+    expect(callList[0].init.headers).toMatchObject({ 'xi-api-key': 'key-123' });
     const requestBody = JSON.parse(callList[0].init.body as string) as Record<
       string,
       unknown
     >;
-    expect(requestBody).toMatchObject({
-      model: 'hexgrad/kokoro-82m',
-      input: 'hola mundo',
-      voice: 'af_alloy',
-      response_format: 'mp3',
+    expect(requestBody).toEqual({
+      text: 'hola mundo',
+      model_id: 'eleven_multilingual_v2',
     });
   });
 
-  it('honors an explicit response format', async () => {
+  it('honors an explicit output format', async () => {
     const { fetchImplementation, callList } = createCapturingFetchMock(
       buildArrayBuffer([]),
     );
 
-    await synthesizeSpeechWithOpenRouter({
+    await synthesizeSpeechWithElevenLabs({
       text: 'hola',
-      voiceId: 'af_alloy',
-      openRouterApiKey: 'key-123',
-      modelId: 'hexgrad/kokoro-82m',
-      responseFormat: 'pcm',
+      voiceId: 'voz-rioplatense',
+      elevenLabsApiKey: 'key-123',
+      modelId: 'eleven_multilingual_v2',
+      outputFormat: 'mp3_44100_128',
       fetchImplementation,
     });
 
-    const requestBody = JSON.parse(callList[0].init.body as string) as {
-      response_format: string;
-    };
-    expect(requestBody.response_format).toBe('pcm');
+    expect(callList[0].url).toContain('output_format=mp3_44100_128');
   });
 
   it('throws on a non-ok response', async () => {
     const { fetchImplementation } = createCapturingFetchMock(buildArrayBuffer([]), 500);
     await expect(
-      synthesizeSpeechWithOpenRouter({
+      synthesizeSpeechWithElevenLabs({
         text: 'hola',
-        voiceId: 'af_alloy',
-        openRouterApiKey: 'key-123',
-        modelId: 'hexgrad/kokoro-82m',
+        voiceId: 'voz-rioplatense',
+        elevenLabsApiKey: 'key-123',
+        modelId: 'eleven_multilingual_v2',
         fetchImplementation,
       }),
     ).rejects.toThrow('TTS falló con status 500');

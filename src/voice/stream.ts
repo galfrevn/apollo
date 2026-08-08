@@ -9,6 +9,14 @@ export const TTS_STREAM_PREBUFFER_MILLISECONDS = 2000;
 // Stay slightly ahead of real time so the device never starves mid-sentence.
 const TTS_STREAM_PACE_FACTOR = 0.85;
 
+// Ceiling on how much unplayed audio the device is asked to hold. The firmware
+// queues ~6.8 s of frames (40 packets × ~170 ms) and silently drops overflow;
+// at 0.85 pace the backlog grows ~150 ms per spoken second past the prebuffer,
+// so replies longer than ~30 s used to cross the limit and clip near the end.
+// Modeled backlog only counts waited time (not send/network time), so the real
+// backlog is at or below this.
+export const TTS_STREAM_MAX_BACKLOG_MILLISECONDS = 4000;
+
 export function computeChunkPlaybackMilliseconds(input: {
   readonly chunkByteLength: number;
   readonly sampleRateHz: number;
@@ -38,6 +46,9 @@ export async function streamAudioChunksAtPlaybackPace(input: {
   readonly chunkByteLength?: number;
   readonly prebufferMilliseconds?: number;
   readonly wait?: (milliseconds: number) => Promise<void>;
+  // Checked between chunks: pacing means the run is still in flight long after
+  // it started, so an interruption has to be able to cut it short.
+  readonly shouldStop?: () => boolean;
 }): Promise<number> {
   const chunkByteLength = input.chunkByteLength ?? TTS_STREAM_CHUNK_BYTE_LENGTH;
   const prebufferMilliseconds =
@@ -46,23 +57,45 @@ export async function streamAudioChunksAtPlaybackPace(input: {
 
   const chunkList = sliceAudioBufferIntoChunkList(input.audioBuffer, chunkByteLength);
   let unbufferedMilliseconds = prebufferMilliseconds;
+  let deliveredMilliseconds = 0;
+  let waitedMilliseconds = 0;
+  let sentChunkCount = 0;
 
   for (const chunk of chunkList) {
+    if (input.shouldStop?.() === true) {
+      return sentChunkCount;
+    }
     const chunkMilliseconds = computeChunkPlaybackMilliseconds({
       chunkByteLength: chunk.byteLength,
       sampleRateHz: input.sampleRateHz,
       channelCount: input.channelCount,
     });
 
-    // Spend the prebuffer allowance first, then settle into playback pace.
+    // Spend the prebuffer allowance first, then settle into playback pace —
+    // but never let the accumulated lead exceed the backlog ceiling: pacing
+    // slightly fast is open-loop, and on a long clip the excess compounds.
     if (unbufferedMilliseconds > 0) {
       unbufferedMilliseconds -= chunkMilliseconds;
     } else {
-      await wait(chunkMilliseconds * TTS_STREAM_PACE_FACTOR);
+      const backlogAfterSendMilliseconds =
+        deliveredMilliseconds + chunkMilliseconds - waitedMilliseconds;
+      const waitMilliseconds = Math.max(
+        chunkMilliseconds * TTS_STREAM_PACE_FACTOR,
+        backlogAfterSendMilliseconds - TTS_STREAM_MAX_BACKLOG_MILLISECONDS,
+      );
+      await wait(waitMilliseconds);
+      waitedMilliseconds += waitMilliseconds;
+    }
+
+    // Re-checked after the wait: an interruption most often lands while paused.
+    if (input.shouldStop?.() === true) {
+      return sentChunkCount;
     }
 
     input.send(chunk);
+    deliveredMilliseconds += chunkMilliseconds;
+    sentChunkCount += 1;
   }
 
-  return chunkList.length;
+  return sentChunkCount;
 }

@@ -67,6 +67,10 @@ export const deviceToServerMessageSchema = z.discriminatedUnion('type', [
     text: z.string().min(1),
     ts: z.number().int().nonnegative(),
   }),
+  z.object({
+    type: z.literal('abort'),
+    ts: z.number().int().nonnegative(),
+  }),
 ]);
 
 export type DeviceToServerMessage = z.infer<typeof deviceToServerMessageSchema>;
@@ -93,6 +97,9 @@ export const serverToDeviceMessageSchema = z.discriminatedUnion('type', [
     bytes: z.number().int().nonnegative(),
     sampleRate: z.number().int().positive().optional(),
     channels: z.number().int().positive().optional(),
+  }),
+  z.object({
+    type: z.literal('tts_aborted'),
   }),
   z.object({
     type: z.literal('error'),

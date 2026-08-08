@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test';
 import {
   computeChunkPlaybackMilliseconds,
   streamAudioChunksAtPlaybackPace,
+  TTS_STREAM_MAX_BACKLOG_MILLISECONDS,
   TTS_STREAM_PREBUFFER_MILLISECONDS,
 } from '@/voice/stream';
 
@@ -117,6 +118,41 @@ describe('streamAudioChunksAtPlaybackPace', () => {
     expect(totalWaitMilliseconds).toBeGreaterThan(5000);
   });
 
+  it('stops sending as soon as an interruption is signalled', async () => {
+    const sink = createRecordingSink();
+    let sentCount = 0;
+    const send = (chunk: ArrayBuffer): void => {
+      sentCount += 1;
+      sink.send(chunk);
+    };
+
+    const chunkCount = await streamAudioChunksAtPlaybackPace({
+      audioBuffer: buildAudioBuffer(48000 * 20),
+      sampleRateHz: 24000,
+      channelCount: 1,
+      send,
+      wait: sink.wait,
+      shouldStop: () => sentCount >= 3,
+    });
+
+    expect(chunkCount).toBe(3);
+    expect(sink.sentByteLengthList).toHaveLength(3);
+  });
+
+  it('reports how much it sent so an interrupted run is not mistaken for a full one', async () => {
+    const sink = createRecordingSink();
+    const fullRun = await streamAudioChunksAtPlaybackPace({
+      audioBuffer: buildAudioBuffer(8192 * 4),
+      sampleRateHz: 24000,
+      channelCount: 1,
+      send: sink.send,
+      wait: sink.wait,
+      shouldStop: () => false,
+    });
+
+    expect(fullRun).toBe(4);
+  });
+
   it('keeps the device from ever holding more than the prebuffer plus one chunk', async () => {
     const sink = createRecordingSink();
     const sampleRateHz = 24000;
@@ -149,6 +185,47 @@ describe('streamAudioChunksAtPlaybackPace', () => {
 
     // The device buffers ~6.8 s before it starts dropping packets.
     expect(peakBacklogMilliseconds).toBeLessThan(6000);
+    expect(peakBacklogMilliseconds).toBeGreaterThan(
+      TTS_STREAM_PREBUFFER_MILLISECONDS - 500,
+    );
+  });
+
+  it('caps the backlog on a very long reply instead of growing it without bound', async () => {
+    const sink = createRecordingSink();
+    const sampleRateHz = 24000;
+    // Two minutes of audio: at open-loop 0.85 pace the backlog would reach
+    // ~2 s + 0.15 × 118 s ≈ 20 s, far past the device's ~6.8 s queue. An
+    // exact multiple of the chunk size keeps the constant-chunk
+    // reconstruction below faithful.
+    await streamAudioChunksAtPlaybackPace({
+      audioBuffer: buildAudioBuffer(8192 * 700),
+      sampleRateHz,
+      channelCount: 1,
+      send: sink.send,
+      wait: sink.wait,
+    });
+
+    const chunkMilliseconds = computeChunkPlaybackMilliseconds({
+      chunkByteLength: 8192,
+      sampleRateHz,
+      channelCount: 1,
+    });
+    let deliveredMilliseconds = 0;
+    let drainedMilliseconds = 0;
+    let peakBacklogMilliseconds = 0;
+    for (let index = 0; index < sink.sentByteLengthList.length; index += 1) {
+      drainedMilliseconds += sink.waitMillisecondsList[index - 1] ?? 0;
+      deliveredMilliseconds += chunkMilliseconds;
+      peakBacklogMilliseconds = Math.max(
+        peakBacklogMilliseconds,
+        deliveredMilliseconds - drainedMilliseconds,
+      );
+    }
+
+    expect(peakBacklogMilliseconds).toBeLessThanOrEqual(
+      TTS_STREAM_MAX_BACKLOG_MILLISECONDS + 1,
+    );
+    // Still ahead of playback: the cap must not starve the device either.
     expect(peakBacklogMilliseconds).toBeGreaterThan(
       TTS_STREAM_PREBUFFER_MILLISECONDS - 500,
     );

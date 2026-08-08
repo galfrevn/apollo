@@ -1,14 +1,25 @@
 # Voice
 
-Apollo is voice-first. Replies are written to be spoken: short, natural sentences rather than long markdown essays.
+Apollo is voice-first. Replies are written to be spoken: short, natural sentences rather than long markdown essays. Anything headed for TTS also passes through `sanitizeTextForSpeech` (`src/voice/sanitize.ts`) so stray markdown never gets read out loud ("asterisco asterisco…").
 
 ## Pipeline
 
 1. **STT** — device audio is transcribed (OpenRouter Whisper Large V3 by default)
 2. **Reasoning** — the model sees soul + mode prompts, session context, and tool results
-3. **TTS** — the reply is synthesized (Kokoro voice `af_alloy` by default) and streamed to the device
+3. **TTS** — the reply is synthesized by ElevenLabs and streamed to the device as raw 24 kHz s16le mono PCM (`output_format=pcm_24000`, no decoder on the ESP32)
 
-Configuration knobs live in `wrangler.jsonc` vars such as `OPENROUTER_STT_MODEL`, `OPENROUTER_MODEL`, and `OPENROUTER_TTS_MODEL`. Implementation details sit under `src/voice/`.
+Long replies are spoken in sentence-sized segments (`src/voice/segment.ts`, ≤280 chars each): the turn only waits for the first segment, and each following segment is synthesized while the previous one plays. The paced stream (`src/voice/stream.ts`) additionally caps the device backlog at 4 s — the firmware queues ~6.8 s of frames and silently drops overflow, which used to clip the tail of replies longer than ~30 s.
+
+Configuration knobs:
+
+- `ELEVENLABS_API_KEY` — secret (`.dev.vars` locally, `bunx wrangler secret put ELEVENLABS_API_KEY` in prod)
+- `ELEVENLABS_TTS_MODEL` — `wrangler.jsonc` var, default `eleven_multilingual_v2` (best accent fidelity; `eleven_flash_v2_5` is half the credits if quota bites)
+- `APOLLO_TTS_VOICE` — voice id constant in `src/persona/soul.ts`. The model takes no `language_code`, so the Rioplatense accent lives in the voice: pick one from the ElevenLabs Voice Library (Spanish / Argentina), add it to My Voices, paste the id
+- STT/LLM stay on OpenRouter: `OPENROUTER_STT_MODEL`, `OPENROUTER_MODEL`
+
+Quota math (Starter ≈ 30k credits/mo): `eleven_multilingual_v2` burns ~1 credit per character, `eleven_flash_v2_5` ~0.5. A typical spoken reply (~200 chars) is ~200 credits.
+
+Implementation details sit under `src/voice/`.
 
 ## Captions
 
