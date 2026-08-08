@@ -9,5 +9,5 @@ export async function putMediaObject(
 }
 
 export function buildTtsObjectKey(deviceId: string, turnIdentifier: string): string {
-  return `tts/${deviceId}/${turnIdentifier}.mp3`;
+  return `tts/${deviceId}/${turnIdentifier}.wav`;
 }

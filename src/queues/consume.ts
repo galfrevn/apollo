@@ -1,6 +1,11 @@
 import { putMediaObject } from '@/media/bucket';
 import { embedTextWithOpenRouter, upsertMemoryVector } from '@/memory/vector';
 import { parseApolloQueueJob } from '@/queues/jobs';
+import {
+  OPENROUTER_TTS_PCM_CHANNEL_COUNT,
+  OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
+} from '@/voice/speech';
+import { wrapPcmAsWavBuffer } from '@/voice/wav';
 
 export async function consumeApolloQueueBatch(
   batch: MessageBatch<unknown>,
@@ -91,7 +96,14 @@ export async function cacheTtsInMediaBucket(
     readonly audioBuffer: ArrayBuffer;
   },
 ): Promise<void> {
-  await putMediaObject(environment.MEDIA, input.objectKey, input.audioBuffer, {
-    contentType: 'audio/mpeg',
+  // The wire carries headerless PCM; the cached copy gets a RIFF header so the
+  // object is playable straight out of R2 when debugging a turn.
+  const wavBuffer = wrapPcmAsWavBuffer({
+    pcmBuffer: input.audioBuffer,
+    sampleRateHz: OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
+    channelCount: OPENROUTER_TTS_PCM_CHANNEL_COUNT,
+  });
+  await putMediaObject(environment.MEDIA, input.objectKey, wavBuffer, {
+    contentType: 'audio/wav',
   });
 }

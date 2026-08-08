@@ -22,7 +22,12 @@ export async function isDeviceSharedSecretValid(
   presentedSecret: string | null,
   expectedSecret: string,
 ): Promise<boolean> {
-  if (presentedSecret === null || expectedSecret.length === 0) {
+  // `expectedSecret` is typed as a string, but an unset Worker secret arrives
+  // as undefined at runtime: reject the connection instead of throwing a 500.
+  if (typeof expectedSecret !== 'string' || expectedSecret.length === 0) {
+    return false;
+  }
+  if (presentedSecret === null) {
     return false;
   }
   return areByteArraysEqualTimingSafe(

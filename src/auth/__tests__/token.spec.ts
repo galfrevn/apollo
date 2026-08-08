@@ -13,4 +13,11 @@ describe('device token', () => {
     await expect(isDeviceSharedSecretValid('nope', 'secret')).resolves.toBe(false);
     await expect(isDeviceSharedSecretValid(null, 'secret')).resolves.toBe(false);
   });
+
+  it('rejects instead of throwing when the worker secret is unset', async () => {
+    await expect(isDeviceSharedSecretValid('abc', '')).resolves.toBe(false);
+    await expect(
+      isDeviceSharedSecretValid('abc', undefined as unknown as string),
+    ).resolves.toBe(false);
+  });
 });
