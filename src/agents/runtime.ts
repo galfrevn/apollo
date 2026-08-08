@@ -22,7 +22,8 @@ import {
   synthesizeSpeechWithOpenRouter,
 } from '@/voice/speech';
 import { transcribeAudioWithOpenRouter } from '@/voice/stt';
-import { sliceAudioBufferIntoChunkList, wrapPcmAsWavBuffer } from '@/voice/wav';
+import { streamAudioChunksAtPlaybackPace } from '@/voice/stream';
+import { wrapPcmAsWavBuffer } from '@/voice/wav';
 
 export type ApolloTurnRuntimeDependencies = {
   readonly environment: Env;
@@ -226,9 +227,14 @@ export async function executeApolloTurn(
         channels: OPENROUTER_TTS_PCM_CHANNEL_COUNT,
       }),
     );
-    for (const audioChunk of sliceAudioBufferIntoChunkList(turnOutput.ttsAudio)) {
-      connection.send(audioChunk);
-    }
+    await streamAudioChunksAtPlaybackPace({
+      audioBuffer: turnOutput.ttsAudio,
+      sampleRateHz: OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
+      channelCount: OPENROUTER_TTS_PCM_CHANNEL_COUNT,
+      send: (audioChunk) => {
+        connection.send(audioChunk);
+      },
+    });
   }
 
   if (turnPart.text !== undefined && turnPart.text.length > 0) {

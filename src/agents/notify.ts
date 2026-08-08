@@ -16,7 +16,7 @@ import {
   OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
   synthesizeSpeechWithOpenRouter,
 } from '@/voice/speech';
-import { sliceAudioBufferIntoChunkList } from '@/voice/wav';
+import { streamAudioChunksAtPlaybackPace } from '@/voice/stream';
 
 export type DeskDeviceNotification =
   | { readonly type: 'reminder'; readonly message: string }
@@ -130,18 +130,27 @@ async function announceNotificationWithTts(input: {
     });
   }
 
+  const ttsStartMessage = encodeServerToDeviceMessage({
+    type: 'tts_start',
+    format: 'pcm',
+    bytes: ttsAudio.byteLength,
+    sampleRate: OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
+    channels: OPENROUTER_TTS_PCM_CHANNEL_COUNT,
+  });
   for (const connection of input.connectionList) {
-    connection.send(
-      encodeServerToDeviceMessage({
-        type: 'tts_start',
-        format: 'pcm',
-        bytes: ttsAudio.byteLength,
-        sampleRate: OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
-        channels: OPENROUTER_TTS_PCM_CHANNEL_COUNT,
-      }),
-    );
-    for (const audioChunk of sliceAudioBufferIntoChunkList(ttsAudio)) {
-      connection.send(audioChunk);
-    }
+    connection.send(ttsStartMessage);
   }
+
+  // Paced once for every listener rather than per connection: the devices play
+  // the same announcement at the same time.
+  await streamAudioChunksAtPlaybackPace({
+    audioBuffer: ttsAudio,
+    sampleRateHz: OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
+    channelCount: OPENROUTER_TTS_PCM_CHANNEL_COUNT,
+    send: (audioChunk) => {
+      for (const connection of input.connectionList) {
+        connection.send(audioChunk);
+      }
+    },
+  });
 }

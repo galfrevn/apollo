@@ -1,6 +1,9 @@
 import { resolveDeskSpeechMode } from '@/persona/catalog';
 
-export const APOLLO_TTS_VOICE = 'af_alloy';
+// Kokoro encodes the language in the voice name: the leading letter picks the
+// phonemiser, so 'af_' (american english female) read Spanish text with an
+// English accent. 'e' is Spanish — 'em_alex' is the male counterpart.
+export const APOLLO_TTS_VOICE = 'ef_dora';
 
 const apolloIdentityPrompt =
   'Sos Apollo, asistente de escritorio en español rioplatense. Actuá; no divagues. ' +
