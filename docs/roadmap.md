@@ -58,16 +58,15 @@ Conectar ambos extremos para que el agente pueda ejecutar por voz: "bajá el
 brillo", "subí el volumen", "apagá la pantalla", "poné cara de contento".
 Definir el puente entre el formato de tools del agents SDK y el MCP embebido.
 
-### 6. Bug: búsqueda por internet
-Hay un error en la búsqueda web (síntoma exacto a caracterizar: reproducir y
-anotar acá). Entry points para investigar:
+### 6. Bug: búsqueda por internet — resuelto en código, falta deploy
+La búsqueda se migró de la pipeline propia (binding `WEBSEARCH` +
+fetch/extract) a la **API de Tavily** (`src/search/tavily.ts`), y la
+investigación profunda a Perplexity `sonar-deep-research` vía OpenRouter
+(`src/search/deepresearch.ts`). Commit `fcd03f7`.
 
-- `src/tools/web.ts` (tool `web_search`, binding `WEBSEARCH` + síntesis con
-  OpenRouter).
-- `src/search/pipeline.ts` (`collectFetchedSourceList`) y
-  `src/search/synthesize.ts`.
-- El handler ya atrapa excepciones y devuelve `ok: false` con el mensaje — ver
-  qué está reportando en los logs de wrangler.
+Pendiente para cerrarlo:
+- Setear el secret `TAVILY_API_KEY` en el worker (`wrangler secret put`).
+- Deploy + probar `web_search` por voz desde el device.
 
 ### 7. Timer por voz con progreso en el ring
 "Poné 10 minutos" → el agente crea el timer y el ring se convierte en barra de
