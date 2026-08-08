@@ -1,3 +1,8 @@
+// The desk device plays TTS straight out of I2S, so the server asks OpenRouter
+// for raw PCM instead of mp3: no decoder has to run on the ESP32.
+export const OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ = 24000;
+export const OPENROUTER_TTS_PCM_CHANNEL_COUNT = 1;
+
 export async function synthesizeSpeechWithOpenRouter(input: {
   readonly text: string;
   readonly voiceId: string;

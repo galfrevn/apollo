@@ -16,8 +16,13 @@ import { createBuiltinToolDefinitionMap } from '@/tools/catalog';
 import type { DeskToolEffects, PendingToolConfirmation } from '@/tools/types';
 import { runDeskTurn } from '@/turn/run';
 import { chatWithOpenRouter } from '@/voice/llm';
-import { synthesizeSpeechWithOpenRouter } from '@/voice/speech';
+import {
+  OPENROUTER_TTS_PCM_CHANNEL_COUNT,
+  OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
+  synthesizeSpeechWithOpenRouter,
+} from '@/voice/speech';
 import { transcribeAudioWithOpenRouter } from '@/voice/stt';
+import { sliceAudioBufferIntoChunkList, wrapPcmAsWavBuffer } from '@/voice/wav';
 
 export type ApolloTurnRuntimeDependencies = {
   readonly environment: Env;
@@ -132,7 +137,7 @@ export async function executeApolloTurn(
       : {
           stt: async (audioBuffer) =>
             transcribeAudioWithOpenRouter({
-              audioBuffer,
+              audioBuffer: wrapPcmAsWavBuffer({ pcmBuffer: audioBuffer }),
               openRouterApiKey: dependencies.environment.OPENROUTER_API_KEY,
               modelId: dependencies.environment.OPENROUTER_STT_MODEL,
             }),
@@ -149,6 +154,7 @@ export async function executeApolloTurn(
               voiceId,
               openRouterApiKey: dependencies.environment.OPENROUTER_API_KEY,
               modelId: dependencies.environment.OPENROUTER_TTS_MODEL,
+              responseFormat: 'pcm',
             }),
         },
   });
@@ -214,11 +220,15 @@ export async function executeApolloTurn(
     connection.send(
       encodeServerToDeviceMessage({
         type: 'tts_start',
-        format: 'mp3',
+        format: 'pcm',
         bytes: turnOutput.ttsAudio.byteLength,
+        sampleRate: OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
+        channels: OPENROUTER_TTS_PCM_CHANNEL_COUNT,
       }),
     );
-    connection.send(turnOutput.ttsAudio);
+    for (const audioChunk of sliceAudioBufferIntoChunkList(turnOutput.ttsAudio)) {
+      connection.send(audioChunk);
+    }
   }
 
   if (turnPart.text !== undefined && turnPart.text.length > 0) {

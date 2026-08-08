@@ -11,7 +11,12 @@ import {
 import type { MemorySqlExecutor } from '@/memory/store';
 import { encodeServerToDeviceMessage } from '@/protocol/schema';
 import { cacheTtsInMediaBucket } from '@/queues/consume';
-import { synthesizeSpeechWithOpenRouter } from '@/voice/speech';
+import {
+  OPENROUTER_TTS_PCM_CHANNEL_COUNT,
+  OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
+  synthesizeSpeechWithOpenRouter,
+} from '@/voice/speech';
+import { sliceAudioBufferIntoChunkList } from '@/voice/wav';
 
 export type DeskDeviceNotification =
   | { readonly type: 'reminder'; readonly message: string }
@@ -115,6 +120,7 @@ async function announceNotificationWithTts(input: {
         voiceId: input.ttsVoiceId,
         openRouterApiKey: input.environment.OPENROUTER_API_KEY,
         modelId: input.environment.OPENROUTER_TTS_MODEL,
+        responseFormat: 'pcm',
       });
 
   if (!input.isMockVoice) {
@@ -128,10 +134,14 @@ async function announceNotificationWithTts(input: {
     connection.send(
       encodeServerToDeviceMessage({
         type: 'tts_start',
-        format: 'mp3',
+        format: 'pcm',
         bytes: ttsAudio.byteLength,
+        sampleRate: OPENROUTER_TTS_PCM_SAMPLE_RATE_HZ,
+        channels: OPENROUTER_TTS_PCM_CHANNEL_COUNT,
       }),
     );
-    connection.send(ttsAudio);
+    for (const audioChunk of sliceAudioBufferIntoChunkList(ttsAudio)) {
+      connection.send(audioChunk);
+    }
   }
 }
