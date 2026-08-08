@@ -10,7 +10,7 @@ Apollo deploys as a Cloudflare Worker named `apollo` with several bindings.
 | `Sandbox` | Sandbox container DO |
 | `MEDIA` R2 | Media objects |
 | `VECTORIZE` | Memory embeddings index |
-| `WEBSEARCH` | Web search binding |
+| `TAVILY_API_KEY` | Secret — Tavily search API (quick `web_search`) |
 | `APOLLO_QUEUE` | Background job queue |
 | Workflows | `apollo-background` long-running work |
 

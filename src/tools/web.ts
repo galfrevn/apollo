@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-import { collectFetchedSourceList } from '@/search/pipeline';
 import { synthesizeQuickWebAnswer } from '@/search/synthesize';
+import { searchWebSourcesWithTavily } from '@/search/tavily';
 import type { ToolDefinition } from '@/tools/types';
 
 const webSearchArgsSchema = z.object({
@@ -22,11 +22,10 @@ export const webSearchTool: ToolDefinition = {
   async handler(args, context) {
     const parsedArgs = webSearchArgsSchema.parse(args);
     try {
-      const sourceList = await collectFetchedSourceList({
-        webSearch: context.environment.WEBSEARCH,
-        queryList: [parsedArgs.query],
-        maxPages: 3,
-        resultsPerQuery: 5,
+      const sourceList = await searchWebSourcesWithTavily({
+        tavilyApiKey: context.environment.TAVILY_API_KEY,
+        query: parsedArgs.query,
+        maxResults: 5,
       });
       if (sourceList.length === 0) {
         return {

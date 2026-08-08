@@ -2,6 +2,7 @@ interface Env {
   DEVICE_SHARED_SECRET: string;
   OPENROUTER_API_KEY: string;
   ELEVENLABS_API_KEY: string;
+  TAVILY_API_KEY: string;
   MOCK_VOICE?: string;
 }
 
@@ -10,6 +11,7 @@ declare namespace Cloudflare {
     DEVICE_SHARED_SECRET: string;
     OPENROUTER_API_KEY: string;
     ELEVENLABS_API_KEY: string;
+    TAVILY_API_KEY: string;
     MOCK_VOICE?: string;
   }
 }
