@@ -31,7 +31,9 @@ El protocolo no tiene ningún mensaje device→server de estado. El board ya mid
 batería (`adc_battery_estimation`, y existe `low_battery.ogg` local).
 
 - **Firmware**: mensaje periódico `{"type":"telemetry", battery, charging, volume, ...}`
-  (y push inmediato en cambios bruscos).
+  (y push inmediato en cambios bruscos). Incluir también **estado de mute**
+  (el doble tap hoy es silencioso e invisible para el server — ya causó un bug),
+  señal WiFi y versión de firmware.
 - **Server**: guardar el último snapshot en el estado del agente; darle acceso
   al agente en el system prompt del turno; reacciones proactivas ("estás con
   15% de batería, enchufame") vía el canal de notificaciones.
@@ -58,23 +60,20 @@ Conectar ambos extremos para que el agente pueda ejecutar por voz: "bajá el
 brillo", "subí el volumen", "apagá la pantalla", "poné cara de contento".
 Definir el puente entre el formato de tools del agents SDK y el MCP embebido.
 
-### 6. Bug: búsqueda por internet — resuelto en código, falta deploy
-La búsqueda se migró de la pipeline propia (binding `WEBSEARCH` +
-fetch/extract) a la **API de Tavily** (`src/search/tavily.ts`), y la
-investigación profunda a Perplexity `sonar-deep-research` vía OpenRouter
-(`src/search/deepresearch.ts`). Commit `fcd03f7`.
+### 6. Bug: búsqueda por internet — ✅ resuelto y deployado (2026-08-08)
+La búsqueda quedó migrada a **Tavily** (`src/search/tavily.ts`, secret
+`TAVILY_API_KEY` ya seteado) y la investigación profunda a Perplexity
+`sonar-deep-research` vía OpenRouter (`src/search/deepresearch.ts`). En prod;
+solo queda validación de uso diario desde el device.
 
-Pendiente para cerrarlo:
-- Setear el secret `TAVILY_API_KEY` en el worker (`wrangler secret put`).
-- Deploy + probar `web_search` por voz desde el device.
-
-### 7. Timer por voz con progreso en el ring
+### 7. Timer por voz con progreso en el ring — mitad server ✅ (2026-08-08)
 "Poné 10 minutos" → el agente crea el timer y el ring se convierte en barra de
 progreso circular: arranca completo en el color del modo y se va consumiendo
 (o llenando) hasta el final, con sonido al terminar.
 
-- **Server**: tool de timer (pariente simple del reminder ya existente) +
-  mensaje al device con duración/restante.
+- **Server**: ✅ tools `set_timer` y `start_pomodoro` en prod (montadas sobre el
+  scheduler de reminders; el pomodoro además activa focus). Falta solo el
+  mensaje al device con duración/restante para dibujar el arco.
 - **Firmware**: el overlay del accent ring ya se dibuja por chunk en
   `emote_display.cc`; generalizarlo a "arco parcial" (ángulo en función del
   progreso). Misma UI sirve para el countdown del modo focus (ítem 1).
@@ -114,15 +113,71 @@ Que la cara idle no sea siempre neutral: variación sutil según hora del día y
 - **Server**: mandando la emoción idle en `ui_state` para que el agente también
   influya (p.ej. quedó "curioso" tras una pregunta abierta).
 
+## Propuesto 2026-08-08: más interacción server ↔ firmware
+
+Principio rector: el firmware solo gana **vocabulario** (eventos y comandos
+nuevos en el protocolo); la semántica vive siempre en el server, que se deploya
+en segundos. Primer round sugerido: 12 + 13 (+ telemetría del ítem 3) — los
+tres entran en un solo flasheo y cada uno destraba features server-side
+inmediatas. Segundo round: 15 (OTA), para que ese sea el último flasheo por
+cable.
+
+### 12. Gestos como eventos crudos
+El firmware manda `{"type":"gesture", "name":"tap"|"long_press"|...}` y el
+server decide qué significa cada uno. Primeros mapeos: tap simple = cortar el
+habla (barge-in táctil, sin AEC de por medio), long press = pomodoro o
+briefing. Cambiar el mapeo pasa a ser deploy del worker, no flasheo.
+
+- **Firmware**: emitir los eventos desde el touch (`esp_lcd_touch_cst9217`)
+  sin semántica local (el doble tap de mute puede quedar local o migrar).
+- **Server**: `deviceToServerMessageSchema` + mapa gesto→acción en el agente.
+
+### 13. Earcons disparados por el server (`play_effect`)
+Mensaje `{"type":"play_effect", "name":"ding"|...}` que reproduce efectos ya
+grabados en la flash (el pipeline de ogg/opus con variantes de pitch ya
+existe). Feedback instantáneo y gratis: el timer suena al toque mientras el
+TTS del anuncio todavía se sintetiza; chime de confirmación; error sin gastar
+créditos de ElevenLabs.
+
+### 14. `set_volume` desde el server
+Comando trivial para "bajá el volumen" por voz. Solapa con el MCP device-side
+(ítem 5, que ya expone volumen/brillo): si el ítem 5 avanza pronto, esto sale
+gratis por ahí; si no, es un mensaje simple como puente.
+
+### 15. OTA desde R2
+El server hostea el binario del firmware en el bucket `MEDIA`, el device
+chequea versión al bootear (HTTP + `esp_ota`) y se actualiza solo. Dado el
+riesgo del flasheo por cable en esta placa (nunca tocar DTR/RTS), se paga
+solo: un último flasheo manual y de ahí en más el firmware también se
+"deploya". Promovido desde "Por evaluar" (era "OTA por wifi").
+
+### 16. `tts_end` + acks de reproducción (streaming real)
+Las dos piezas que hoy bloquean el streaming de punta a punta:
+
+- **`tts_end`**: elimina la exigencia de conocer `bytes` totales en el
+  `tts_start` — el server podría empezar a mandar audio de ElevenLabs mientras
+  se sintetiza. (La segmentación por oraciones ya da el 80% del beneficio,
+  esto captura el resto.)
+- **Acks**: mensaje periódico "llevo reproducidos X ms" → el pacing del server
+  (`src/voice/stream.ts`) deja de estimar el backlog con un modelo abierto y
+  pasa a usar el estado real de la cola del device. Robusto ante cualquier
+  WiFi; reemplaza el tope fijo de 4 s.
+
+### 17. Cards tipadas en pantalla (`ui_card`)
+Más allá de cara + caption: countdown circular del timer (se une con el ítem
+7), clima con ícono, cotización del dólar, la lista del super mientras la lee.
+Tipadas y acotadas (timer/clima/lista/cotización/QR — el QR ya está en el
+ítem 2), nada de layouts arbitrarios. El dashboard descartado ("dashboard has
+no UI yet") entraría por acá.
+
 ## Por evaluar (ideas, sin compromiso)
 
 - **Dashboard reloj + clima al tap**: el server ya arma y manda el payload
   completo; el firmware lo descarta ("dashboard has no UI yet"). Hoy el tap en
-  idle no muestra nada.
-- **OTA por wifi**: con protocolo Apollo el OTA está deshabilitado; updates
-  solo por cable.
-- **Barge-in**: interrumpir al asistente hablándole por encima. Pendiente de
-  probar; el path del mic crudo no tiene AEC (ver memoria del wake word).
+  idle no muestra nada. (Si avanza el ítem 17, entra como una card más.)
+- **Barge-in por voz**: interrumpir al asistente hablándole por encima.
+  Pendiente de probar; el path del mic crudo no tiene AEC (ver memoria del
+  wake word). El tap del ítem 12 es el atajo táctil mientras tanto.
 - **Briefing matutino**: a hora fija, clima + recordatorios del día por voz
   (orquestación sobre el cron de reminders ya existente).
 - **Modo noche**: brillo mínimo, efectos más bajos y notificaciones silenciadas
