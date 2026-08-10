@@ -3,6 +3,7 @@ interface Env {
   OPENROUTER_API_KEY: string;
   ELEVENLABS_API_KEY: string;
   TAVILY_API_KEY: string;
+  RESEND_API_KEY: string;
   MOCK_VOICE?: string;
 }
 
@@ -12,6 +13,7 @@ declare namespace Cloudflare {
     OPENROUTER_API_KEY: string;
     ELEVENLABS_API_KEY: string;
     TAVILY_API_KEY: string;
+    RESEND_API_KEY: string;
     MOCK_VOICE?: string;
   }
 }

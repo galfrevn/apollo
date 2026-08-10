@@ -4,11 +4,7 @@ import { createFakeApolloEnvironment } from '@/configuration/testing';
 import { setFocusTool, clearFocusTool } from '@/tools/focus';
 import { setWeatherLocationTool } from '@/tools/location';
 import { rememberFactTool } from '@/tools/memory';
-import {
-  cancelReminderTool,
-  listRemindersTool,
-  setReminderTool,
-} from '@/tools/reminder';
+import { cancelReminderTool, listRemindersTool, setReminderTool } from '@/tools/reminder';
 import { startResearchTool } from '@/tools/research';
 import type { DeskToolEffects } from '@/tools/types';
 import { weatherNowTool } from '@/tools/weather';
@@ -101,6 +97,20 @@ function createRecordingEffects(): DeskToolEffects & {
     persistWeatherLocation: async (location) => {
       calls.push(`persistWeather:${location.locationLabel}`);
     },
+    addListItem: async ({ listName, content }) => {
+      calls.push(`listAdd:${listName}:${content}`);
+      return { id: 'l1', listName, content, createdAt: 1 };
+    },
+    listListItems: async (listName) => {
+      calls.push(`listRead:${listName ?? '*'}`);
+      return [
+        { id: 'l1', listName: listName ?? 'super', content: 'yerba', createdAt: 1 },
+      ];
+    },
+    removeListItems: async ({ listName, contentQuery, clearAll }) => {
+      calls.push(`listRemove:${listName}:${clearAll ? 'all' : (contentQuery ?? '')}`);
+      return { removedCount: 1, removedContentList: ['yerba'] };
+    },
   };
 }
 
@@ -174,7 +184,6 @@ describe('intent tools', () => {
     expect(result.ok).toBe(false);
   });
 
-
   it('set_weather_location geocodes and persists', async () => {
     const effects = createRecordingEffects();
     const originalFetch = globalThis.fetch;
@@ -200,9 +209,7 @@ describe('intent tools', () => {
       );
       expect(result.ok).toBe(true);
       expect(result.summary).toContain('Córdoba');
-      expect(effects.calls.some((call) => call.startsWith('persistWeather:'))).toBe(
-        true,
-      );
+      expect(effects.calls.some((call) => call.startsWith('persistWeather:'))).toBe(true);
     } finally {
       globalThis.fetch = originalFetch;
     }

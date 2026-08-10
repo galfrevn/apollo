@@ -11,13 +11,10 @@ import {
 import type { MemorySqlExecutor } from '@/memory/store';
 import { encodeServerToDeviceMessage } from '@/protocol/schema';
 import { cacheTtsInMediaBucket } from '@/queues/consume';
-import {
-  synthesizeSpeechWithElevenLabs,
-  TTS_PCM_CHANNEL_COUNT,
-  TTS_PCM_SAMPLE_RATE_HZ,
-} from '@/voice/elevenlabs';
+import { TTS_PCM_CHANNEL_COUNT, TTS_PCM_SAMPLE_RATE_HZ } from '@/voice/elevenlabs';
 import { sanitizeTextForSpeech } from '@/voice/sanitize';
 import { streamAudioChunksAtPlaybackPace } from '@/voice/stream';
+import { synthesizeApolloSpeech } from '@/voice/synthesize';
 
 export type DeskDeviceNotification =
   | { readonly type: 'reminder'; readonly message: string }
@@ -116,11 +113,10 @@ async function announceNotificationWithTts(input: {
   );
   const ttsAudio = input.isMockVoice
     ? (new TextEncoder().encode(spokenText).buffer as ArrayBuffer)
-    : await synthesizeSpeechWithElevenLabs({
+    : await synthesizeApolloSpeech({
+        environment: input.environment,
         text: spokenText,
         voiceId: input.ttsVoiceId,
-        elevenLabsApiKey: input.environment.ELEVENLABS_API_KEY,
-        modelId: input.environment.ELEVENLABS_TTS_MODEL,
       });
 
   if (!input.isMockVoice) {

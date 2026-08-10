@@ -1,5 +1,10 @@
 import type { Session } from 'agents/experimental/memory/session';
 
+import {
+  addListItemRecord,
+  listListItemRecords,
+  removeListItemRecords,
+} from '@/lists/store';
 import { rememberFactInSession } from '@/memory/session';
 import { addMemoryRecord, type MemorySqlExecutor } from '@/memory/store';
 import { enqueueBackgroundJob, enqueueMemoryIndexJob } from '@/queues/consume';
@@ -45,5 +50,8 @@ export function createDeskToolEffects(input: {
     cancelReminders: input.cancelReminders,
     resolveWeatherLocation: input.resolveWeatherLocation,
     persistWeatherLocation: input.persistWeatherLocation,
+    addListItem: async (item) => addListItemRecord(input.sqlExecutor, item),
+    listListItems: async (listName) => listListItemRecords(input.sqlExecutor, listName),
+    removeListItems: async (removal) => removeListItemRecords(input.sqlExecutor, removal),
   };
 }

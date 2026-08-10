@@ -146,6 +146,14 @@ export class Apollo extends Agent<Env, ApolloState> {
         created_at INTEGER NOT NULL
       )
     `;
+    void this.sql`
+      CREATE TABLE IF NOT EXISTS list_items (
+        id TEXT PRIMARY KEY,
+        list_name TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )
+    `;
     this.#session = createApolloSession(this, this.env.MEDIA);
     await this.#ensurePreferencesLoaded();
     await this.scheduleEvery(
@@ -490,7 +498,6 @@ export class Apollo extends Agent<Env, ApolloState> {
   async #runTurnFromAudio(connection: Connection): Promise<void> {
     const audioBuffer = concatenateArrayBufferList(this.#audioChunkList);
     this.#audioChunkList = [];
-
 
     // A press that ends before the audio channel finishes opening leaves nothing
     // recorded. Sending that to the transcriber earns a 400 and shows the user a

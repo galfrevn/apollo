@@ -145,6 +145,94 @@ describe('chatWithOpenRouter', () => {
     ).rejects.toThrow('LLM falló con status 500');
   });
 
+  it('streams content deltas and reassembles the full text', async () => {
+    const sseBody = [
+      'data: {"choices":[{"delta":{"content":"Hola "}}]}',
+      '',
+      'data: {"choices":[{"delta":{"content":"mundo."}}]}',
+      '',
+      'data: [DONE]',
+      '',
+    ].join('\n');
+    const callList: CapturedFetchCall[] = [];
+    const fetchImplementation = Object.assign(
+      async (input: string | URL | Request, init?: RequestInit) => {
+        callList.push({ url: String(input), init: init ?? {} });
+        return new Response(sseBody, { status: 200 });
+      },
+      { preconnect: () => {} },
+    ) as typeof fetch;
+
+    const deltaList: string[] = [];
+    const result = await chatWithOpenRouter({
+      openRouterApiKey: 'key-123',
+      modelId: 'model-x',
+      messageList: [{ role: 'user', content: 'hola' }],
+      onTextDelta: (deltaText) => {
+        deltaList.push(deltaText);
+      },
+      fetchImplementation,
+    });
+
+    const requestBody = JSON.parse(callList[0].init.body as string) as {
+      stream?: boolean;
+    };
+    expect(requestBody.stream).toBe(true);
+    expect(deltaList).toEqual(['Hola ', 'mundo.']);
+    expect(result.text).toBe('Hola mundo.');
+    expect(result.toolCallList).toEqual([]);
+  });
+
+  it('keeps the last event when the stream ends without a trailing newline', async () => {
+    const sseBody = [
+      'data: {"choices":[{"delta":{"content":"Hola "}}]}',
+      '',
+      'data: {"choices":[{"delta":{"content":"mundo."}}]}',
+    ].join('\n');
+    const fetchImplementation = Object.assign(
+      async () => new Response(sseBody, { status: 200 }),
+      { preconnect: () => {} },
+    ) as typeof fetch;
+
+    const result = await chatWithOpenRouter({
+      openRouterApiKey: 'key-123',
+      modelId: 'model-x',
+      messageList: [{ role: 'user', content: 'hola' }],
+      onTextDelta: () => {},
+      fetchImplementation,
+    });
+
+    expect(result.text).toBe('Hola mundo.');
+  });
+
+  it('accumulates streamed tool call fragments into parsed calls', async () => {
+    const sseBody = [
+      'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1","function":{"name":"weather_now","arguments":"{\\"locationQuery\\":"}}]}}]}',
+      '',
+      'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\\"Rosario\\"}"}}]}}]}',
+      '',
+      'data: [DONE]',
+      '',
+    ].join('\n');
+    const fetchImplementation = Object.assign(
+      async () => new Response(sseBody, { status: 200 }),
+      { preconnect: () => {} },
+    ) as typeof fetch;
+
+    const result = await chatWithOpenRouter({
+      openRouterApiKey: 'key-123',
+      modelId: 'model-x',
+      messageList: [{ role: 'user', content: 'clima' }],
+      onTextDelta: () => {},
+      fetchImplementation,
+    });
+
+    expect(result.text).toBe('');
+    expect(result.toolCallList).toEqual([
+      { id: 'call-1', name: 'weather_now', args: { locationQuery: 'Rosario' } },
+    ]);
+  });
+
   it('throws when the response does not match the expected schema', async () => {
     const { fetchImplementation } = createCapturingFetchMock({ choices: [] });
     await expect(

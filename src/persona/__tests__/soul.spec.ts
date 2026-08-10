@@ -14,7 +14,6 @@ describe('apollo soul prompt', () => {
     expect(soulPrompt).not.toContain('gmail');
   });
 
-
   it('includes nerd technical register', () => {
     expect(buildApolloSoulPrompt('nerd')).toContain('Modo nerd');
     expect(buildApolloSoulPrompt('nerd')).toContain('técnico');

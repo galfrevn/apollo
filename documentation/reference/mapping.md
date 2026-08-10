@@ -17,6 +17,10 @@ Thin map from handbook topics to code folders. Prefer the narrative chapters for
 | Weather | `src/weather/`, `src/agents/dashboard.ts` |
 | Focus | `src/focus/`, `src/tools/focus.ts` |
 | Reminders | `src/reminders/`, `src/tools/reminder.ts` |
+| Timers / pomodoro | `src/tools/timer.ts` (rides `src/reminders/`) |
+| Lists | `src/lists/`, `src/tools/list.ts` |
+| Dollar rates | `src/rates/`, `src/tools/dollar.ts` |
+| Email | `src/notifications/`, `src/tools/email.ts` |
 | Sandbox | `src/sandbox/`, `src/tools/sandbox.ts` |
 | Auth | `src/auth/` |
 | Queues | `src/queues/` |

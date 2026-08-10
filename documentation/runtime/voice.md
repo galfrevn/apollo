@@ -10,6 +10,11 @@ Apollo is voice-first. Replies are written to be spoken: short, natural sentence
 
 Long replies are spoken in sentence-sized segments (`src/voice/segment.ts`, ≤280 chars each): the turn only waits for the first segment, and each following segment is synthesized while the previous one plays. The paced stream (`src/voice/stream.ts`) additionally caps the device backlog at 4 s — the firmware queues ~6.8 s of frames and silently drops overflow, which used to clip the tail of replies longer than ~30 s.
 
+Two more latency/cost layers sit on that path:
+
+- **LLM streaming + speculative TTS** — the reasoning call streams over SSE (`onTextDelta` in `src/voice/llm.ts`); as soon as the first sentence segment closes, `src/turn/run.ts` starts synthesizing it while the model is still writing. If the round turns out to be a tool call, the speculation is discarded; it is only reused when its text is byte-identical to the final first segment.
+- **TTS cache** — every production synthesis goes through `src/voice/synthesize.ts`, which wraps ElevenLabs in the cache from `src/voice/ttscache.ts`: R2 objects under `tts-cache/` keyed by SHA-256 of voice+model+text. Repeated utterances (acks, daily reminders) cost zero ElevenLabs credits. Cache failures degrade to direct synthesis; entries never expire (change voice/model → new keys, old ones become garbage that can be bulk-deleted by prefix).
+
 Configuration knobs:
 
 - `ELEVENLABS_API_KEY` — secret (`.dev.vars` locally, `bunx wrangler secret put ELEVENLABS_API_KEY` in prod)

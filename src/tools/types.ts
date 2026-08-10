@@ -1,3 +1,4 @@
+import type { ListItemRecord } from '@/lists/store';
 import type { ScheduledReminderRow } from '@/reminders/logic';
 
 export type ToolSafetyLevel = 'safe' | 'unsafe';
@@ -47,6 +48,19 @@ export type DeskToolEffects = {
     readonly longitude: number;
     readonly timezone: string;
   }) => Promise<void>;
+  readonly addListItem: (input: {
+    readonly listName: string;
+    readonly content: string;
+  }) => Promise<ListItemRecord>;
+  readonly listListItems: (listName?: string) => Promise<readonly ListItemRecord[]>;
+  readonly removeListItems: (input: {
+    readonly listName: string;
+    readonly contentQuery?: string;
+    readonly clearAll: boolean;
+  }) => Promise<{
+    readonly removedCount: number;
+    readonly removedContentList: readonly string[];
+  }>;
 };
 
 export type ToolExecutionContext = {

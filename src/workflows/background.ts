@@ -5,6 +5,7 @@ import {
 } from 'cloudflare:workers';
 import { getAgentByName } from 'agents';
 
+import { sendEmailWithResend } from '@/notifications/email';
 import { runDeepResearchWithPerplexity } from '@/search/deepresearch';
 import { buildResearchDocumentObjectKey } from '@/search/keys';
 import { synthesizeResearchSpokenSummary } from '@/search/synthesize';
@@ -30,6 +31,7 @@ export class ApolloBackground extends WorkflowEntrypoint<Env, ApolloBackgroundPa
           openRouterApiKey: this.env.OPENROUTER_API_KEY,
           modelId: this.env.OPENROUTER_RESEARCH_MODEL,
           prompt: event.payload.prompt,
+          nowMilliseconds: Date.now(),
         }),
     );
 
@@ -57,6 +59,33 @@ export class ApolloBackground extends WorkflowEntrypoint<Env, ApolloBackgroundPa
         httpMetadata: { contentType: 'text/markdown; charset=utf-8' },
       });
       return true;
+    });
+
+    // The device only speaks a short summary; the full report goes to the
+    // owner's inbox. Best-effort: no email config (or a send failure) must not
+    // sink the research that already succeeded.
+    await step.do('email-report', async () => {
+      if (!this.env.RESEND_API_KEY) {
+        return false;
+      }
+      try {
+        await sendEmailWithResend({
+          resendApiKey: this.env.RESEND_API_KEY,
+          toAddress: this.env.APOLLO_OWNER_EMAIL,
+          subject: `Informe de Apollo: ${event.payload.prompt.slice(0, 120)}`,
+          textBody: reportMarkdown,
+        });
+        return true;
+      } catch (error) {
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            message: 'apollo_research_email_failed',
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        );
+        return false;
+      }
     });
 
     const spokenSummary = await step.do(

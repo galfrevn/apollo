@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { formatCurrentDateTimeForPrompt } from '@/persona/clock';
 import { synthesizeQuickWebAnswer } from '@/search/synthesize';
 import { searchWebSourcesWithTavily } from '@/search/tavily';
 import type { ToolDefinition } from '@/tools/types';
@@ -37,6 +38,7 @@ export const webSearchTool: ToolDefinition = {
         openRouterApiKey: context.environment.OPENROUTER_API_KEY,
         modelId: context.environment.OPENROUTER_MODEL,
         query: parsedArgs.query,
+        currentDateText: formatCurrentDateTimeForPrompt(context.nowMilliseconds),
         sourceList,
       });
       return {

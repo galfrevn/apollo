@@ -1,5 +1,6 @@
 import type { DeskFocusState } from '@/focus/logic';
 import { recallMemoryRecords, type MemorySqlExecutor } from '@/memory/store';
+import { buildCurrentTimePromptNote } from '@/persona/clock';
 import { APOLLO_TTS_VOICE, buildApolloSoulPrompt } from '@/persona/soul';
 import type { DeskUiEventName } from '@/session/machine';
 import { executeToolByName, resolvePendingToolConfirmation } from '@/tools/router';
@@ -12,7 +13,10 @@ import type {
 import { mapToolNameToThinkingCaption } from '@/turn/caption';
 import { buildOpenRouterSystemPrompt, type OpenRouterChatMessage } from '@/voice/llm';
 import { sanitizeTextForSpeech } from '@/voice/sanitize';
-import { splitTextIntoSpeechSegmentList } from '@/voice/segment';
+import {
+  SPEECH_SEGMENT_MAX_CHARACTER_COUNT,
+  splitTextIntoSpeechSegmentList,
+} from '@/voice/segment';
 
 const DEFAULT_MAX_TOOL_ROUND_COUNT = 3;
 
@@ -25,6 +29,9 @@ export type VoiceAdapters = {
       readonly description: string;
       readonly parameters: Record<string, unknown>;
     }[];
+    // Optional streaming hook: adapters that support it push content deltas
+    // as they arrive so the turn can start synthesizing speech early.
+    readonly onTextDelta?: (deltaText: string) => void;
   }) => Promise<{
     readonly text: string;
     readonly toolCallList: readonly {
@@ -175,13 +182,14 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
   const memoryContentList = [
     ...new Set([...semanticMemoryContentList, ...keywordMemoryContentList]),
   ];
+  // Appended outside the ?? so both prompt paths carry the wall clock.
   const systemPrompt =
-    input.systemPromptOverride ??
-    buildOpenRouterSystemPrompt({
-      soulSystemPrompt: buildApolloSoulPrompt(input.speechMode),
-      memoryContentList,
-      isFocusActive: input.focusState.active,
-    });
+    (input.systemPromptOverride ??
+      buildOpenRouterSystemPrompt({
+        soulSystemPrompt: buildApolloSoulPrompt(input.speechMode),
+        memoryContentList,
+        isFocusActive: input.focusState.active,
+      })) + buildCurrentTimePromptNote(input.nowMilliseconds);
 
   const toolDefinitionList = buildToolDefinitionListFromMap(input.toolDefinitionMap);
   const toolExecutionContext = {
@@ -199,16 +207,53 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
 
   let spokenText = '';
 
+  // While the reply streams in, the first sentence-sized segment is closed as
+  // soon as more text follows it — synthesis starts right then, overlapping
+  // the rest of the generation. If the round turns out to be a tool call, the
+  // speculation is discarded (its text was never going to be spoken).
+  let speculativeSegment:
+    | {
+        readonly text: string;
+        readonly audioPromise: Promise<ArrayBuffer | undefined>;
+      }
+    | undefined;
+  let streamedRoundText = '';
+
   for (let toolRoundIndex = 0; toolRoundIndex < maxToolRoundCount; toolRoundIndex += 1) {
+    streamedRoundText = '';
     const llmResult = await input.adapters.llm({
       messageList,
       toolDefinitionList,
+      onTextDelta: (deltaText) => {
+        if (speculativeSegment !== undefined) {
+          return;
+        }
+        streamedRoundText += deltaText;
+        if (streamedRoundText.length <= SPEECH_SEGMENT_MAX_CHARACTER_COUNT) {
+          return;
+        }
+        const partialSegmentList = splitTextIntoSpeechSegmentList(
+          sanitizeTextForSpeech(streamedRoundText),
+        );
+        if (partialSegmentList.length < 2) {
+          return;
+        }
+        const firstClosedSegmentText = partialSegmentList[0];
+        speculativeSegment = {
+          text: firstClosedSegmentText,
+          audioPromise: input.adapters
+            .tts(firstClosedSegmentText, APOLLO_TTS_VOICE)
+            .catch(() => undefined),
+        };
+      },
     });
 
     if (llmResult.toolCallList.length === 0) {
       spokenText = llmResult.text.trim();
       break;
     }
+
+    speculativeSegment = undefined;
 
     messageList.push(
       buildAssistantToolCallMessage(llmResult.text, llmResult.toolCallList),
@@ -248,17 +293,18 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
   }
   spokenText = sanitizeTextForSpeech(spokenText);
 
-  // Only the first sentence-sized segment is synthesized here, so the reply
-  // starts playing without waiting for the whole utterance to render; the rest
-  // goes back as text for the caller to synthesize during playback.
   const [firstSegmentText, ...ttsFollowUpSegmentTextList] =
     splitTextIntoSpeechSegmentList(spokenText);
+  const targetFirstSegmentText = firstSegmentText ?? spokenText;
 
   uiEventList.push('START_SPEAK');
-  const ttsAudio = await input.adapters.tts(
-    firstSegmentText ?? spokenText,
-    APOLLO_TTS_VOICE,
-  );
+  const speculativeAudio =
+    speculativeSegment !== undefined && speculativeSegment.text === targetFirstSegmentText
+      ? await speculativeSegment.audioPromise
+      : undefined;
+  const ttsAudio =
+    speculativeAudio ??
+    (await input.adapters.tts(targetFirstSegmentText, APOLLO_TTS_VOICE));
   uiEventList.push('SPEAK_DONE');
 
   return {

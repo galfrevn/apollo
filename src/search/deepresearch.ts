@@ -1,3 +1,4 @@
+import { formatCurrentDateTimeForPrompt } from '@/persona/clock';
 import { chatWithOpenRouter } from '@/voice/llm';
 
 // Deep research runs on Perplexity Sonar via OpenRouter: the model plans and
@@ -8,6 +9,7 @@ export async function runDeepResearchWithPerplexity(input: {
   readonly openRouterApiKey: string;
   readonly modelId: string;
   readonly prompt: string;
+  readonly nowMilliseconds: number;
   readonly fetchImplementation?: typeof fetch;
 }): Promise<string> {
   const chatResult = await chatWithOpenRouter({
@@ -17,7 +19,8 @@ export async function runDeepResearchWithPerplexity(input: {
       {
         role: 'system',
         content:
-          'Sos Apollo en modo deep research. Investigá a fondo en la web y escribí un informe en markdown en español: resumen ejecutivo, hallazgos, matices/contradicciones, y sección Fuentes con links. Citá las fuentes.',
+          `Sos Apollo en modo deep research. Hoy es ${formatCurrentDateTimeForPrompt(input.nowMilliseconds)}. ` +
+          'Investigá a fondo en la web priorizando información vigente y escribí un informe en markdown en español: resumen ejecutivo, hallazgos, matices/contradicciones, y sección Fuentes con links. Citá las fuentes y aclará la fecha de los datos cuando importe.',
       },
       { role: 'user', content: input.prompt },
     ],

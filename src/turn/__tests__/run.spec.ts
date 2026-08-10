@@ -50,6 +50,7 @@ describe('runDeskTurn', () => {
   it('text turn recalls memory and speaks', async () => {
     const sqlExecutor = createInMemorySqlExecutor();
     await addMemoryRecord(sqlExecutor, 'tomo mate a la mañana', 1, () => 'm1');
+    let capturedSystemPrompt = '';
 
     const output = await runDeskTurn({
       text: 'qué desayuno?',
@@ -65,6 +66,7 @@ describe('runDeskTurn', () => {
           const systemMessage = messageList.find((message) => message.role === 'system');
           const systemPrompt =
             systemMessage?.role === 'system' ? systemMessage.content : '';
+          capturedSystemPrompt = systemPrompt;
           return {
             text: systemPrompt.includes('mate') ? 'Tomás mate de mañana.' : 'No sé.',
             toolCallList: [],
@@ -77,6 +79,8 @@ describe('runDeskTurn', () => {
     expect(output.spokenText).toContain('mate');
     expect(output.uiEventList).toContain('START_SPEAK');
     expect(output.ttsAudio).toBeDefined();
+    // The model always knows what time it is: the wall clock rides the prompt.
+    expect(capturedSystemPrompt).toContain('Fecha y hora actual:');
   });
 
   it('unsafe tool pauses for confirm', async () => {
@@ -202,6 +206,94 @@ describe('runDeskTurn', () => {
     expect(callCount).toBe(2);
     expect(output.spokenText).toContain('18');
     expect(output.toolResultList[0]?.summary).toContain('18');
+  });
+
+  it('reuses the speculative first-segment synthesis started during streaming', async () => {
+    const sentence = 'Esta es una respuesta larga que sigue y sigue con más detalle.';
+    const longReply = Array.from({ length: 12 }, () => sentence).join(' ');
+    const synthesizedTextList: string[] = [];
+
+    const output = await runDeskTurn({
+      text: 'contame todo',
+      speechMode: 'default',
+      focusState: createInactiveDeskFocusState(),
+      sqlExecutor: createInMemorySqlExecutor(),
+      environment: fakeEnvironment,
+      toolDefinitionMap: buildToolDefinitionMap([]),
+      nowMilliseconds: 10,
+      adapters: {
+        stt: async () => '',
+        llm: async ({ onTextDelta }) => {
+          for (const word of longReply.split(' ')) {
+            onTextDelta?.(`${word} `);
+          }
+          return { text: longReply, toolCallList: [] };
+        },
+        tts: async (text) => {
+          synthesizedTextList.push(text);
+          return new TextEncoder().encode(text).buffer as ArrayBuffer;
+        },
+      },
+    });
+
+    expect(synthesizedTextList).toHaveLength(1);
+    expect(longReply.startsWith(synthesizedTextList[0])).toBe(true);
+    expect(output.ttsAudio).toBeDefined();
+    expect(output.ttsFollowUpSegmentTextList?.length).toBeGreaterThan(0);
+  });
+
+  it('discards speculation from a round that turns into tool calls', async () => {
+    const sentence = 'Voy fijándome varias cosas mientras tanto para responderte bien.';
+    const streamedPreamble = Array.from({ length: 8 }, () => sentence).join(' ');
+    const synthesizedTextList: string[] = [];
+    let llmCallCount = 0;
+    const weatherTool: ToolDefinition = {
+      name: 'weather_now',
+      safety: 'safe',
+      description: 'clima',
+      parameters: { type: 'object', properties: {} },
+      async handler() {
+        return { ok: true, summary: '18°C Despejado' };
+      },
+    };
+
+    const output = await runDeskTurn({
+      text: 'cómo está el clima?',
+      speechMode: 'default',
+      focusState: createInactiveDeskFocusState(),
+      sqlExecutor: createInMemorySqlExecutor(),
+      environment: fakeEnvironment,
+      toolDefinitionMap: buildToolDefinitionMap([weatherTool]),
+      nowMilliseconds: 10,
+      adapters: {
+        stt: async () => '',
+        llm: async ({ onTextDelta }) => {
+          llmCallCount += 1;
+          if (llmCallCount === 1) {
+            for (const word of streamedPreamble.split(' ')) {
+              onTextDelta?.(`${word} `);
+            }
+            return {
+              text: streamedPreamble,
+              toolCallList: [{ id: 'c1', name: 'weather_now', args: {} }],
+            };
+          }
+          return { text: 'Está a 18 grados.', toolCallList: [] };
+        },
+        tts: async (text) => {
+          synthesizedTextList.push(text);
+          return new TextEncoder().encode(text).buffer as ArrayBuffer;
+        },
+      },
+    });
+
+    expect(output.spokenText).toBe('Está a 18 grados.');
+    // The preamble's speculation was thrown away, so the final reply is
+    // synthesized exactly once rather than reusing stale audio.
+    expect(
+      synthesizedTextList.filter((text) => text === 'Está a 18 grados.'),
+    ).toHaveLength(1);
+    expect(synthesizedTextList.at(-1)).toBe('Está a 18 grados.');
   });
 
   it('synthesizes only the first segment of a long reply and returns the rest as text', async () => {

@@ -78,6 +78,112 @@ export function buildOpenRouterSystemPrompt(input: {
   ].join('\n');
 }
 
+const openRouterStreamChunkSchema = z.object({
+  choices: z
+    .array(
+      z.object({
+        delta: z
+          .object({
+            content: z.string().nullable().optional(),
+            tool_calls: z
+              .array(
+                z.object({
+                  index: z.number(),
+                  id: z.string().nullable().optional(),
+                  function: z
+                    .object({
+                      name: z.string().nullable().optional(),
+                      arguments: z.string().nullable().optional(),
+                    })
+                    .optional(),
+                }),
+              )
+              .optional(),
+          })
+          .optional(),
+      }),
+    )
+    .optional(),
+});
+
+async function consumeOpenRouterStream(
+  response: Response,
+  onTextDelta: (deltaText: string) => void,
+): Promise<OpenRouterChatResult> {
+  const bodyReader = response.body?.getReader();
+  if (bodyReader === undefined) {
+    throw new Error('LLM en streaming sin body');
+  }
+
+  const partialToolCallMap = new Map<
+    number,
+    { id: string; name: string; argumentsText: string }
+  >();
+  let fullText = '';
+  let pendingLineBuffer = '';
+  const textDecoder = new TextDecoder();
+
+  const handleDataLine = (dataText: string): void => {
+    const chunk = openRouterStreamChunkSchema.parse(JSON.parse(dataText));
+    const delta = chunk.choices?.[0]?.delta;
+    if (delta === undefined) {
+      return;
+    }
+    if (delta.content !== undefined && delta.content !== null && delta.content !== '') {
+      fullText += delta.content;
+      onTextDelta(delta.content);
+    }
+    for (const toolCallDelta of delta.tool_calls ?? []) {
+      const partial = partialToolCallMap.get(toolCallDelta.index) ?? {
+        id: '',
+        name: '',
+        argumentsText: '',
+      };
+      partial.id = toolCallDelta.id ?? partial.id;
+      partial.name = toolCallDelta.function?.name ?? partial.name;
+      partial.argumentsText += toolCallDelta.function?.arguments ?? '';
+      partialToolCallMap.set(toolCallDelta.index, partial);
+    }
+  };
+
+  const handleLine = (line: string): void => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine.startsWith('data: ') || trimmedLine === 'data: [DONE]') {
+      return;
+    }
+    handleDataLine(trimmedLine.slice('data: '.length));
+  };
+
+  for (;;) {
+    const { done, value } = await bodyReader.read();
+    if (done) {
+      break;
+    }
+    pendingLineBuffer += textDecoder.decode(value, { stream: true });
+    const lineList = pendingLineBuffer.split('\n');
+    pendingLineBuffer = lineList.pop() ?? '';
+    for (const line of lineList) {
+      handleLine(line);
+    }
+  }
+
+  // A stream that ends without a trailing newline leaves its last event in the
+  // buffer; dropping it would silently truncate the reply.
+  handleLine(pendingLineBuffer + textDecoder.decode());
+
+  const toolCallList = [...partialToolCallMap.entries()]
+    .toSorted(([leftIndex], [rightIndex]) => leftIndex - rightIndex)
+    .map(([, partial]) => ({
+      id: partial.id,
+      name: partial.name,
+      args: JSON.parse(
+        partial.argumentsText === '' ? '{}' : partial.argumentsText,
+      ) as unknown,
+    }));
+
+  return { text: fullText.trim(), toolCallList };
+}
+
 export async function chatWithOpenRouter(input: {
   readonly openRouterApiKey: string;
   readonly modelId: string;
@@ -87,6 +193,10 @@ export async function chatWithOpenRouter(input: {
     readonly description: string;
     readonly parameters: Record<string, unknown>;
   }[];
+  // When given, the request streams over SSE and every content delta lands here
+  // as it arrives, so the caller can start speaking the first sentence while
+  // the model is still writing the rest.
+  readonly onTextDelta?: (deltaText: string) => void;
   readonly fetchImplementation?: typeof fetch;
 }): Promise<OpenRouterChatResult> {
   const toolDefinitionPayloadList =
@@ -116,12 +226,17 @@ export async function chatWithOpenRouter(input: {
         ...(toolDefinitionPayloadList !== undefined
           ? { tools: toolDefinitionPayloadList }
           : {}),
+        ...(input.onTextDelta !== undefined ? { stream: true } : {}),
       }),
     },
   );
 
   if (!response.ok) {
     throw new Error(`LLM falló con status ${response.status}`);
+  }
+
+  if (input.onTextDelta !== undefined) {
+    return consumeOpenRouterStream(response, input.onTextDelta);
   }
 
   const payload = openRouterChatResponseSchema.parse(await response.json());

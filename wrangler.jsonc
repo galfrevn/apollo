@@ -14,6 +14,7 @@
     "OPENROUTER_RESEARCH_MODEL": "perplexity/sonar-deep-research",
     "ELEVENLABS_TTS_MODEL": "eleven_multilingual_v2",
     "OPENROUTER_EMBEDDING_MODEL": "openai/text-embedding-3-small",
+    "APOLLO_OWNER_EMAIL": "galfre.vn@gmail.com",
   },
   // "containers" disabled: requires the Workers Paid plan. Re-enable this
   // block (and the "Sandbox" durable_objects binding below) once upgraded.

@@ -4,6 +4,7 @@ export async function synthesizeQuickWebAnswer(input: {
   readonly openRouterApiKey: string;
   readonly modelId: string;
   readonly query: string;
+  readonly currentDateText?: string;
   readonly sourceList: readonly {
     readonly url: string;
     readonly title: string;
@@ -16,6 +17,10 @@ export async function synthesizeQuickWebAnswer(input: {
         `[${index + 1}] ${source.title}\nURL: ${source.url}\n${source.text}`,
     )
     .join('\n\n');
+  const currentDateNote =
+    input.currentDateText === undefined
+      ? ''
+      : ` Hoy es ${input.currentDateText}: priorizá la información más reciente y si una fuente es vieja, aclaralo.`;
   const chatResult = await chatWithOpenRouter({
     openRouterApiKey: input.openRouterApiKey,
     modelId: input.modelId,
@@ -23,7 +28,8 @@ export async function synthesizeQuickWebAnswer(input: {
       {
         role: 'system',
         content:
-          'Respondé en español rioplatense, 2 a 4 oraciones, con hechos solo de las fuentes. Citá URLs al final. No inventes.',
+          'Respondé en español rioplatense, 2 a 4 oraciones, con hechos solo de las fuentes. Citá URLs al final. No inventes.' +
+          currentDateNote,
       },
       {
         role: 'user',

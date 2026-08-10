@@ -16,14 +16,11 @@ import type { DeskUiMachine } from '@/session/machine';
 import { createBuiltinToolDefinitionMap } from '@/tools/catalog';
 import type { DeskToolEffects, PendingToolConfirmation } from '@/tools/types';
 import { runDeskTurn, type VoiceAdapters } from '@/turn/run';
-import {
-  synthesizeSpeechWithElevenLabs,
-  TTS_PCM_CHANNEL_COUNT,
-  TTS_PCM_SAMPLE_RATE_HZ,
-} from '@/voice/elevenlabs';
+import { TTS_PCM_CHANNEL_COUNT, TTS_PCM_SAMPLE_RATE_HZ } from '@/voice/elevenlabs';
 import { chatWithOpenRouter } from '@/voice/llm';
 import { transcribeAudioWithOpenRouter } from '@/voice/stt';
 import { streamAudioChunksAtPlaybackPace } from '@/voice/stream';
+import { synthesizeApolloSpeech } from '@/voice/synthesize';
 import { wrapPcmAsWavBuffer } from '@/voice/wav';
 
 export type ApolloTurnRuntimeDependencies = {
@@ -103,19 +100,19 @@ export async function executeApolloTurn(
             openRouterApiKey: dependencies.environment.OPENROUTER_API_KEY,
             modelId: dependencies.environment.OPENROUTER_STT_MODEL,
           }),
-        llm: async ({ messageList, toolDefinitionList }) =>
+        llm: async ({ messageList, toolDefinitionList, onTextDelta }) =>
           chatWithOpenRouter({
             openRouterApiKey: dependencies.environment.OPENROUTER_API_KEY,
             modelId: dependencies.environment.OPENROUTER_MODEL,
             messageList,
             toolDefinitionList,
+            ...(onTextDelta !== undefined ? { onTextDelta } : {}),
           }),
         tts: async (text, voiceId) =>
-          synthesizeSpeechWithElevenLabs({
+          synthesizeApolloSpeech({
+            environment: dependencies.environment,
             text,
             voiceId,
-            elevenLabsApiKey: dependencies.environment.ELEVENLABS_API_KEY,
-            modelId: dependencies.environment.ELEVENLABS_TTS_MODEL,
           }),
       };
 

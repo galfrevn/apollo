@@ -10,7 +10,11 @@ Tools are how Apollo takes action beyond talking. Definitions live under `src/to
 - Search / research: `web_search`, `start_research`
 - Language: `translate`
 - Reminders: `set_reminder`, `list_reminders`, `cancel_reminder`
-- Sandbox: `sandbox_run_code`, `sandbox_exec`
+- Timers: `set_timer`, `start_pomodoro` (ride the reminder scheduler; pomodoro also activates focus; `cancel_reminder` cancels timers too)
+- Lists: `add_to_list`, `read_list`, `remove_from_list` (SQL table `list_items`; default list "super")
+- Finance: `dollar_rate` (dolarapi.com, free/keyless: blue, oficial, bolsa, contadoconliqui, tarjeta, cripto)
+- Email: `send_email` (Resend, secret `RESEND_API_KEY`; recipient pinned to `APOLLO_OWNER_EMAIL` var — deep-research reports are also emailed automatically)
+- Sandbox: `sandbox_run_code`, `sandbox_exec` (disabled: requires Workers Paid)
 
 ## Router
 

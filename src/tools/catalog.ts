@@ -1,13 +1,13 @@
+import { dollarRateTool } from '@/tools/dollar';
+import { sendEmailTool } from '@/tools/email';
 import { setFocusTool, clearFocusTool } from '@/tools/focus';
+import { addToListTool, readListTool, removeFromListTool } from '@/tools/list';
 import { setWeatherLocationTool } from '@/tools/location';
 import { recallMemoryTool, rememberFactTool } from '@/tools/memory';
-import {
-  cancelReminderTool,
-  listRemindersTool,
-  setReminderTool,
-} from '@/tools/reminder';
+import { cancelReminderTool, listRemindersTool, setReminderTool } from '@/tools/reminder';
 import { buildToolDefinitionMap } from '@/tools/router';
 import { startResearchTool } from '@/tools/research';
+import { setTimerTool, startPomodoroTool } from '@/tools/timer';
 import { translateTool } from '@/tools/translate';
 import { webSearchTool } from '@/tools/web';
 // Sandbox tools disabled: Cloudflare Containers require the Workers Paid
@@ -30,6 +30,13 @@ export function listBuiltinToolDefinitionList(): readonly ToolDefinition[] {
     setReminderTool,
     listRemindersTool,
     cancelReminderTool,
+    setTimerTool,
+    startPomodoroTool,
+    addToListTool,
+    readListTool,
+    removeFromListTool,
+    dollarRateTool,
+    sendEmailTool,
     // sandboxRunCodeTool,
     // sandboxExecTool,
   ];
