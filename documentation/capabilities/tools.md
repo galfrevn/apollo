@@ -26,7 +26,10 @@ The router resolves tool names to definitions, validates inputs, and coordinates
 A tool asks for confirmation when — and only when — its definition is `safety: 'unsafe'`
 (`src/tools/router.ts`). The router then returns `needs_confirm` instead of running the
 handler, the agent emits `confirm_request`, and the side effect waits for the device's
-`confirm` (or the 30 s expiry).
+`confirm` (or the 30 s expiry). On firmware with the confirm screen, that message
+replaces the face with the summary plus Sí/No touch buttons. However the window ends —
+button, dashboard RPC, expiry, orphan cleanup — the agent broadcasts `confirm_close`
+so the device never sits on a stale prompt.
 
 The unsafe tools in the shipped catalog are the sandbox pair and `start_coding_task`,
 so the confirmation path — protocol messages, UI `confirm` state, `questioning` face —
