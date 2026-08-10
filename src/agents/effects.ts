@@ -7,7 +7,11 @@ import {
 } from '@/lists/store';
 import { rememberFactInSession } from '@/memory/session';
 import { addMemoryRecord, type MemorySqlExecutor } from '@/memory/store';
-import { enqueueBackgroundJob, enqueueMemoryIndexJob } from '@/queues/consume';
+import {
+  enqueueBackgroundJob,
+  enqueueCodingJob,
+  enqueueMemoryIndexJob,
+} from '@/queues/consume';
 import type { DeskToolEffects } from '@/tools/types';
 
 export function createDeskToolEffects(input: {
@@ -42,6 +46,13 @@ export function createDeskToolEffects(input: {
     enqueueResearch: async (prompt) => {
       await enqueueBackgroundJob(input.environment, {
         prompt,
+        deviceId: input.deviceId,
+      });
+    },
+    enqueueCodingTask: async ({ repository, task }) => {
+      await enqueueCodingJob(input.environment, {
+        repository,
+        task,
         deviceId: input.deviceId,
       });
     },

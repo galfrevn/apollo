@@ -24,6 +24,10 @@ export type DeskToolEffects = {
   readonly applyFocusMinutes: (minutes: number) => Promise<void>;
   readonly clearFocus: () => Promise<void>;
   readonly enqueueResearch: (prompt: string) => Promise<void>;
+  readonly enqueueCodingTask: (input: {
+    readonly repository: string;
+    readonly task: string;
+  }) => Promise<void>;
   readonly scheduleReminder: (input: {
     readonly delaySeconds: number;
     readonly message: string;

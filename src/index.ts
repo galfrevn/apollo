@@ -4,8 +4,9 @@ import { Sandbox } from '@cloudflare/sandbox';
 import { authorizeApolloConnection, Apollo } from '@/agents/apollo';
 import { consumeApolloQueueBatch } from '@/queues/consume';
 import { ApolloBackground } from '@/workflows/background';
+import { ApolloCoding } from '@/workflows/coding';
 
-export { Apollo, ApolloBackground, Sandbox };
+export { Apollo, ApolloBackground, ApolloCoding, Sandbox };
 
 export default {
   async fetch(request: Request, environment: Env): Promise<Response> {

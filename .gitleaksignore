@@ -1,0 +1,4 @@
+# Test fixtures in src/github/__tests__/app.spec.ts: a key pair generated at
+# run time inside the test and an inline "abc" PKCS#1 body used to assert that
+# PKCS#1 keys are rejected. Neither is a real credential.
+e9e5ec3fb3a334bf7fe4c6a2ec6cdaab32bb514a:src/github/__tests__/app.spec.ts:private-key:39

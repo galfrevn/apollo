@@ -15,6 +15,7 @@ Tools are how Apollo takes action beyond talking. Definitions live under `src/to
 - Finance: `dollar_rate` (dolarapi.com, free/keyless: blue, oficial, bolsa, contadoconliqui, tarjeta, cripto)
 - Email: `send_email` (Resend, secret `RESEND_API_KEY`; recipient pinned to `APOLLO_OWNER_EMAIL` var — deep-research reports are also emailed automatically)
 - Sandbox: `sandbox_run_code`, `sandbox_exec` (both marked `unsafe`, so they route through confirmation)
+- Coding: `start_coding_task` (`unsafe`; clones a repo, edits it, opens a PR — see [Coding](coding.md))
 
 ## Router
 
@@ -27,11 +28,10 @@ A tool asks for confirmation when — and only when — its definition is `safet
 handler, the agent emits `confirm_request`, and the side effect waits for the device's
 `confirm` (or the 30 s expiry).
 
-The only unsafe tools in the shipped catalog are the sandbox pair, so the confirmation
-path — protocol messages, UI `confirm` state, `questioning` face — is exercised in
-production by `sandbox_run_code` and `sandbox_exec`. Anything genuinely destructive or
-outward-facing added later should be `unsafe` with a `buildConfirmSummary`; the plumbing
-is already in use.
+The unsafe tools in the shipped catalog are the sandbox pair and `start_coding_task`,
+so the confirmation path — protocol messages, UI `confirm` state, `questioning` face —
+is exercised in production. Anything genuinely destructive or outward-facing added later
+should be `unsafe` with a `buildConfirmSummary`; the plumbing is already in use.
 
 Tools that look risky but are `safe` earn it structurally rather than by review:
 `send_email` cannot choose a recipient, `set_weather_location` only persists after an

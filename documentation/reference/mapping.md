@@ -22,6 +22,7 @@ Thin map from handbook topics to code folders. Prefer the narrative chapters for
 | Dollar rates | `src/rates/`, `src/tools/dollar.ts` |
 | Email | `src/notifications/`, `src/tools/email.ts` |
 | Sandbox | `src/sandbox/`, `src/tools/sandbox.ts` |
+| Coding tasks | `src/coding/`, `src/github/`, `src/tools/coding.ts`, `src/workflows/coding.ts` |
 | Auth | `src/auth/` |
 | Queues | `src/queues/` |
 | Workflows | `src/workflows/` |

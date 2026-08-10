@@ -67,6 +67,9 @@ function createRecordingEffects(): DeskToolEffects & {
     enqueueResearch: async (prompt) => {
       calls.push(`research:${prompt}`);
     },
+    enqueueCodingTask: async ({ repository, task }) => {
+      calls.push(`coding:${repository}:${task}`);
+    },
     scheduleReminder: async ({ delaySeconds, message }) => {
       calls.push(`remind:${delaySeconds}:${message}`);
     },

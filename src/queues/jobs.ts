@@ -13,6 +13,12 @@ export const apolloQueueJobSchema = z.discriminatedUnion('type', [
     prompt: z.string().min(1),
     deviceId: z.string().min(1).default('default'),
   }),
+  z.object({
+    type: z.literal('run_coding'),
+    repository: z.string().min(1),
+    task: z.string().min(1),
+    deviceId: z.string().min(1).default('default'),
+  }),
 ]);
 
 export type ApolloQueueJob = z.infer<typeof apolloQueueJobSchema>;
