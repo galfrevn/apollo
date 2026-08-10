@@ -3,7 +3,6 @@ import type { Session } from 'agents/experimental/memory/session';
 
 import type { ApolloState } from '@/agents/apollo';
 import { createInactiveDeskFocusState, tickDeskFocus } from '@/focus/logic';
-import { buildTtsObjectKey } from '@/media/bucket';
 import { buildSessionSystemPrompt } from '@/memory/session';
 import type { MemorySqlExecutor } from '@/memory/store';
 import { recallSemanticMemoryContent } from '@/memory/vector';
@@ -11,7 +10,6 @@ import { resolveDeskSpeechMode } from '@/persona/catalog';
 import { resolveDeskFaceEmotion } from '@/persona/face';
 import { APOLLO_TTS_VOICE } from '@/persona/soul';
 import { encodeServerToDeviceMessage } from '@/protocol/schema';
-import { cacheTtsInMediaBucket } from '@/queues/consume';
 import type { DeskUiMachine } from '@/session/machine';
 import { createBuiltinToolDefinitionMap } from '@/tools/catalog';
 import type { DeskToolEffects, PendingToolConfirmation } from '@/tools/types';
@@ -206,7 +204,6 @@ export async function executeApolloTurn(
 
   if (turnOutput.ttsAudio !== undefined) {
     const followUpSegmentTextList = turnOutput.ttsFollowUpSegmentTextList ?? [];
-    const playedBufferList: ArrayBuffer[] = [];
     let currentAudioBuffer: ArrayBuffer | undefined = turnOutput.ttsAudio;
     let followUpIndex = 0;
     let wasAborted = false;
@@ -258,7 +255,6 @@ export async function executeApolloTurn(
           ? { shouldStop: dependencies.isSpeechAborted }
           : {}),
       });
-      playedBufferList.push(currentAudioBuffer);
 
       if (dependencies.isSpeechAborted?.() === true) {
         wasAborted = true;
@@ -271,13 +267,6 @@ export async function executeApolloTurn(
       // The device counts bytes against what tts_start promised to know when
       // speech ends, and that total will never arrive now.
       connection.send(encodeServerToDeviceMessage({ type: 'tts_aborted' }));
-    }
-
-    if (!isMockVoice && playedBufferList.length > 0) {
-      await cacheTtsInMediaBucket(dependencies.environment, {
-        objectKey: buildTtsObjectKey(dependencies.deviceId, crypto.randomUUID()),
-        audioBuffer: concatenateArrayBufferList(playedBufferList),
-      });
     }
   }
 

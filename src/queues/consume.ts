@@ -1,8 +1,5 @@
-import { putMediaObject } from '@/media/bucket';
 import { embedTextWithOpenRouter, upsertMemoryVector } from '@/memory/vector';
 import { parseApolloQueueJob } from '@/queues/jobs';
-import { TTS_PCM_CHANNEL_COUNT, TTS_PCM_SAMPLE_RATE_HZ } from '@/voice/elevenlabs';
-import { wrapPcmAsWavBuffer } from '@/voice/wav';
 
 export async function consumeApolloQueueBatch(
   batch: MessageBatch<unknown>,
@@ -83,24 +80,5 @@ export async function enqueueBackgroundJob(
     workflowName: 'apollo-background',
     prompt: input.prompt,
     deviceId: input.deviceId,
-  });
-}
-
-export async function cacheTtsInMediaBucket(
-  environment: Env,
-  input: {
-    readonly objectKey: string;
-    readonly audioBuffer: ArrayBuffer;
-  },
-): Promise<void> {
-  // The wire carries headerless PCM; the cached copy gets a RIFF header so the
-  // object is playable straight out of R2 when debugging a turn.
-  const wavBuffer = wrapPcmAsWavBuffer({
-    pcmBuffer: input.audioBuffer,
-    sampleRateHz: TTS_PCM_SAMPLE_RATE_HZ,
-    channelCount: TTS_PCM_CHANNEL_COUNT,
-  });
-  await putMediaObject(environment.MEDIA, input.objectKey, wavBuffer, {
-    contentType: 'audio/wav',
   });
 }

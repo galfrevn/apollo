@@ -3,14 +3,12 @@ import { z } from 'zod';
 
 import type { DeskFocusState } from '@/focus/logic';
 import { shouldAnnounceDuringFocus } from '@/focus/logic';
-import { buildTtsObjectKey } from '@/media/bucket';
 import {
   enqueuePendingDeviceMessage,
   type PendingDeviceMessageType,
 } from '@/memory/pending';
 import type { MemorySqlExecutor } from '@/memory/store';
 import { encodeServerToDeviceMessage } from '@/protocol/schema';
-import { cacheTtsInMediaBucket } from '@/queues/consume';
 import { TTS_PCM_CHANNEL_COUNT, TTS_PCM_SAMPLE_RATE_HZ } from '@/voice/elevenlabs';
 import { sanitizeTextForSpeech } from '@/voice/sanitize';
 import { streamAudioChunksAtPlaybackPace } from '@/voice/stream';
@@ -118,13 +116,6 @@ async function announceNotificationWithTts(input: {
         text: spokenText,
         voiceId: input.ttsVoiceId,
       });
-
-  if (!input.isMockVoice) {
-    await cacheTtsInMediaBucket(input.environment, {
-      objectKey: buildTtsObjectKey(input.deviceId, crypto.randomUUID()),
-      audioBuffer: ttsAudio,
-    });
-  }
 
   const ttsStartMessage = encodeServerToDeviceMessage({
     type: 'tts_start',
