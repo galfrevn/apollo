@@ -4,6 +4,7 @@ import { createInMemoryPendingConfirmationSqlExecutor } from '@/configuration/te
 import type { MemorySqlExecutor } from '@/memory/store';
 import {
   deletePendingToolConfirmations,
+  isPendingConfirmationOrphaned,
   readPendingToolConfirmation,
   savePendingToolConfirmation,
 } from '@/tools/pending';
@@ -101,5 +102,42 @@ describe('pending tool confirmation store', () => {
     });
 
     expect(await readPendingToolConfirmation(wrongShapeSqlExecutor)).toBeUndefined();
+  });
+});
+
+describe('isPendingConfirmationOrphaned', () => {
+  const confirmation = {
+    id: 'confirm-1',
+    toolName: 'sandbox_exec',
+    args: { command: 'pwd' },
+    summary: 'Ejecutar pwd',
+    expiresAt: 30_000,
+  };
+
+  it('flags an answer the server cannot resolve while state says one is pending', () => {
+    expect(
+      isPendingConfirmationOrphaned({
+        restoredConfirmation: undefined,
+        pendingConfirmIdInState: 'confirm-1',
+      }),
+    ).toBe(true);
+  });
+
+  it('ignores a stray answer with nothing pending', () => {
+    expect(
+      isPendingConfirmationOrphaned({
+        restoredConfirmation: undefined,
+        pendingConfirmIdInState: null,
+      }),
+    ).toBe(false);
+  });
+
+  it('ignores an answer that restored a confirmation', () => {
+    expect(
+      isPendingConfirmationOrphaned({
+        restoredConfirmation: confirmation,
+        pendingConfirmIdInState: 'confirm-1',
+      }),
+    ).toBe(false);
   });
 });

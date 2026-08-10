@@ -67,3 +67,18 @@ export async function deletePendingToolConfirmations(
 ): Promise<void> {
   sqlExecutor.execute('DELETE FROM pending_confirmations');
 }
+
+// A confirm answer that restores nothing is one of two different situations. A
+// stray tap with no confirmation pending is noise and stays ignored; agent
+// state that still names a confirmation means the device is showing a confirm
+// screen the server can no longer resolve — reading the row back failed, or the
+// state outlived it. That one has to be closed out, or the answer is swallowed
+// and the screen stays up until the expiry timer fires.
+export function isPendingConfirmationOrphaned(input: {
+  readonly restoredConfirmation: PendingToolConfirmation | undefined;
+  readonly pendingConfirmIdInState: string | null;
+}): boolean {
+  return (
+    input.restoredConfirmation === undefined && input.pendingConfirmIdInState !== null
+  );
+}

@@ -50,6 +50,7 @@ import {
 import { createDeskUiMachine, type DeskUiMachine } from '@/session/machine';
 import {
   deletePendingToolConfirmations,
+  isPendingConfirmationOrphaned,
   readPendingToolConfirmation,
   savePendingToolConfirmation,
 } from '@/tools/pending';
@@ -339,6 +340,14 @@ export class Apollo extends Agent<Env, ApolloState> {
         return;
       }
     }
+    await this.#closePendingConfirmation('Confirmación expirada');
+  }
+
+  // Closing a confirmation is the same work however it ends: forget it in
+  // memory and on disk, leave the confirm UI state, and tell the device — which
+  // is sitting on the confirm screen and never learns the window closed unless
+  // it is told.
+  async #closePendingConfirmation(caption: string): Promise<void> {
     this.#pendingConfirmation = undefined;
     await deletePendingToolConfirmations(this.#sqlExecutor());
     this.#applyUiEvent('CANCEL');
@@ -346,11 +355,9 @@ export class Apollo extends Agent<Env, ApolloState> {
       ...this.state,
       pendingConfirmId: null,
       pendingConfirmSummary: null,
-      caption: 'Confirmación expirada',
+      caption,
       uiState: this.#uiMachine.state,
     });
-    // The device is sitting on the confirm screen and never learns the window
-    // closed unless it is told.
     for (const connection of this.getConnections()) {
       this.#pushUiState(connection);
     }
@@ -559,6 +566,16 @@ export class Apollo extends Agent<Env, ApolloState> {
       this.#pendingConfirmation ??
       (await readPendingToolConfirmation(this.#sqlExecutor()));
     if (pendingConfirmation === undefined) {
+      if (
+        isPendingConfirmationOrphaned({
+          restoredConfirmation: pendingConfirmation,
+          pendingConfirmIdInState: this.state.pendingConfirmId,
+        })
+      ) {
+        await this.#closePendingConfirmation(
+          'Se me perdió esa confirmación, pedímelo de nuevo.',
+        );
+      }
       return;
     }
     this.#pendingConfirmation = undefined;
