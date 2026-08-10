@@ -55,9 +55,8 @@ export const recallMemoryTool: ToolDefinition = {
     const deviceId = context.deviceId ?? 'default';
 
     try {
-      const { embedTextWithOpenRouter, queryMemoryVectors } = await import(
-        '@/memory/vector'
-      );
+      const { embedTextWithOpenRouter, queryMemoryVectors } =
+        await import('@/memory/vector');
       const values = await embedTextWithOpenRouter({
         openRouterApiKey: context.environment.OPENROUTER_API_KEY,
         modelId: context.environment.OPENROUTER_EMBEDDING_MODEL,
@@ -69,9 +68,7 @@ export const recallMemoryTool: ToolDefinition = {
         deviceId,
         topK: parsedArgs.limit,
       });
-      const usableMatchList = matchList.filter(
-        (match) => match.content.length > 0,
-      );
+      const usableMatchList = matchList.filter((match) => match.content.length > 0);
       if (usableMatchList.length === 0) {
         return {
           ok: true,

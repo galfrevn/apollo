@@ -41,8 +41,7 @@ function createInMemoryListSqlExecutor(): MemorySqlExecutor {
         const likePattern = String(bindValues[1]).replaceAll('%', '').toLowerCase();
         return rowList.filter(
           (row) =>
-            row.list_name === listName &&
-            row.content.toLowerCase().includes(likePattern),
+            row.list_name === listName && row.content.toLowerCase().includes(likePattern),
         ) as unknown as readonly Row[];
       }
       if (query.includes('WHERE list_name = ?')) {

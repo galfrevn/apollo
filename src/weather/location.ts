@@ -16,9 +16,7 @@ export function serializeWeatherLocation(location: DeskWeatherLocation): string 
   return JSON.stringify(deskWeatherLocationSchema.parse(location));
 }
 
-export function parseStoredWeatherLocation(
-  rawValue: string | null,
-): DeskWeatherLocation {
+export function parseStoredWeatherLocation(rawValue: string | null): DeskWeatherLocation {
   if (rawValue === null) {
     return { ...DEFAULT_DESK_WEATHER_LOCATION };
   }

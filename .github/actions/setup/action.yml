@@ -27,3 +27,7 @@ runs:
     - name: Install dependencies
       shell: bash
       run: bun install --frozen-lockfile
+
+    - name: Generate Worker types
+      shell: bash
+      run: bun run types

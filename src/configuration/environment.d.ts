@@ -5,6 +5,9 @@ interface Env {
   TAVILY_API_KEY: string;
   RESEND_API_KEY: string;
   MOCK_VOICE?: string;
+  // `wrangler types` only emits this while the container binding is active in
+  // wrangler.jsonc, and it is commented out until the plan is upgraded.
+  Sandbox: DurableObjectNamespace<import('@cloudflare/sandbox').Sandbox>;
 }
 
 declare namespace Cloudflare {
