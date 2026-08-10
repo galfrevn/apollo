@@ -5,8 +5,8 @@
 [![Cloudflare][cloudflare-shield]][cloudflare-url]
 [![Agents][agents-shield]][agents-url]
 [![Zod][zod-shield]][zod-url]
+<a href="https://www.greptile.com/?utm_source=oss_badge&utm_medium=readme&utm_campaign=greptile_for_open_source"><img src="https://www.greptile.com/badge.svg" alt="Greptile: The War on Bugs" width="210"></a>
 
-[![Greptile: The War on Bugs][greptile-shield]][greptile-url]
 
 <br />
 <div align="center">
