@@ -27,6 +27,12 @@ import {
   tickDeskFocus,
   type DeskFocusState,
 } from '@/focus/logic';
+import {
+  buildDeviceToolCallPayload,
+  createDeviceMcpRequestRegistry,
+  DEVICE_TOOL_CALL_TIMEOUT_MILLISECONDS,
+  summarizeDeviceToolResult,
+} from '@/mcp/bridge';
 import { deletePendingDeviceMessage, listPendingDeviceMessages } from '@/memory/pending';
 import { createApolloSession } from '@/memory/session';
 import {
@@ -59,7 +65,7 @@ import {
   readPendingToolConfirmation,
   savePendingToolConfirmation,
 } from '@/tools/pending';
-import type { PendingToolConfirmation } from '@/tools/types';
+import type { PendingToolConfirmation, ToolExecutionResult } from '@/tools/types';
 import type { DeskWeatherSnapshot } from '@/weather/fetch';
 import {
   resolveDeskWeatherLocationFromPreferences,
@@ -132,6 +138,7 @@ export class Apollo extends Agent<Env, ApolloState> {
   #lastKnownWeatherSnapshot: DeskWeatherSnapshot | undefined;
   #lastTelemetrySnapshot: DeskTelemetrySnapshot | undefined;
   #isAnnouncingLowBattery = false;
+  #deviceMcpRequestRegistry = createDeviceMcpRequestRegistry();
 
   get session(): Session {
     if (this.#session === undefined) {
@@ -310,6 +317,10 @@ export class Apollo extends Agent<Env, ApolloState> {
       }
       case 'telemetry': {
         await this.#handleTelemetry(deviceMessage);
+        break;
+      }
+      case 'mcp': {
+        this.#deviceMcpRequestRegistry.resolvePendingRequest(deviceMessage.payload);
         break;
       }
     }
@@ -628,6 +639,28 @@ export class Apollo extends Agent<Env, ApolloState> {
     }
   }
 
+  async #callDeviceTool(
+    deviceToolName: string,
+    argumentRecord: Record<string, unknown>,
+  ): Promise<ToolExecutionResult> {
+    const connectionList = [...this.getConnections()];
+    if (connectionList.length === 0) {
+      return { ok: false, summary: 'El dispositivo no está conectado.' };
+    }
+    const { requestId, responsePromise } =
+      this.#deviceMcpRequestRegistry.createPendingRequest(
+        DEVICE_TOOL_CALL_TIMEOUT_MILLISECONDS,
+      );
+    const encodedMessage = encodeServerToDeviceMessage({
+      type: 'mcp',
+      payload: buildDeviceToolCallPayload(requestId, deviceToolName, argumentRecord),
+    });
+    for (const connection of connectionList) {
+      connection.send(encodedMessage);
+    }
+    return summarizeDeviceToolResult(await responsePromise);
+  }
+
   #broadcastPlayEffect(effectName: DeskSoundEffectName): void {
     const encodedMessage = encodeServerToDeviceMessage({
       type: 'play_effect',
@@ -751,6 +784,8 @@ export class Apollo extends Agent<Env, ApolloState> {
           serializeWeatherLocation(location),
         );
       },
+      callDeviceTool: async ({ deviceToolName, argumentRecord }) =>
+        this.#callDeviceTool(deviceToolName, argumentRecord),
     });
 
     try {

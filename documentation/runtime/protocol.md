@@ -15,6 +15,7 @@ Device and server speak a Zod-validated JSON protocol defined in `src/protocol/s
 | `text_input` | Typed fallback input |
 | `abort` | Stop the speech currently streaming (barge-in) |
 | `telemetry` | Battery, charging, volume, WiFi RSSI, firmware version |
+| `mcp` | JSON-RPC reply from the device's embedded MCP server |
 
 A listen session ends with the event matching how it started: `hold_end` when a finger
 lifts, `audio_end` when a wake-word turn hits its VAD timeout. Both run the turn today;
@@ -46,6 +47,7 @@ no-op (it used to mute the microphone and did so invisibly — see `#handleGestu
 | `background_result` | Completed async work summary |
 | `reminder` | Reminder delivery |
 | `play_effect` | Play a sound effect already burned into device flash |
+| `mcp` | JSON-RPC request for the device's embedded MCP server |
 
 `play_effect` carries a logical `name` — `ding` (timer/reminder landing), `chime`
 (confirmation request), `error` (turn failure), `low_battery` — and the firmware maps
@@ -56,6 +58,34 @@ TTS announcement is still being synthesized, and it costs no ElevenLabs credits.
 `tts_start` carries `format` (always `pcm` in production), `bytes` for the clip that
 follows, and optional `sampleRate` / `channels` — 24 000 Hz mono, so the ESP32 needs no
 decoder. The binary frames that follow belong to the clip just announced.
+
+## Device MCP bridge
+
+`mcp` frames carry a raw JSON-RPC object in `payload` and bridge the agent's tools to
+the hardware: the server sends `tools/call` requests (`self.audio_speaker.set_volume`,
+`self.screen.set_brightness`, `self.get_device_status`), the firmware routes them into
+its embedded `McpServer`, and the reply comes back as a device→server `mcp` frame.
+Correlation is by JSON-RPC `id`, which **must be an integer** — the device silently
+drops string ids. The server awaits each call inside the tool handler with a 5-second
+timeout (`src/mcp/bridge.ts`); a timeout or a disconnected device degrades to a spoken
+"no está conectado / no respondió" tool result. The firmware's user-only tools
+(`self.reboot`, `self.upgrade_firmware`) are callable over the bridge from server code
+but are not exposed to the LLM.
+
+## OTA endpoints
+
+Two token-authenticated HTTP routes (same `?token=` shared secret as the websocket URL;
+the token appears in device logs on both — an accepted exposure) serve firmware updates
+from the `MEDIA` R2 bucket (`src/ota/routes.ts`):
+
+- `GET|POST /ota/check` → `{ "firmware": { "version", "url", "force" } }`, or `{}` when
+  no manifest is published. The version is validated server-side against
+  `/^\d+(\.\d+)*$/` because the device's version parser aborts on anything else.
+- `GET /ota/firmware.bin` → the binary named by `firmware/latest.json`, with an explicit
+  `Content-Length` (the device refuses length-less downloads).
+
+The device checks once at boot, right after time sync; a failed check logs and boots
+normally. See [Deploy](../operations/deploy.md) for the R2 publishing steps.
 
 ## Design notes
 

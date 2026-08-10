@@ -33,6 +33,51 @@ export function createInMemoryPendingConfirmationSqlExecutor(): MemorySqlExecuto
   };
 }
 
+export function createFakeMediaBucket(
+  initialObjectMap: Record<string, string | Uint8Array> = {},
+): Env['MEDIA'] {
+  const storedObjectMap = new Map<string, Uint8Array>(
+    Object.entries(initialObjectMap).map(([objectKey, content]) => [
+      objectKey,
+      typeof content === 'string' ? new TextEncoder().encode(content) : content,
+    ]),
+  );
+  const partialBucket = {
+    async get(objectKey: string) {
+      const storedBytes = storedObjectMap.get(objectKey);
+      if (storedBytes === undefined) {
+        return null;
+      }
+      const storedText = new TextDecoder().decode(storedBytes);
+      return {
+        size: storedBytes.byteLength,
+        body: new Response(storedBytes).body,
+        async arrayBuffer() {
+          return storedBytes.buffer.slice(
+            storedBytes.byteOffset,
+            storedBytes.byteOffset + storedBytes.byteLength,
+          );
+        },
+        async text() {
+          return storedText;
+        },
+        async json() {
+          return JSON.parse(storedText) as unknown;
+        },
+      };
+    },
+    async put(objectKey: string, content: string | ArrayBuffer | Uint8Array) {
+      const contentBytes =
+        typeof content === 'string'
+          ? new TextEncoder().encode(content)
+          : new Uint8Array(content instanceof ArrayBuffer ? content : content);
+      storedObjectMap.set(objectKey, contentBytes);
+      return null;
+    },
+  };
+  return partialBucket as Env['MEDIA'];
+}
+
 export function createFakeApolloEnvironment(overrides: Partial<Env> = {}): Env {
   return {
     OPENROUTER_MODEL: 'deepseek/deepseek-v4-flash-0731',
@@ -89,6 +134,7 @@ export function createStubDeskToolEffects(
     }),
     listListItems: async () => [],
     removeListItems: async () => ({ removedCount: 0, removedContentList: [] }),
+    callDeviceTool: async () => ({ ok: false, summary: 'stub' }),
     ...overrides,
   };
 }

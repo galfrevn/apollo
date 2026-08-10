@@ -65,6 +65,10 @@ export type DeskToolEffects = {
     readonly removedCount: number;
     readonly removedContentList: readonly string[];
   }>;
+  readonly callDeviceTool: (input: {
+    readonly deviceToolName: string;
+    readonly argumentRecord: Record<string, unknown>;
+  }) => Promise<ToolExecutionResult>;
 };
 
 export type ToolExecutionContext = {
