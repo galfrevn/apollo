@@ -595,11 +595,6 @@ export class Apollo extends Agent<Env, ApolloState> {
     if (!evaluation.shouldAnnounce || evaluation.message === undefined) {
       return;
     }
-    await setSessionPreference(
-      this.#sqlExecutor(),
-      LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY,
-      String(Date.now()),
-    );
     this.#broadcastPlayEffect('low_battery');
     await deliverDeskDeviceNotification({
       notification: { type: 'reminder', message: evaluation.message },
@@ -612,6 +607,14 @@ export class Apollo extends Agent<Env, ApolloState> {
       isMockVoice: this.env.MOCK_VOICE === '1',
       announceKind: 'critical',
     });
+    // The cooldown starts only after the announcement actually went out: a
+    // failed delivery retries on the next telemetry instead of going silent
+    // for half an hour.
+    await setSessionPreference(
+      this.#sqlExecutor(),
+      LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY,
+      String(Date.now()),
+    );
   }
 
   #broadcastPlayEffect(effectName: DeskSoundEffectName): void {
