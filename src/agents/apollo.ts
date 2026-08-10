@@ -131,6 +131,7 @@ export class Apollo extends Agent<Env, ApolloState> {
   #session: Session | undefined;
   #lastKnownWeatherSnapshot: DeskWeatherSnapshot | undefined;
   #lastTelemetrySnapshot: DeskTelemetrySnapshot | undefined;
+  #isAnnouncingLowBattery = false;
 
   get session(): Session {
     if (this.#session === undefined) {
@@ -595,26 +596,36 @@ export class Apollo extends Agent<Env, ApolloState> {
     if (!evaluation.shouldAnnounce || evaluation.message === undefined) {
       return;
     }
-    this.#broadcastPlayEffect('low_battery');
-    await deliverDeskDeviceNotification({
-      notification: { type: 'reminder', message: evaluation.message },
-      connectionList: [...this.getConnections()],
-      sqlExecutor: this.#sqlExecutor(),
-      focusState: this.#currentFocusState(),
-      environment: this.env,
-      deviceId: this.name ?? 'default',
-      ttsVoiceId: APOLLO_TTS_VOICE,
-      isMockVoice: this.env.MOCK_VOICE === '1',
-      announceKind: 'critical',
-    });
-    // The cooldown starts only after the announcement actually went out: a
-    // failed delivery retries on the next telemetry instead of going silent
-    // for half an hour.
-    await setSessionPreference(
-      this.#sqlExecutor(),
-      LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY,
-      String(Date.now()),
-    );
+    // The cooldown is only persisted after delivery succeeds, so a failure
+    // retries on the next telemetry instead of going silent for half an hour.
+    // Delivery spans seconds of paced streaming, though, and a charging-edge
+    // telemetry arriving mid-announcement would read the still-expired
+    // cooldown — the in-flight flag closes that window.
+    if (this.#isAnnouncingLowBattery) {
+      return;
+    }
+    this.#isAnnouncingLowBattery = true;
+    try {
+      this.#broadcastPlayEffect('low_battery');
+      await deliverDeskDeviceNotification({
+        notification: { type: 'reminder', message: evaluation.message },
+        connectionList: [...this.getConnections()],
+        sqlExecutor: this.#sqlExecutor(),
+        focusState: this.#currentFocusState(),
+        environment: this.env,
+        deviceId: this.name ?? 'default',
+        ttsVoiceId: APOLLO_TTS_VOICE,
+        isMockVoice: this.env.MOCK_VOICE === '1',
+        announceKind: 'critical',
+      });
+      await setSessionPreference(
+        this.#sqlExecutor(),
+        LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY,
+        String(Date.now()),
+      );
+    } finally {
+      this.#isAnnouncingLowBattery = false;
+    }
   }
 
   #broadcastPlayEffect(effectName: DeskSoundEffectName): void {
