@@ -140,6 +140,33 @@ describe('protocol schema', () => {
     ).toMatchObject({ type: 'reminder', message: 'Tomá agua' });
   });
 
+  it('encodes confirm_close for every reason', () => {
+    for (const reason of ['resolved', 'expired', 'orphaned'] as const) {
+      expect(
+        JSON.parse(
+          encodeServerToDeviceMessage({ type: 'confirm_close', id: 'c1', reason }),
+        ),
+      ).toEqual({ type: 'confirm_close', id: 'c1', reason });
+    }
+  });
+
+  it('rejects confirm_close with an empty id or unknown reason', () => {
+    expect(() =>
+      encodeServerToDeviceMessage({
+        type: 'confirm_close',
+        id: '',
+        reason: 'expired',
+      }),
+    ).toThrow();
+    expect(() =>
+      encodeServerToDeviceMessage({
+        type: 'confirm_close',
+        id: 'c1',
+        reason: 'nope' as never,
+      }),
+    ).toThrow();
+  });
+
   it('encodes play_effect for every catalog name', () => {
     for (const effectName of ['ding', 'chime', 'error', 'low_battery'] as const) {
       expect(
