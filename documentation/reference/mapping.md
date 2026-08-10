@@ -28,6 +28,7 @@ Thin map from handbook topics to code folders. Prefer the narrative chapters for
 | Media | `src/media/` |
 | Session UI machine | `src/session/` |
 | Config / env types | `src/configuration/`, `wrangler.jsonc` |
+| Firmware (separate repo) | `firmware/apollo-firmware` (git submodule, own handbook) |
 
 ## Navigation
 

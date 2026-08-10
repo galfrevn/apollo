@@ -26,6 +26,18 @@ Quota math (Starter ≈ 30k credits/mo): `eleven_multilingual_v2` burns ~1 credi
 
 Implementation details sit under `src/voice/`.
 
+## Interruption
+
+Speech is cancellable mid-reply. The device sends `abort`; the agent sets a flag that the
+paced loop checks between chunks (`shouldStop` in `src/voice/stream.ts`), so sending stops
+within one chunk instead of at the end of the clip. The server then sends `tts_aborted`,
+because `tts_start` promised a byte count the device is counting against — without it the
+device waits forever for audio that was cancelled.
+
+Two consequences worth knowing: an abort ends the *whole* reply, not just the current
+segment (remaining segments are never synthesized, which also saves the credits), and a
+new turn always clears the flag, so an abort can never leak into the next reply.
+
 ## Captions
 
 The server can attach a caption to `ui_state` so the ESP32 can show what is being said even when audio is hard to hear.

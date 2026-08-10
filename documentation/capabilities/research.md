@@ -8,7 +8,7 @@ Apollo distinguishes quick lookups from deep multi-source research.
 
 ## Deep research
 
-`start_research` enqueues a background workflow that makes a single call to Perplexity Sonar via OpenRouter (`src/search/deepresearch.ts`, model var `OPENROUTER_RESEARCH_MODEL`, default `perplexity/sonar-deep-research`). Sonar plans and runs its own multi-source searches and returns a cited markdown report; the workflow persists it to R2 and speaks a short summary as a `background_result`. Cost is pay-per-use (~USD 0.30–0.60 per research); if runs ever time out, `perplexity/sonar-reasoning-pro` is a faster config-only fallback.
+`start_research` enqueues a background workflow that makes a single call to Perplexity Sonar via OpenRouter (`src/search/deepresearch.ts`, model var `OPENROUTER_RESEARCH_MODEL`, default `perplexity/sonar-deep-research`). Sonar plans and runs its own multi-source searches and returns a cited markdown report; the workflow persists it to R2, emails the full report to `APOLLO_OWNER_EMAIL` (best-effort — see [Email](email.md)), and speaks a short summary as a `background_result`. Cost is pay-per-use (~USD 0.30–0.60 per research); if runs ever time out, `perplexity/sonar-reasoning-pro` is a faster config-only fallback.
 
 The old homemade pipeline (Cloudflare `WEBSEARCH` binding + fetch/extract/synthesize) was removed: the binding is `account_disabled` on the free plan.
 

@@ -20,7 +20,7 @@ Session state lives with the Apollo Durable Object: conversation memory, prefere
 
 ## Tools
 
-Tools are typed actions the model can request (weather, remember fact, start research, and so on). Some require explicit user confirmation before side effects run.
+Tools are typed actions the model can request (weather, remember fact, start research, and so on). A tool marked `unsafe` requires explicit user confirmation before its side effect runs — the machinery is in place, though no tool in the current catalog uses it (see [Tools](../capabilities/tools.md#confirmations)).
 
 ## Background work
 
