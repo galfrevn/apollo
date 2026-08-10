@@ -118,6 +118,21 @@ export function buildCodingSystemPrompt(input: {
   ].join('\n');
 }
 
+// The transcript is persisted to R2 and emailed, so a write_file call records
+// what changed rather than the whole file it wrote.
+export function summarizeToolCallForTranscript(
+  toolName: string,
+  toolArgs: unknown,
+): string {
+  if (toolName === 'write_file') {
+    const parsedArgs = writeFileArgsSchema.safeParse(toolArgs);
+    if (parsedArgs.success) {
+      return `write_file ${parsedArgs.data.path} (${parsedArgs.data.content.length} caracteres)`;
+    }
+  }
+  return `${toolName} ${JSON.stringify(toolArgs)}`;
+}
+
 async function executeCodingTool(input: {
   readonly toolName: string;
   readonly toolArgs: unknown;
@@ -229,7 +244,7 @@ export async function runCodingAgent(input: {
     });
 
     for (const toolCall of llmResult.toolCallList) {
-      transcript.push(`${toolCall.name} ${JSON.stringify(toolCall.args)}`);
+      transcript.push(summarizeToolCallForTranscript(toolCall.name, toolCall.args));
       let toolOutput: string;
       try {
         toolOutput = await executeCodingTool({

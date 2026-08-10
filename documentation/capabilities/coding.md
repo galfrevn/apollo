@@ -20,7 +20,7 @@ Container disk is ephemeral — when an instance sleeps, it restarts with a fres
 
 ## Identity
 
-Commits and pull requests are authored by the GitHub App's bot, not by you, so Apollo's work is distinguishable from yours in `git log`. Identity is `apollo[bot]` with a `<bot-user-id>+<slug>[bot]@users.noreply.github.com` address — the id is the bot user's, not the App ID.
+Commits and pull requests are authored by the GitHub App's bot, not by you, so Apollo's work is distinguishable from yours in `git log`. The identity is derived from the App at run time, not configured: `<slug>[bot]`, where the slug comes from `GET /app`, with a `<bot-user-id>+<slug>[bot]@users.noreply.github.com` address. So an App named "Apollo Desk" commits as `apollo-desk[bot]`. The id is the bot user's, not the App ID.
 
 Installation tokens last an hour, so one is minted immediately before the push rather than reused from clone time.
 

@@ -4,7 +4,7 @@ ELEVENLABS_API_KEY=
 TAVILY_API_KEY=
 RESEND_API_KEY=
 GITHUB_APP_ID=
-GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
+GITHUB_APP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 MOCK_VOICE=1
 
 # Remote one-time setup (when you deploy):
@@ -19,3 +19,7 @@ MOCK_VOICE=1
 # write, Pull requests: read & write, Metadata: read), install it on the repos
 # Apollo may touch, and paste its id and PEM above. The set of repos it is
 # installed on is the allowlist: anything else fails before a container starts.
+#
+# GitHub hands out a PKCS#1 key ("BEGIN RSA PRIVATE KEY") and WebCrypto needs
+# PKCS#8, so convert it first:
+#   openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in key.pem -out key-pkcs8.pem

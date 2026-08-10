@@ -2,6 +2,7 @@ import type { GithubRepositoryReference } from '@/github/repository';
 
 export const CODING_WORKSPACE_PATH = '/workspace/repo';
 export const CODING_TOKEN_ENVIRONMENT_NAME = 'APOLLO_GITHUB_TOKEN';
+export const DISABLED_GIT_HOOKS_PATH = '/var/empty/apollo-no-hooks';
 
 const BRANCH_SLUG_MAX_LENGTH = 40;
 
@@ -37,6 +38,13 @@ function buildCredentialHelperFlag(): string {
   return `-c credential.helper=${quoteShellArgument(helperScript)}`;
 }
 
+// Any git command carrying the token runs hooks from an empty directory. The
+// agent has a shell in this workspace, so it could otherwise drop a pre-push
+// hook that git would run with the installation token in its environment.
+function buildDisabledHooksFlag(): string {
+  return `-c core.hooksPath=${quoteShellArgument(DISABLED_GIT_HOOKS_PATH)}`;
+}
+
 export function buildCloneCommand(input: {
   readonly repository: GithubRepositoryReference;
   readonly baseBranch: string;
@@ -47,6 +55,7 @@ export function buildCloneCommand(input: {
   return [
     'git',
     buildCredentialHelperFlag(),
+    buildDisabledHooksFlag(),
     'clone',
     '--depth',
     '1',
@@ -72,9 +81,10 @@ export function buildCreateBranchCommand(branchName: string): string {
 }
 
 export function buildStageAndCommitCommand(commitMessage: string): string {
-  return ['git add -A', `git commit -m ${quoteShellArgument(commitMessage)}`].join(
-    ' && ',
-  );
+  return [
+    'git add -A',
+    `git ${buildDisabledHooksFlag()} commit -m ${quoteShellArgument(commitMessage)}`,
+  ].join(' && ');
 }
 
 export function buildPushBranchCommand(branchName: string): string {
@@ -84,6 +94,7 @@ export function buildPushBranchCommand(branchName: string): string {
   return [
     'git',
     buildCredentialHelperFlag(),
+    buildDisabledHooksFlag(),
     'push',
     'origin',
     quoteShellArgument(branchName),

@@ -9,6 +9,7 @@ import {
   buildPushBranchCommand,
   buildStageAndCommitCommand,
   CODING_TOKEN_ENVIRONMENT_NAME,
+  DISABLED_GIT_HOOKS_PATH,
   hasStagedOrUnstagedChanges,
   quoteShellArgument,
 } from '@/coding/git';
@@ -81,8 +82,22 @@ describe('git command builders', () => {
       "git checkout -b 'apollo/it'\\''s-fine'",
     );
     expect(buildStageAndCommitCommand("arreglar el bug de 'foo'")).toContain(
-      "git commit -m 'arreglar el bug de '\\''foo'\\'''",
+      "commit -m 'arreglar el bug de '\\''foo'\\'''",
     );
+  });
+
+  it('disables hooks on every command that carries the token', () => {
+    // The agent has a shell in this workspace and could write .git/hooks/pre-push,
+    // which git would otherwise run with the installation token in its environment.
+    const tokenCarryingCommandList = [
+      buildCloneCommand({ repository: apolloRepository, baseBranch: 'main' }),
+      buildPushBranchCommand('apollo/x-1'),
+      buildStageAndCommitCommand('fix: algo'),
+    ];
+
+    for (const command of tokenCarryingCommandList) {
+      expect(command).toContain(`core.hooksPath='${DISABLED_GIT_HOOKS_PATH}'`);
+    }
   });
 
   it('pushes only the named branch and refuses an empty one', () => {

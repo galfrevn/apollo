@@ -177,11 +177,25 @@ export class ApolloCoding extends WorkflowEntrypoint<Env, ApolloCodingParams> {
       );
       return { summary, pullRequestUrl: pullRequest.url };
     } finally {
-      // Billing runs while the container is alive, so this runs even on failure.
+      // Billing runs while the container is alive, so this runs even on
+      // failure — but it must not turn a finished run into a failed one, nor
+      // bury the error that brought us here.
       await step.do('destroy-sandbox', async () => {
-        const sandbox = await this.#getSandbox(sandboxId);
-        await sandbox.destroy();
-        return true;
+        try {
+          const sandbox = await this.#getSandbox(sandboxId);
+          await sandbox.destroy();
+          return true;
+        } catch (error) {
+          console.error(
+            JSON.stringify({
+              level: 'error',
+              message: 'apollo_coding_sandbox_destroy_failed',
+              sandboxId,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          );
+          return false;
+        }
       });
     }
   }

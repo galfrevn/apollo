@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 
+import { CODING_TOKEN_ENVIRONMENT_NAME } from '@/coding/git';
 import {
   buildAgentSandboxPort,
   commitAndPushCodingChanges,
   prepareCodingWorkspace,
   type SandboxLike,
 } from '@/coding/run';
-import { CODING_TOKEN_ENVIRONMENT_NAME } from '@/coding/git';
 import { parseGithubRepositoryReference } from '@/github/repository';
 
 type RecordedExec = {

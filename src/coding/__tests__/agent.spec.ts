@@ -94,6 +94,10 @@ describe('runCodingAgent', () => {
     expect(outcome.didReachRoundLimit).toBe(false);
     expect(outcome.roundCount).toBe(3);
     expect(outcome.transcript).toHaveLength(2);
+    // The transcript is persisted and emailed, so it records the shape of a
+    // write rather than the file it wrote.
+    expect(outcome.transcript[1]).toBe('write_file src/index.ts (12 caracteres)');
+    expect(outcome.transcript.join('\n')).not.toContain('const a = 2;');
   });
 
   it('reports a rejected path back to the model instead of dying', async () => {
