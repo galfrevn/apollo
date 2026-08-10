@@ -20,9 +20,17 @@ Both layers key off the **transcript**, not the raw input: a hold-to-talk turn a
 - `remember_fact` stores something worth recalling later
 - `recall_memory` searches memory instead of guessing
 
+Vector recall is skipped entirely when `MOCK_VOICE=1`, so local runs never spend
+embedding calls; keyword recall from the SQL store still works.
+
+## Tables on the Durable Object
+
+`memories`, `session_prefs`, `pending_device_messages`, and `list_items` (see
+[Lists](lists.md)) are created in `onStart` (`src/agents/apollo.ts`).
+
 ## Preferences
 
-Small durable preferences (for example default weather location) go through the store, not the vector index.
+Small durable preferences (default weather location, speech mode) go through the store, not the vector index.
 
 ## Navigation
 

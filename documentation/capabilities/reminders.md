@@ -14,4 +14,4 @@ When a reminder fires, the server sends a `reminder` protocol message (and may u
 
 ## Navigation
 
-Prev: [Focus](focus.md) · Next: [Sandbox](sandbox.md)
+Prev: [Focus](focus.md) · Next: [Timers](timers.md)

@@ -13,6 +13,12 @@ Device and server speak a Zod-validated JSON protocol defined in `src/protocol/s
 | `gesture` | `tap`, `double_tap`, `swipe_left`, `swipe_right` |
 | `confirm` | Accept or reject a pending confirmation |
 | `text_input` | Typed fallback input |
+| `abort` | Stop the speech currently streaming (barge-in) |
+
+Gesture meaning lives on the server, not the device: `tap` toggles the dashboard,
+`swipe_left` / `swipe_right` cycle the speech mode, and `double_tap` is deliberately a
+no-op (it used to mute the microphone and did so invisibly — see `#handleGesture` in
+`src/agents/apollo.ts`).
 
 ## Server → device
 
@@ -20,18 +26,39 @@ Device and server speak a Zod-validated JSON protocol defined in `src/protocol/s
 |------|------|
 | `ui_state` | Mode, speech mode, caption, focus remaining, face emotion, accent color |
 | `confirm_request` | Ask the user to approve a tool side effect |
-| `tts_start` | Announce upcoming speech audio |
+| `tts_start` | Announce the next speech clip (one per segment, not one per reply) |
+| `tts_aborted` | The clip announced by `tts_start` was cut short and will never complete |
 | `error` | Structured failure |
 | `dashboard` | Clock + weather snapshot |
 | `background_result` | Completed async work summary |
 | `reminder` | Reminder delivery |
+
+`tts_start` carries `format` (always `pcm` in production), `bytes` for the clip that
+follows, and optional `sampleRate` / `channels` — 24 000 Hz mono, so the ESP32 needs no
+decoder. The binary frames that follow belong to the clip just announced.
 
 ## Design notes
 
 - Discriminated unions keep parsing strict on both sides
 - Optional fields stay optional — the device should tolerate missing captions, focus seconds, emotion, or accent color
 - `ui_state.emotion` and `ui_state.accentColor` tell the device what to render on the face; see [Face](face.md) for the full mapping
-- Firmware details beyond this wire contract are out of scope for this handbook
+- Every device message carries `ts`; `hello` also carries `deviceId`
+
+## Interruption
+
+`abort` and `tts_aborted` are the two halves of barge-in:
+
+1. The device sends `abort` (today: a tap while Apollo is speaking)
+2. The server sets a flag; the paced TTS loop checks it between chunks and stops sending
+3. The server sends `tts_aborted`
+
+Step 3 matters because `tts_start` promises a byte count and the device counts against it
+to know when a clip ends. After an abort that total never arrives, so without
+`tts_aborted` the device would wait forever for speech that was cancelled. See
+[Voice](voice.md#interruption).
+
+The device-side implementation lives in the firmware repo (`firmware/apollo-firmware`,
+a submodule); this chapter is the authoritative wire contract for both sides.
 
 ## Navigation
 

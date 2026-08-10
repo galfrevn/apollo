@@ -20,6 +20,24 @@ Tools are how Apollo takes action beyond talking. Definitions live under `src/to
 
 The router resolves tool names to definitions, validates inputs, and coordinates confirmation when a tool is marked as needing it. Prefer extending the catalog with a new definition over special-casing in the agent class.
 
+## Confirmations
+
+A tool asks for confirmation when — and only when — its definition is `safety: 'unsafe'`
+(`src/tools/router.ts`). The router then returns `needs_confirm` instead of running the
+handler, the agent emits `confirm_request`, and the side effect waits for the device's
+`confirm` (or the 30 s expiry).
+
+The only unsafe tools in the shipped catalog are the sandbox pair, so the confirmation
+path — protocol messages, UI `confirm` state, `questioning` face — is exercised in
+production by `sandbox_run_code` and `sandbox_exec`. Anything genuinely destructive or
+outward-facing added later should be `unsafe` with a `buildConfirmSummary`; the plumbing
+is already in use.
+
+Tools that look risky but are `safe` earn it structurally rather than by review:
+`send_email` cannot choose a recipient, `set_weather_location` only persists after an
+explicit ask, and `remove_from_list` needs either an item match or an explicit
+`clearAll`.
+
 ## Product fit
 
 On a desk device, tools should be obvious in speech (“reminder set for six”) and safe when destructive or sticky (confirmations, explicit location saves).

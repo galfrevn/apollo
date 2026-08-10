@@ -11,18 +11,16 @@ The server already tracks `focus` state and sends `focusRemainingSec` on every `
 - **Firmware**: render the remaining time. Candidates are a progress arc over the accent ring, or the center label of the emote engine. Parse `focusRemainingSec` in `HandleUiState` (`apollo_protocol.cc`).
 - **Server**: done — only the refresh cadence of the field needs verifying.
 
-### 2. Complete background result: spoken notice + document QR
+### 2. Complete background result: document QR
 
-Today `background_result` arrives as a generic alert carrying the summary. Missing:
-
-- **Spoken notice**: the agent should say "terminé \<task\>" when a background job completes (server: `src/workflows/background.ts` → TTS over the notification channel, respecting device state so it never interrupts a turn).
-- **QR on screen**: when a `documentKey` is present, show a QR with the document URL. The gfx engine already has a QR widget (`emote_set_qrcode_data` in `emote_op.c`), so the firmware only needs to route a new message (say `"type": "qr"`) through to that widget, with an auto-close timeout.
+- **Spoken notice**: ✅ done. `deliverDeskDeviceNotification` (`src/agents/notify.ts`) synthesizes and paces TTS for both `background_result` and `reminder`, queues them as pending messages when nobody is connected, and stays quiet during focus. What is left is cosmetic: the announcement speaks the summary directly rather than framing it ("terminé \<task\>: …").
+- **QR on screen**: when a `documentKey` is present, show a QR with the document URL. The gfx engine already has a QR widget (`emote_set_qrcode_data` in `emote_op.c`), so the firmware only needs to route a new message (say `"type": "qr"`) through to that widget, with an auto-close timeout. The reports are already emailed in parallel, so the QR is a convenience, not the only way to reach one.
 
 ### 3. Device → server telemetry + agent reactions
 
 The protocol has no device → server status message at all. The board already measures battery (`adc_battery_estimation`, and a local `low_battery.ogg` exists).
 
-- **Firmware**: a periodic `{"type":"telemetry", battery, charging, volume, ...}` message, plus an immediate push on sharp changes. Include **mute state** as well — the double tap is silent and invisible to the server today, which has already caused one bug — along with WiFi signal and firmware version.
+- **Firmware**: a periodic `{"type":"telemetry", battery, charging, volume, ...}` message, plus an immediate push on sharp changes, along with WiFi signal and firmware version. (Mute state is no longer part of this: the silent double-tap mute that caused the original bug was removed on both sides — with push-to-talk the mic is only open while a finger is down, so there is nothing to mute.)
 - **Server**: keep the latest snapshot in agent state; expose it to the agent in the turn's system prompt; proactive reactions ("estás con 15% de batería, enchufame") over the notification channel.
 - **Schema**: add the message to `deviceToServerMessageSchema` in `src/protocol/schema.ts`.
 
@@ -75,14 +73,15 @@ The idle face should not always be neutral: subtle variation by time of day and 
 
 Guiding principle: the firmware only gains **vocabulary** — new protocol events and commands — while the semantics always live in the server, which deploys in seconds.
 
-Suggested first round: 11 + 12, plus the telemetry from item 3. All three fit in a single flash and each one unblocks immediate server-side features. Second round: 14 (OTA), so that becomes the last flash over cable.
+Suggested first round: 12, plus the telemetry from item 3. Both fit in a single flash and each one unblocks immediate server-side features. Second round: 14 (OTA), so that becomes the last flash over cable.
 
-### 11. Gestures as raw events
+### 11. Gestures as raw events — ✅ already shipped
 
-The firmware sends `{"type":"gesture", "name":"tap"|"long_press"|...}` and the server decides what each one means. First mappings: single tap cuts off speech (touch barge-in, with no AEC involved), long press starts a pomodoro or a briefing. Changing the mapping becomes a worker deploy rather than a flash.
+The pattern landed: the firmware emits `{"type":"gesture","gesture":"tap"|"double_tap"|"swipe_left"|"swipe_right","ts":…}` from the touch driver with no local semantics, and the server decides what each one means in `#handleGesture` (`src/agents/apollo.ts`) — tap toggles the dashboard, swipes cycle the speech mode. Remapping is a worker deploy, not a flash.
 
-- **Firmware**: emit the events from the touch driver (`esp_lcd_touch_cst9217`) with no local semantics. The mute double tap can stay local or migrate.
-- **Server**: `deviceToServerMessageSchema` plus a gesture → action map in the agent.
+Touch barge-in shipped alongside it, through a dedicated `abort` message rather than a gesture: a tap while Apollo is speaking stops the stream within a chunk and the server answers `tts_aborted`.
+
+Still open: `long_press` is not in the gesture enum, so "hold to start a pomodoro or a briefing" needs one enum entry on each side.
 
 ### 12. Server-triggered earcons (`play_effect`)
 
@@ -109,8 +108,8 @@ Beyond face + caption: a circular timer countdown (which merges with item 6), we
 
 ## Under consideration (ideas, no commitment)
 
-- **Clock + weather dashboard on tap**: the server already assembles and sends the full payload; the firmware discards it ("dashboard has no UI yet"). Tapping while idle shows nothing today. If item 16 lands, this becomes just another card.
-- **Voice barge-in**: interrupting the assistant by talking over it. Untested; the raw mic path has no AEC (see the wake word notes). The tap from item 11 is the touch shortcut in the meantime.
+- **Clock + weather dashboard on tap**: the server half is done — a tap while idle enters `dashboard` state and pushes the payload, then refreshes it every 30 minutes for as long as that state holds. The firmware still discards it ("dashboard has no UI yet"), so tapping shows nothing. If item 16 lands, this becomes just another card.
+- **Voice barge-in**: interrupting the assistant by *talking* over it. Untested; the raw mic path has no AEC (see the wake word notes). Touch barge-in already works (item 11), so this is only about the hands-free case.
 - **Morning briefing**: weather plus the day's reminders by voice at a fixed hour, orchestrated on top of the existing reminder cron.
 - **Night mode**: minimum brightness, quieter effects, and silenced notifications within an hour range — a natural fit on top of MCP + telemetry.
 - **Web session console**: a page served by the worker with transcripts, tool calls, and errors, for debugging without serial.
@@ -118,7 +117,7 @@ Beyond face + caption: a circular timer countdown (which merges with item 6), we
 
 ## Context notes
 
-The per-mode accent color ring, the pitch variants for effects, and the PCM/Opus decode fix all landed on 2026-08-08 — see the firmware and server git logs for that day.
+The per-mode accent color ring, the pitch variants for effects, and the PCM/Opus decode fix all landed on 2026-08-08 — see the firmware and server git logs for that day. Timers, lists, dollar rates, email, and the streaming/speculative TTS path landed on 2026-08-10 (`444f324`); each now has its own chapter in Part III.
 
 ## Navigation
 

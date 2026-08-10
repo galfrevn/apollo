@@ -21,11 +21,22 @@ Primary wiring lives in `src/index.ts` and `src/agents/apollo.ts`.
 
 ## Confirmations
 
-When a tool needs confirmation, the server emits `confirm_request` and waits for a device `confirm` message before applying the side effect.
+When a tool needs confirmation, the server emits `confirm_request` and waits for a device `confirm` message before applying the side effect. A confirmation expires after 30 seconds.
+
+No tool in the shipped catalog currently requires this — see [Tools](../capabilities/tools.md#confirmations).
+
+## Interruption
+
+A device `abort` cuts the reply short: the pacing loop checks the flag between chunks and stops, then the server sends `tts_aborted`. See [Voice](voice.md#interruption).
 
 ## Dashboard refresh
 
-While idle/dashboard, Apollo can push periodic dashboard payloads (clock + weather) so the desk stays useful without a conversation.
+Apollo pushes a dashboard payload (clock + weather) on connect, on the tap that opens the dashboard, and then every 30 minutes — but the periodic refresh only fires while the UI is actually in `dashboard` state and someone is connected (`shouldPushDashboardOnWeatherRefresh` in `src/agents/dashboard.ts`). Idle receives no periodic push.
+
+## Guardrails
+
+- A turn needs at least 8000 bytes of audio (a quarter second at 16 kHz); below that the server answers "no llegué a escucharte" instead of sending an empty clip to the transcriber
+- A turn runs at most 3 tool rounds (`src/turn/run.ts`) before it has to answer with what it has
 
 ## Navigation
 

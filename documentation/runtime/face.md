@@ -31,11 +31,19 @@ Blinking and saccades stay autonomous on-device. The server never sends blink ev
 
 ## Talking / mouth sync
 
-There is no amplitude or viseme channel on the wire. TTS audio ships to the device as a single buffer (`tts_start` + binary payload — see [Voice](voice.md)); firmware should derive any mouth/talk animation from the decoded audio it's already playing, not from a server-computed signal.
+There is no amplitude or viseme channel on the wire. A reply ships as a *sequence* of
+clips — one `tts_start` plus its binary payload per speech segment (see
+[Voice](voice.md)) — so the device cannot treat `tts_start` as "the reply begins" either.
+Firmware should derive any mouth/talk animation from the audio it is already playing, not
+from a server-computed signal.
 
-## Firmware recommendation (not part of this repo)
+## Where rendering lives
 
-Rendering is a device-side concern; no firmware lives in this repository. For the two-eyes-blinking look, [FluxGarage RoboEyes](https://github.com/FluxGarage/RoboEyes) (MIT) draws eyes procedurally — no image assets, built-in blink/saccade timing, and an emotion set that maps cleanly onto the table above. [M5Stack-Avatar](https://github.com/meganetaaan/m5stack-avatar) is a heavier alternative that adds a breathing/talking mouth driven by audio amplitude, if a face-only look ever needs more life.
+Rendering is a device-side concern, implemented in the firmware repo
+(`firmware/apollo-firmware`, a git submodule of this one), which has its own handbook and
+its own emote engine. This chapter defines only what the server promises to send. The
+division to preserve: the server may add emotions to the vocabulary, the firmware decides
+what they look like.
 
 ## Navigation
 
