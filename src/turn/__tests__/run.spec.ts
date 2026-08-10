@@ -117,6 +117,59 @@ describe('runDeskTurn', () => {
     expect(capturedSystemPrompt).toContain('café cargado');
   });
 
+  it('treats whitespace-only speech as nothing heard', async () => {
+    let didRecallSemanticMemory = false;
+
+    const output = await runDeskTurn({
+      audioBuffer: new TextEncoder().encode('ruido').buffer as ArrayBuffer,
+      speechMode: 'default',
+      focusState: createInactiveDeskFocusState(),
+      sqlExecutor: createInMemorySqlExecutor(),
+      environment: fakeEnvironment,
+      toolDefinitionMap: buildToolDefinitionMap([]),
+      nowMilliseconds: 10,
+      recallSemanticMemoryContentList: async () => {
+        didRecallSemanticMemory = true;
+        return [];
+      },
+      adapters: {
+        stt: async () => '  \n ',
+        llm: async () => ({ text: 'nunca', toolCallList: [] }),
+        tts: async () => new ArrayBuffer(0),
+      },
+    });
+
+    expect(output.transcript).toBe('');
+    expect(output.spokenText).toBe('No te escuché.');
+    expect(didRecallSemanticMemory).toBe(false);
+  });
+
+  it('trims the transcript a transcriber pads with whitespace', async () => {
+    const semanticQueryTextList: string[] = [];
+
+    const output = await runDeskTurn({
+      audioBuffer: new TextEncoder().encode('audio').buffer as ArrayBuffer,
+      speechMode: 'default',
+      focusState: createInactiveDeskFocusState(),
+      sqlExecutor: createInMemorySqlExecutor(),
+      environment: fakeEnvironment,
+      toolDefinitionMap: buildToolDefinitionMap([]),
+      nowMilliseconds: 10,
+      recallSemanticMemoryContentList: async (queryText) => {
+        semanticQueryTextList.push(queryText);
+        return [];
+      },
+      adapters: {
+        stt: async () => '\n  qué hora es  \n',
+        llm: async () => ({ text: 'Son las tres.', toolCallList: [] }),
+        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
+      },
+    });
+
+    expect(output.transcript).toBe('qué hora es');
+    expect(semanticQueryTextList).toEqual(['qué hora es']);
+  });
+
   it('reports an empty transcript when the audio held no words', async () => {
     let didRecallSemanticMemory = false;
 

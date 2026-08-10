@@ -166,7 +166,7 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
 
   let userText = input.text?.trim() ?? '';
   if (userText.length === 0 && input.audioBuffer !== undefined) {
-    userText = await input.adapters.stt(input.audioBuffer);
+    userText = (await input.adapters.stt(input.audioBuffer)).trim();
   }
   if (userText.length === 0) {
     uiEventList.push('CANCEL');
