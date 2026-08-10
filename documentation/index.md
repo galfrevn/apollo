@@ -27,16 +27,25 @@ This handbook is meant to be read in order. Later chapters assume the concepts i
 11. [Weather](capabilities/weather.md) — Location, forecast, dashboard
 12. [Focus](capabilities/focus.md) — Focus timer behavior
 13. [Reminders](capabilities/reminders.md) — Schedules and delivery
-14. [Sandbox](capabilities/sandbox.md) — Isolated code execution
+14. [Timers](capabilities/timers.md) — Countdowns and pomodoros
+15. [Lists](capabilities/lists.md) — Durable spoken lists
+16. [Dollar rates](capabilities/rates.md) — Argentine dollar quotes
+17. [Email](capabilities/email.md) — Reports and notes to the owner
+18. [Sandbox](capabilities/sandbox.md) — Isolated code execution (currently disabled)
 
 ### Part IV — Operations
 
-15. [Setup](operations/setup.md) — Local development
-16. [Deploy](operations/deploy.md) — Workers, bindings, and containers
-17. [Auth](operations/auth.md) — Device shared secret
-18. [Testing](operations/testing.md) — How this repo verifies behavior
+19. [Setup](operations/setup.md) — Local development
+20. [Deploy](operations/deploy.md) — Workers, bindings, secrets, and vars
+21. [Auth](operations/auth.md) — Device shared secret
+22. [Testing](operations/testing.md) — How this repo verifies behavior
 
 ### Part V — Reference
 
-19. [Mapping](reference/mapping.md) — Handbook topics to `src/` folders
-20. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
+23. [Mapping](reference/mapping.md) — Handbook topics to `src/` folders
+24. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
+
+## The firmware
+
+The device side lives in `firmware/apollo-firmware`, a git submodule with its own
+handbook. The contract between the two repos is [Protocol](runtime/protocol.md).
