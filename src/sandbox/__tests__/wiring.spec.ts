@@ -4,6 +4,7 @@ import {
   createFakeApolloEnvironment,
   createInMemoryPendingConfirmationSqlExecutor,
 } from '@/configuration/testing';
+import { DEFAULT_SANDBOX_COMMAND_TIMEOUT_MILLISECONDS } from '@/sandbox/runner';
 import {
   deletePendingToolConfirmations,
   readPendingToolConfirmation,
@@ -16,6 +17,7 @@ type CapturedSandboxCall = {
   readonly sandboxId: string;
   readonly code?: string;
   readonly command?: string;
+  readonly timeoutMilliseconds?: number;
 };
 
 const capturedSandboxCallList: CapturedSandboxCall[] = [];
@@ -31,8 +33,14 @@ mock.module('@cloudflare/sandbox', () => ({
         error: undefined,
       };
     },
-    exec: async (command: string) => {
-      capturedSandboxCallList.push({ sandboxId, command });
+    exec: async (command: string, options?: { timeout?: number }) => {
+      capturedSandboxCallList.push({
+        sandboxId,
+        command,
+        ...(options?.timeout !== undefined
+          ? { timeoutMilliseconds: options.timeout }
+          : {}),
+      });
       return {
         success: true,
         exitCode: 0,
@@ -94,6 +102,39 @@ describe('sandbox end-to-end wiring', () => {
 
     await deletePendingToolConfirmations(sqlExecutor);
     expect(await readPendingToolConfirmation(sqlExecutor)).toBeUndefined();
+  });
+
+  it('executes a confirmed command with the default timeout', async () => {
+    capturedSandboxCallList.length = 0;
+    const outcome = await executeToolByName(
+      createBuiltinToolDefinitionMap(),
+      'sandbox_exec',
+      { command: 'ls /workspace' },
+      { environment: fakeEnvironment, nowMilliseconds: 0, deviceId: 'desk-01' },
+      () => 'confirm-4',
+    );
+    if (outcome.status !== 'needs_confirm') {
+      throw new Error('expected sandbox_exec to require confirmation');
+    }
+
+    const result = await resolvePendingToolConfirmation(
+      createBuiltinToolDefinitionMap(),
+      outcome.pending,
+      true,
+      { environment: fakeEnvironment, nowMilliseconds: 1000, deviceId: 'desk-01' },
+    );
+
+    if ('cancelled' in result) {
+      throw new Error('expected the confirmed command to run');
+    }
+    expect(result.ok).toBe(true);
+    expect(capturedSandboxCallList).toEqual([
+      {
+        sandboxId: 'apollo-desk-01',
+        command: 'ls /workspace',
+        timeoutMilliseconds: DEFAULT_SANDBOX_COMMAND_TIMEOUT_MILLISECONDS,
+      },
+    ]);
   });
 
   it('never reaches the container when the user declines', async () => {
