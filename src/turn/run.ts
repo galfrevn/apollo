@@ -11,7 +11,11 @@ import type {
   ToolExecutionResult,
 } from '@/tools/types';
 import { mapToolNameToThinkingCaption } from '@/turn/caption';
-import { buildOpenRouterSystemPrompt, type OpenRouterChatMessage } from '@/voice/llm';
+import {
+  buildOpenRouterSystemPrompt,
+  buildSemanticMemoryPromptNote,
+  type OpenRouterChatMessage,
+} from '@/voice/llm';
 import { sanitizeTextForSpeech } from '@/voice/sanitize';
 import {
   SPEECH_SEGMENT_MAX_CHARACTER_COUNT,
@@ -57,7 +61,9 @@ export type TurnInput = {
   readonly nowMilliseconds: number;
   readonly deviceId?: string;
   readonly systemPromptOverride?: string;
-  readonly semanticMemoryContentList?: readonly string[];
+  readonly recallSemanticMemoryContentList?: (
+    queryText: string,
+  ) => Promise<readonly string[]>;
   readonly effects?: DeskToolEffects;
   readonly maxToolRoundCount?: number;
   readonly onThinkingCaption?: (caption: string) => void | Promise<void>;
@@ -65,6 +71,7 @@ export type TurnInput = {
 
 export type TurnOutput = {
   readonly uiEventList: readonly DeskUiEventName[];
+  readonly transcript: string;
   readonly spokenText: string;
   readonly ttsAudio?: ArrayBuffer;
   // Segments after the first, still as text: the caller synthesizes them while
@@ -146,6 +153,7 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
       uiEventList.push('CANCEL');
       return {
         uiEventList,
+        transcript: input.text?.trim() ?? '',
         spokenText: 'Cancelado.',
         speechMode: input.speechMode,
         focusState: input.focusState,
@@ -158,12 +166,13 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
 
   let userText = input.text?.trim() ?? '';
   if (userText.length === 0 && input.audioBuffer !== undefined) {
-    userText = await input.adapters.stt(input.audioBuffer);
+    userText = (await input.adapters.stt(input.audioBuffer)).trim();
   }
   if (userText.length === 0) {
     uiEventList.push('CANCEL');
     return {
       uiEventList,
+      transcript: '',
       spokenText: 'No te escuché.',
       speechMode: input.speechMode,
       focusState: input.focusState,
@@ -178,18 +187,22 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
   const keywordMemoryContentList = recalledMemoryList.map(
     (memoryRecord) => memoryRecord.content,
   );
-  const semanticMemoryContentList = input.semanticMemoryContentList ?? [];
+  const semanticMemoryContentList =
+    (await input.recallSemanticMemoryContentList?.(userText)) ?? [];
   const memoryContentList = [
     ...new Set([...semanticMemoryContentList, ...keywordMemoryContentList]),
   ];
-  // Appended outside the ?? so both prompt paths carry the wall clock.
+  const systemPromptBase =
+    input.systemPromptOverride === undefined
+      ? buildOpenRouterSystemPrompt({
+          soulSystemPrompt: buildApolloSoulPrompt(input.speechMode),
+          memoryContentList,
+          isFocusActive: input.focusState.active,
+        })
+      : input.systemPromptOverride +
+        buildSemanticMemoryPromptNote(semanticMemoryContentList);
   const systemPrompt =
-    (input.systemPromptOverride ??
-      buildOpenRouterSystemPrompt({
-        soulSystemPrompt: buildApolloSoulPrompt(input.speechMode),
-        memoryContentList,
-        isFocusActive: input.focusState.active,
-      })) + buildCurrentTimePromptNote(input.nowMilliseconds);
+    systemPromptBase + buildCurrentTimePromptNote(input.nowMilliseconds);
 
   const toolDefinitionList = buildToolDefinitionListFromMap(input.toolDefinitionMap);
   const toolExecutionContext = {
@@ -271,6 +284,7 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
         uiEventList.push('NEED_CONFIRM');
         return {
           uiEventList,
+          transcript: userText,
           spokenText: outcome.pending.summary,
           pendingConfirmation: outcome.pending,
           speechMode: input.speechMode,
@@ -309,6 +323,7 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
 
   return {
     uiEventList,
+    transcript: userText,
     spokenText,
     ttsAudio,
     ttsFollowUpSegmentTextList,

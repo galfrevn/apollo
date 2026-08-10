@@ -78,6 +78,18 @@ export function buildOpenRouterSystemPrompt(input: {
   ].join('\n');
 }
 
+export function buildSemanticMemoryPromptNote(
+  semanticMemoryContentList: readonly string[],
+): string {
+  if (semanticMemoryContentList.length === 0) {
+    return '';
+  }
+  const semanticMemoryBlock = semanticMemoryContentList
+    .map((content) => `- ${content}`)
+    .join('\n');
+  return `\n\nRecall semántico (Vectorize):\n${semanticMemoryBlock}`;
+}
+
 const openRouterStreamChunkSchema = z.object({
   choices: z
     .array(
