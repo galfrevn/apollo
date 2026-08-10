@@ -24,14 +24,9 @@ The server already tracks `focus` state and sends `focusRemainingSec` on every `
 
 The firmware now remembers which mode started the listen (`listen_started_by_hold_` in `apollo_protocol.cc`) and ends it with the matching event: `hold_end` for push-to-talk, `audio_end` for wake-word turns. The server dispatches them as separate cases (identical behavior today) so timeouts or continuity can diverge without a flash.
 
-### 5. Device-side MCP: the agent with hands on the hardware
+### 5. Device-side MCP: the agent with hands on the hardware — ✅ implemented 2026-08-10 (pending flash)
 
-The most powerful piece. `application.cc` already has an `McpServer` (inherited from xiaozhi) with volume, brightness, and other tools, but:
-
-- `apollo_protocol.cc` never routes `"mcp"` messages — the branch exists in `application.cc` and is dead.
-- On the server side, the agents SDK's `cf_agent_mcp_servers` traffic is ignored on purpose.
-
-Connecting both ends would let the agent act by voice: "bajá el brillo", "subí el volumen", "apagá la pantalla", "poné cara de contento". Requires defining the bridge between the agents SDK tool format and the embedded MCP.
+Both ends are connected: `apollo_protocol.cc` routes `"mcp"` frames into the live `application.cc` branch (and overrides `SendMcpMessage` to speak the Apollo dialect: `{"type":"mcp","payload",…,"ts"}`), and the server bridges agent tools to the embedded MCP over the websocket (`src/mcp/bridge.ts`: integer JSON-RPC ids, 5 s timeout awaited inside the tool handler). Exposed to the LLM as `set_volume`, `set_brightness`, and `device_status` (`src/tools/device.ts`); the device's user-only tools (`self.reboot`, `self.upgrade_firmware`) stay callable from server code but hidden from the model. "Apagá la pantalla" and face control need tools the 1.85C build compiles out — a later firmware addition.
 
 ### 6. Voice timer with ring progress — server half ✅ (2026-08-08)
 
@@ -83,13 +78,13 @@ Still open: `long_press` is not in the gesture enum, so "hold to start a pomodor
 
 `{"type":"play_effect", "name":"ding"|"chime"|"error"|"low_battery"}` plays effects already burned into flash. The names are logical — the firmware maps them to assets (`ding`→success, `chime`→popup, `error`→exclamation) so the server can re-purpose sounds without a flash. Wired at three sites: reminder/timer delivery (the ding lands while the TTS is still synthesizing), confirm requests, and turn failures, plus the low-battery announcement from item 3.
 
-### 13. `set_volume` from the server
+### 13. `set_volume` from the server — ✅ implemented 2026-08-10 via item 5
 
-A trivial command for "bajá el volumen" by voice. It overlaps with device-side MCP (item 5, which already exposes volume and brightness): if item 5 lands soon this comes for free through it; if not, a simple message works as a bridge.
+Came for free through the MCP bridge, as predicted: `set_volume` is one of the three tools item 5 exposes to the agent.
 
-### 14. OTA from R2
+### 14. OTA from R2 — ✅ implemented 2026-08-10 (pending the last cable flash)
 
-The server hosts the firmware binary in the `MEDIA` bucket, the device checks its version at boot (HTTP + `esp_ota`) and updates itself. Given how risky cable flashing is on this board — never touch DTR/RTS — it pays for itself: one last manual flash, and from then on the firmware "deploys" too. Promoted from "Under consideration", where it was listed as "OTA over WiFi".
+The worker serves `/ota/check` and `/ota/firmware.bin` from the `MEDIA` bucket (`src/ota/`, token-authenticated, versions strictly `digits.and.dots` because the device's parser aborts on anything else). The device (2.5.0) checks once at boot right after time sync — single attempt, a failed check never blocks boot — and self-updates through the existing `esp_ota` path; `MarkCurrentVersionValid` now runs under Apollo so rollback no longer reverts OTA'd images. Publishing steps live in [Deploy](../operations/deploy.md#publishing-firmware-ota). Remaining: deploy the worker, upload 2.5.0 + manifest, one last cable flash; from then on firmware "deploys" too. Push-style updates (server calls `self.upgrade_firmware` over the item-5 bridge when telemetry shows a stale version) are the documented follow-up for devices that never reboot.
 
 ### 15. `tts_end` + playback acks (real streaming)
 

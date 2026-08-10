@@ -29,6 +29,7 @@ export function createDeskToolEffects(input: {
   readonly cancelReminders: DeskToolEffects['cancelReminders'];
   readonly resolveWeatherLocation: DeskToolEffects['resolveWeatherLocation'];
   readonly persistWeatherLocation: DeskToolEffects['persistWeatherLocation'];
+  readonly callDeviceTool: DeskToolEffects['callDeviceTool'];
 }): DeskToolEffects {
   return {
     persistMemory: async (content) => {
@@ -61,6 +62,7 @@ export function createDeskToolEffects(input: {
     cancelReminders: input.cancelReminders,
     resolveWeatherLocation: input.resolveWeatherLocation,
     persistWeatherLocation: input.persistWeatherLocation,
+    callDeviceTool: input.callDeviceTool,
     addListItem: async (item) => addListItemRecord(input.sqlExecutor, item),
     listListItems: async (listName) => listListItemRecords(input.sqlExecutor, listName),
     removeListItems: async (removal) => removeListItemRecords(input.sqlExecutor, removal),

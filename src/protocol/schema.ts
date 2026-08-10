@@ -84,6 +84,21 @@ export const deviceToServerMessageSchema = z.discriminatedUnion('type', [
     firmwareVersion: z.string().min(1).optional(),
     ts: z.number().int().nonnegative(),
   }),
+  z.object({
+    type: z.literal('mcp'),
+    payload: z.object({
+      jsonrpc: z.literal('2.0'),
+      id: z.number().int(),
+      result: z.unknown().optional(),
+      error: z
+        .object({
+          code: z.number().int().optional(),
+          message: z.string().min(1),
+        })
+        .optional(),
+    }),
+    ts: z.number().int().nonnegative(),
+  }),
 ]);
 
 export type DeviceToServerMessage = z.infer<typeof deviceToServerMessageSchema>;
@@ -145,6 +160,17 @@ export const serverToDeviceMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('play_effect'),
     name: deskSoundEffectSchema,
+  }),
+  z.object({
+    type: z.literal('mcp'),
+    payload: z.object({
+      jsonrpc: z.literal('2.0'),
+      // The device's McpServer silently drops string ids, so the integer
+      // constraint here is what keeps every request answerable.
+      id: z.number().int(),
+      method: z.string().min(1),
+      params: z.record(z.unknown()).optional(),
+    }),
   }),
 ]);
 

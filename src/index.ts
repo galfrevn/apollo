@@ -2,6 +2,7 @@ import { routeAgentRequest } from 'agents';
 import { Sandbox } from '@cloudflare/sandbox';
 
 import { authorizeApolloConnection, Apollo } from '@/agents/apollo';
+import { handleOtaRequest } from '@/ota/routes';
 import { consumeApolloQueueBatch } from '@/queues/consume';
 import { ApolloBackground } from '@/workflows/background';
 import { ApolloCoding } from '@/workflows/coding';
@@ -18,6 +19,10 @@ export default {
         name: 'apollo',
         features: ['session', 'vectorize', 'r2', 'queues', 'workflows'],
       });
+    }
+
+    if (requestUrl.pathname.startsWith('/ota/')) {
+      return handleOtaRequest(request, requestUrl, environment);
     }
 
     const agentResponse = await routeAgentRequest(request, environment, {

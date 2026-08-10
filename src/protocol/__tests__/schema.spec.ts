@@ -158,4 +158,78 @@ describe('protocol schema', () => {
       }),
     ).toThrow();
   });
+
+  it('parses mcp responses with result or error', () => {
+    expect(
+      parseDeviceToServerMessage({
+        type: 'mcp',
+        payload: {
+          jsonrpc: '2.0',
+          id: 3,
+          result: { content: [{ type: 'text', text: 'true' }], isError: false },
+        },
+        ts: 6,
+      }).type,
+    ).toBe('mcp');
+    expect(
+      parseDeviceToServerMessage({
+        type: 'mcp',
+        payload: { jsonrpc: '2.0', id: 4, error: { message: 'Unknown tool' } },
+        ts: 7,
+      }).type,
+    ).toBe('mcp');
+  });
+
+  it('rejects mcp responses without an integer id or without ts', () => {
+    expect(() =>
+      parseDeviceToServerMessage({
+        type: 'mcp',
+        payload: { jsonrpc: '2.0', id: 'abc', result: {} },
+        ts: 8,
+      }),
+    ).toThrow();
+    expect(() =>
+      parseDeviceToServerMessage({
+        type: 'mcp',
+        payload: { jsonrpc: '2.0', id: 5, result: {} },
+      }),
+    ).toThrow();
+  });
+
+  it('encodes mcp tool calls', () => {
+    expect(
+      JSON.parse(
+        encodeServerToDeviceMessage({
+          type: 'mcp',
+          payload: {
+            jsonrpc: '2.0',
+            id: 9,
+            method: 'tools/call',
+            params: { name: 'self.audio_speaker.set_volume', arguments: { volume: 40 } },
+          },
+        }),
+      ),
+    ).toEqual({
+      type: 'mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 9,
+        method: 'tools/call',
+        params: { name: 'self.audio_speaker.set_volume', arguments: { volume: 40 } },
+      },
+    });
+  });
+
+  it('rejects outbound mcp calls with a string id', () => {
+    expect(() =>
+      encodeServerToDeviceMessage({
+        type: 'mcp',
+        payload: {
+          jsonrpc: '2.0',
+          id: '9' as never,
+          method: 'tools/call',
+        },
+      }),
+    ).toThrow();
+  });
 });
