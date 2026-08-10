@@ -20,6 +20,8 @@ See `wrangler.jsonc` for the authoritative list, migrations, and model vars.
 
 Use your usual Wrangler deploy flow after secrets and resources exist in the target account. Do not invent resource names beyond what the config declares.
 
+The `Sandbox` container image is built by the Docker CLI as part of every deploy, including `--dry-run`, so the daemon has to be running. To ship a Worker-only change without it, pass `--containers-rollout=none`.
+
 ## Navigation
 
 Prev: [Setup](setup.md) · Next: [Auth](auth.md)
