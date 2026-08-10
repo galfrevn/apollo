@@ -15,6 +15,7 @@ import {
 } from '@/agents/notify';
 import {
   deliverReminderPayloadSchema,
+  expireConfirmPayloadSchema,
   notifyBackgroundResultInputSchema,
 } from '@/agents/rpc';
 import { concatenateArrayBufferList, executeApolloTurn } from '@/agents/runtime';
@@ -47,6 +48,12 @@ import {
   type AgentScheduleLike,
 } from '@/reminders/logic';
 import { createDeskUiMachine, type DeskUiMachine } from '@/session/machine';
+import {
+  deletePendingToolConfirmations,
+  isPendingConfirmationOrphaned,
+  readPendingToolConfirmation,
+  savePendingToolConfirmation,
+} from '@/tools/pending';
 import type { PendingToolConfirmation } from '@/tools/types';
 import type { DeskWeatherSnapshot } from '@/weather/fetch';
 import {
@@ -152,6 +159,17 @@ export class Apollo extends Agent<Env, ApolloState> {
         list_name TEXT NOT NULL,
         content TEXT NOT NULL,
         created_at INTEGER NOT NULL
+      )
+    `;
+    // The confirm window is idle by nature, so the agent routinely hibernates
+    // mid-wait and loses the in-memory copy before the user answers.
+    void this.sql`
+      CREATE TABLE IF NOT EXISTS pending_confirmations (
+        id TEXT PRIMARY KEY,
+        tool_name TEXT NOT NULL,
+        args_json TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        expires_at INTEGER NOT NULL
       )
     `;
     this.#session = createApolloSession(this, this.env.MEDIA);
@@ -303,19 +321,46 @@ export class Apollo extends Agent<Env, ApolloState> {
     return this.state;
   }
 
-  async expireConfirm(): Promise<void> {
-    if (this.#pendingConfirmation === undefined) {
+  async expireConfirm(payload: unknown): Promise<void> {
+    if (this.state.pendingConfirmId === null) {
       return;
     }
+    // Timers scheduled before this payload existed still fire with `undefined`,
+    // so an unreadable payload falls back to the stored expiry. A resolved
+    // confirmation otherwise leaves its timer behind, and matching on the id
+    // stops it cancelling whichever confirmation is live by then.
+    const parsedPayload = expireConfirmPayloadSchema.safeParse(payload);
+    if (parsedPayload.success) {
+      if (this.state.pendingConfirmId !== parsedPayload.data.confirmationId) {
+        return;
+      }
+    } else {
+      const storedConfirmation = await readPendingToolConfirmation(this.#sqlExecutor());
+      if (storedConfirmation !== undefined && storedConfirmation.expiresAt > Date.now()) {
+        return;
+      }
+    }
+    await this.#closePendingConfirmation('Confirmación expirada');
+  }
+
+  // Closing a confirmation is the same work however it ends: forget it in
+  // memory and on disk, leave the confirm UI state, and tell the device — which
+  // is sitting on the confirm screen and never learns the window closed unless
+  // it is told.
+  async #closePendingConfirmation(caption: string): Promise<void> {
     this.#pendingConfirmation = undefined;
+    await deletePendingToolConfirmations(this.#sqlExecutor());
     this.#applyUiEvent('CANCEL');
     this.setState({
       ...this.state,
       pendingConfirmId: null,
       pendingConfirmSummary: null,
-      caption: 'Confirmación expirada',
+      caption,
       uiState: this.#uiMachine.state,
     });
+    for (const connection of this.getConnections()) {
+      this.#pushUiState(connection);
+    }
   }
 
   async deliverReminder(payload: unknown): Promise<void> {
@@ -517,13 +562,28 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   async #resolveConfirm(connection: Connection, isApproved: boolean): Promise<void> {
-    if (this.#pendingConfirmation === undefined) {
+    const pendingConfirmation =
+      this.#pendingConfirmation ??
+      (await readPendingToolConfirmation(this.#sqlExecutor()));
+    if (pendingConfirmation === undefined) {
+      if (
+        isPendingConfirmationOrphaned({
+          restoredConfirmation: pendingConfirmation,
+          pendingConfirmIdInState: this.state.pendingConfirmId,
+        })
+      ) {
+        await this.#closePendingConfirmation(
+          'Se me perdió esa confirmación, pedímelo de nuevo.',
+        );
+      }
       return;
     }
+    this.#pendingConfirmation = undefined;
+    await deletePendingToolConfirmations(this.#sqlExecutor());
     await this.#executeTurn(connection, {
       text: isApproved ? 'confirmado' : 'cancelado',
       confirmOk: isApproved,
-      pendingConfirmation: this.#pendingConfirmation,
+      pendingConfirmation,
     });
   }
 
@@ -602,8 +662,8 @@ export class Apollo extends Agent<Env, ApolloState> {
           setAgentState: (nextState) => {
             this.setState(nextState);
           },
-          scheduleConfirmExpiry: async () => {
-            await this.schedule(30, 'expireConfirm', undefined);
+          scheduleConfirmExpiry: async (confirmationId) => {
+            await this.schedule(30, 'expireConfirm', { confirmationId });
           },
           session: this.session,
           deviceId,
@@ -612,6 +672,9 @@ export class Apollo extends Agent<Env, ApolloState> {
         },
         turnPart,
       );
+      if (this.#pendingConfirmation !== undefined) {
+        await savePendingToolConfirmation(this.#sqlExecutor(), this.#pendingConfirmation);
+      }
     } catch (error) {
       console.error(
         JSON.stringify({

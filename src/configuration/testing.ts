@@ -1,4 +1,37 @@
+import type { MemorySqlExecutor } from '@/memory/store';
 import type { DeskToolEffects } from '@/tools/types';
+
+export function createInMemoryPendingConfirmationSqlExecutor(): MemorySqlExecutor {
+  let rowList: readonly Record<string, unknown>[] = [];
+  return {
+    execute<Row extends Record<string, unknown>>(
+      query: string,
+      ...bindValues: unknown[]
+    ): readonly Row[] {
+      if (query.startsWith('DELETE FROM pending_confirmations')) {
+        rowList = [];
+        return [];
+      }
+      if (query.startsWith('INSERT INTO pending_confirmations')) {
+        rowList = [
+          ...rowList,
+          {
+            id: String(bindValues[0]),
+            tool_name: String(bindValues[1]),
+            args_json: String(bindValues[2]),
+            summary: String(bindValues[3]),
+            expires_at: Number(bindValues[4]),
+          },
+        ];
+        return [];
+      }
+      if (query.includes('FROM pending_confirmations')) {
+        return rowList.slice(0, 1) as readonly Row[];
+      }
+      return [];
+    },
+  };
+}
 
 export function createFakeApolloEnvironment(overrides: Partial<Env> = {}): Env {
   return {

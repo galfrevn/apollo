@@ -28,7 +28,7 @@ export type ApolloTurnRuntimeDependencies = {
   readonly currentState: ApolloState;
   readonly getCurrentState: () => ApolloState;
   readonly setAgentState: (nextState: ApolloState) => void;
-  readonly scheduleConfirmExpiry: () => Promise<void>;
+  readonly scheduleConfirmExpiry: (confirmationId: string) => Promise<void>;
   readonly session: Session;
   readonly deviceId: string;
   readonly effects: DeskToolEffects;
@@ -158,7 +158,7 @@ export async function executeApolloTurn(
   }
 
   if (turnOutput.pendingConfirmation !== undefined) {
-    await dependencies.scheduleConfirmExpiry();
+    await dependencies.scheduleConfirmExpiry(turnOutput.pendingConfirmation.id);
   }
 
   // `set_focus`/`clear_focus` tool effects (see @/agents/effects) may have

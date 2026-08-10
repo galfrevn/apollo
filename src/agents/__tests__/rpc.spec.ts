@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 
 import {
   deliverReminderPayloadSchema,
+  expireConfirmPayloadSchema,
   notifyBackgroundResultInputSchema,
 } from '@/agents/rpc';
 
@@ -68,5 +69,19 @@ describe('deliverReminderPayloadSchema', () => {
   it('rejects a completely malformed payload', () => {
     expect(() => deliverReminderPayloadSchema.parse('reminder')).toThrow();
     expect(() => deliverReminderPayloadSchema.parse(null)).toThrow();
+  });
+});
+
+describe('expireConfirmPayloadSchema', () => {
+  it('carries the id of the confirmation the timer was scheduled for', () => {
+    expect(expireConfirmPayloadSchema.parse({ confirmationId: 'confirm-1' })).toEqual({
+      confirmationId: 'confirm-1',
+    });
+  });
+
+  it('rejects a payload with no usable confirmation id', () => {
+    expect(() => expireConfirmPayloadSchema.parse({})).toThrow();
+    expect(() => expireConfirmPayloadSchema.parse({ confirmationId: '' })).toThrow();
+    expect(() => expireConfirmPayloadSchema.parse(undefined)).toThrow();
   });
 });

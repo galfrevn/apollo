@@ -9,3 +9,7 @@ export const notifyBackgroundResultInputSchema = z.object({
 export const deliverReminderPayloadSchema = z.object({
   message: z.string().min(1),
 });
+
+export const expireConfirmPayloadSchema = z.object({
+  confirmationId: z.string().min(1),
+});
