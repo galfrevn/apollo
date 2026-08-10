@@ -25,7 +25,6 @@ Thin map from handbook topics to code folders. Prefer the narrative chapters for
 | Auth | `src/auth/` |
 | Queues | `src/queues/` |
 | Workflows | `src/workflows/` |
-| Media | `src/media/` |
 | Session UI machine | `src/session/` |
 | Config / env types | `src/configuration/`, `wrangler.jsonc` |
 
