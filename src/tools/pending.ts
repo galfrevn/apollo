@@ -11,12 +11,16 @@ const pendingToolConfirmationRowSchema = z.object({
   expires_at: z.number().int().nonnegative(),
 });
 
+// The agent tracks a single pending confirmation, so the table holds at most
+// one row: replacing rather than upserting keeps a superseded confirmation from
+// being restored in place of the live one.
 export async function savePendingToolConfirmation(
   sqlExecutor: MemorySqlExecutor,
   confirmation: PendingToolConfirmation,
 ): Promise<void> {
+  sqlExecutor.execute('DELETE FROM pending_confirmations');
   sqlExecutor.execute(
-    'INSERT INTO pending_confirmations (id, tool_name, args_json, summary, expires_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET tool_name = excluded.tool_name, args_json = excluded.args_json, summary = excluded.summary, expires_at = excluded.expires_at',
+    'INSERT INTO pending_confirmations (id, tool_name, args_json, summary, expires_at) VALUES (?, ?, ?, ?, ?)',
     confirmation.id,
     confirmation.toolName,
     JSON.stringify(confirmation.args ?? null),
@@ -25,23 +29,36 @@ export async function savePendingToolConfirmation(
   );
 }
 
-export async function readLatestPendingToolConfirmation(
+export async function readPendingToolConfirmation(
   sqlExecutor: MemorySqlExecutor,
 ): Promise<PendingToolConfirmation | undefined> {
   const rows = sqlExecutor.execute<Record<string, unknown>>(
-    'SELECT id, tool_name, args_json, summary, expires_at FROM pending_confirmations ORDER BY expires_at DESC LIMIT 1',
+    'SELECT id, tool_name, args_json, summary, expires_at FROM pending_confirmations LIMIT 1',
   );
   const firstRow = rows[0];
   if (firstRow === undefined) {
     return undefined;
   }
-  const parsedRow = pendingToolConfirmationRowSchema.parse(firstRow);
+
+  // A row that cannot be read back is treated as nothing pending: the caller
+  // would otherwise hand unvalidated arguments to an unsafe tool.
+  const parsedRow = pendingToolConfirmationRowSchema.safeParse(firstRow);
+  if (!parsedRow.success) {
+    return undefined;
+  }
+  let storedArguments: unknown;
+  try {
+    storedArguments = JSON.parse(parsedRow.data.args_json);
+  } catch {
+    return undefined;
+  }
+
   return {
-    id: parsedRow.id,
-    toolName: parsedRow.tool_name,
-    args: JSON.parse(parsedRow.args_json),
-    summary: parsedRow.summary,
-    expiresAt: parsedRow.expires_at,
+    id: parsedRow.data.id,
+    toolName: parsedRow.data.tool_name,
+    args: storedArguments,
+    summary: parsedRow.data.summary,
+    expiresAt: parsedRow.data.expires_at,
   };
 }
 

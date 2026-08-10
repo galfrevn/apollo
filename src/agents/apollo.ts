@@ -50,7 +50,7 @@ import {
 import { createDeskUiMachine, type DeskUiMachine } from '@/session/machine';
 import {
   deletePendingToolConfirmations,
-  readLatestPendingToolConfirmation,
+  readPendingToolConfirmation,
   savePendingToolConfirmation,
 } from '@/tools/pending';
 import type { PendingToolConfirmation } from '@/tools/types';
@@ -321,14 +321,23 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   async expireConfirm(payload: unknown): Promise<void> {
-    const { confirmationId } = expireConfirmPayloadSchema.parse(payload);
-    // A resolved confirmation leaves its timer behind, which would otherwise
-    // fire later and cancel whichever confirmation is live by then.
-    if (
-      this.state.pendingConfirmId === null ||
-      this.state.pendingConfirmId !== confirmationId
-    ) {
+    if (this.state.pendingConfirmId === null) {
       return;
+    }
+    // Timers scheduled before this payload existed still fire with `undefined`,
+    // so an unreadable payload falls back to the stored expiry. A resolved
+    // confirmation otherwise leaves its timer behind, and matching on the id
+    // stops it cancelling whichever confirmation is live by then.
+    const parsedPayload = expireConfirmPayloadSchema.safeParse(payload);
+    if (parsedPayload.success) {
+      if (this.state.pendingConfirmId !== parsedPayload.data.confirmationId) {
+        return;
+      }
+    } else {
+      const storedConfirmation = await readPendingToolConfirmation(this.#sqlExecutor());
+      if (storedConfirmation !== undefined && storedConfirmation.expiresAt > Date.now()) {
+        return;
+      }
     }
     this.#pendingConfirmation = undefined;
     await deletePendingToolConfirmations(this.#sqlExecutor());
@@ -548,7 +557,7 @@ export class Apollo extends Agent<Env, ApolloState> {
   async #resolveConfirm(connection: Connection, isApproved: boolean): Promise<void> {
     const pendingConfirmation =
       this.#pendingConfirmation ??
-      (await readLatestPendingToolConfirmation(this.#sqlExecutor()));
+      (await readPendingToolConfirmation(this.#sqlExecutor()));
     if (pendingConfirmation === undefined) {
       return;
     }
