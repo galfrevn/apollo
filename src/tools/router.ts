@@ -39,8 +39,23 @@ export async function executeToolByName(
   }
 
   if (toolDefinition.safety === 'unsafe') {
-    const summary =
-      toolDefinition.buildConfirmSummary?.(toolArgs) ?? `Confirmar ${toolName}`;
+    // Building the summary is also the gate on the arguments: it parses them
+    // with the tool's own schema, so no confirmation is ever created — or
+    // persisted, or shown to the user — for a call that could not run. Letting
+    // the parse failure escape would fail the whole turn; the model sending
+    // arguments a tool cannot accept is an ordinary tool error it can retry.
+    let summary: string;
+    try {
+      summary = toolDefinition.buildConfirmSummary?.(toolArgs) ?? `Confirmar ${toolName}`;
+    } catch {
+      return {
+        status: 'done',
+        result: {
+          ok: false,
+          summary: `No pude preparar la confirmación de ${toolName}: argumentos inválidos`,
+        },
+      };
+    }
     return {
       status: 'needs_confirm',
       pending: {
