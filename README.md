@@ -6,6 +6,8 @@
 [![Agents][agents-shield]][agents-url]
 [![Zod][zod-shield]][zod-url]
 
+[![Greptile: The War on Bugs][greptile-shield]][greptile-url]
+
 <br />
 <div align="center">
   <img src=".github/assets/banner.jpeg" alt="Apollo banner" width="100%">
@@ -31,3 +33,5 @@
 [agents-url]: https://developers.cloudflare.com/agents/
 [zod-shield]: https://img.shields.io/badge/Zod-3E67B1?style=for-the-badge&logo=zod&logoColor=white
 [zod-url]: https://zod.dev/
+[greptile-shield]: https://www.greptile.com/badge.svg
+[greptile-url]: https://www.greptile.com/?utm_source=oss_badge&utm_medium=readme&utm_campaign=greptile_for_open_source
