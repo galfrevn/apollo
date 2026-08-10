@@ -12,7 +12,8 @@ Apollo deploys as a Cloudflare Worker named `apollo` with several bindings.
 | `VECTORIZE` | Memory embeddings index |
 | `TAVILY_API_KEY` | Secret — Tavily search API (quick `web_search`) |
 | `APOLLO_QUEUE` | Background job queue |
-| Workflows | `apollo-background` long-running work |
+| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` | Secrets — GitHub App used by coding tasks |
+| Workflows | `apollo-background` deep research, `apollo-coding` coding tasks |
 
 See `wrangler.jsonc` for the authoritative list, migrations, and model vars.
 

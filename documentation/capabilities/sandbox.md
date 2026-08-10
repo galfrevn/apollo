@@ -23,4 +23,4 @@ Use the sandbox when the user needs computation or inspection that should not bl
 
 ## Navigation
 
-Prev: [Reminders](reminders.md) · Next: [Setup](../operations/setup.md)
+Prev: [Reminders](reminders.md) · Next: [Coding](coding.md)

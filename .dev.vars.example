@@ -3,6 +3,8 @@ OPENROUTER_API_KEY=
 ELEVENLABS_API_KEY=
 TAVILY_API_KEY=
 RESEND_API_KEY=
+GITHUB_APP_ID=
+GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
 MOCK_VOICE=1
 
 # Remote one-time setup (when you deploy):
@@ -12,3 +14,8 @@ MOCK_VOICE=1
 #
 # Sandbox (Containers) needs Docker running for wrangler deploy / local container runs.
 # Base image: cloudflare/sandbox matching @cloudflare/sandbox (see Dockerfile).
+#
+# Coding tasks commit as a GitHub App, not as you. Create one (Contents: read &
+# write, Pull requests: read & write, Metadata: read), install it on the repos
+# Apollo may touch, and paste its id and PEM above. The set of repos it is
+# installed on is the allowlist: anything else fails before a container starts.

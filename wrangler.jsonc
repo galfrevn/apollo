@@ -12,6 +12,7 @@
     "OPENROUTER_MODEL": "deepseek/deepseek-v4-flash-0731",
     "OPENROUTER_STT_MODEL": "openai/whisper-large-v3",
     "OPENROUTER_RESEARCH_MODEL": "perplexity/sonar-deep-research",
+    "OPENROUTER_CODING_MODEL": "moonshotai/kimi-k3",
     "ELEVENLABS_TTS_MODEL": "eleven_multilingual_v2",
     "OPENROUTER_EMBEDDING_MODEL": "openai/text-embedding-3-small",
     "APOLLO_OWNER_EMAIL": "galfre.vn@gmail.com",
@@ -20,7 +21,7 @@
     {
       "class_name": "Sandbox",
       "image": "./Dockerfile",
-      "instance_type": "lite",
+      "instance_type": "standard-1",
       "max_instances": 1,
     },
   ],
@@ -79,6 +80,11 @@
       "name": "apollo-background",
       "binding": "BACKGROUND",
       "class_name": "ApolloBackground",
+    },
+    {
+      "name": "apollo-coding",
+      "binding": "CODING",
+      "class_name": "ApolloCoding",
     },
   ],
 }

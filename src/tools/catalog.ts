@@ -1,3 +1,4 @@
+import { startCodingTaskTool } from '@/tools/coding';
 import { dollarRateTool } from '@/tools/dollar';
 import { sendEmailTool } from '@/tools/email';
 import { setFocusTool, clearFocusTool } from '@/tools/focus';
@@ -37,6 +38,7 @@ export function listBuiltinToolDefinitionList(): readonly ToolDefinition[] {
     sendEmailTool,
     sandboxRunCodeTool,
     sandboxExecTool,
+    startCodingTaskTool,
   ];
 }
 

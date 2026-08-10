@@ -26,6 +26,19 @@ export async function consumeApolloQueueBatch(
         continue;
       }
 
+      if (job.type === 'run_coding') {
+        await environment.CODING.create({
+          id: crypto.randomUUID(),
+          params: {
+            repository: job.repository,
+            task: job.task,
+            deviceId: job.deviceId,
+          },
+        });
+        message.ack();
+        continue;
+      }
+
       if (job.type === 'run_background') {
         await environment.BACKGROUND.create({
           id: crypto.randomUUID(),
@@ -64,6 +77,22 @@ export async function enqueueMemoryIndexJob(
     type: 'index_memory',
     memoryId: input.memoryId,
     content: input.content,
+    deviceId: input.deviceId,
+  });
+}
+
+export async function enqueueCodingJob(
+  environment: Env,
+  input: {
+    readonly repository: string;
+    readonly task: string;
+    readonly deviceId: string;
+  },
+): Promise<void> {
+  await environment.APOLLO_QUEUE.send({
+    type: 'run_coding',
+    repository: input.repository,
+    task: input.task,
     deviceId: input.deviceId,
   });
 }

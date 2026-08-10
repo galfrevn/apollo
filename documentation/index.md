@@ -28,15 +28,16 @@ This handbook is meant to be read in order. Later chapters assume the concepts i
 12. [Focus](capabilities/focus.md) — Focus timer behavior
 13. [Reminders](capabilities/reminders.md) — Schedules and delivery
 14. [Sandbox](capabilities/sandbox.md) — Isolated code execution
+15. [Coding](capabilities/coding.md) — Clone a repo, change it, open a pull request
 
 ### Part IV — Operations
 
-15. [Setup](operations/setup.md) — Local development
-16. [Deploy](operations/deploy.md) — Workers, bindings, and containers
-17. [Auth](operations/auth.md) — Device shared secret
-18. [Testing](operations/testing.md) — How this repo verifies behavior
+16. [Setup](operations/setup.md) — Local development
+17. [Deploy](operations/deploy.md) — Workers, bindings, and containers
+18. [Auth](operations/auth.md) — Device shared secret
+19. [Testing](operations/testing.md) — How this repo verifies behavior
 
 ### Part V — Reference
 
-19. [Mapping](reference/mapping.md) — Handbook topics to `src/` folders
-20. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
+20. [Mapping](reference/mapping.md) — Handbook topics to `src/` folders
+21. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
