@@ -7,10 +7,11 @@ Apollo can clone a GitHub repository, change it, run its tests, and open a pull 
 `start_coding_task` is `unsafe`, so one spoken confirmation authorizes the whole task; confirming every `git` and `npm` command by voice would be unusable. The handler only enqueues, so nothing starts before you approve. The job goes to the `apollo-coding` Workflow (`src/workflows/coding.ts`), which:
 
 1. Mints a GitHub App installation token and reads the default branch.
-2. Clones fresh into `/workspace/repo` and cuts an `apollo/<slug>-<id>` branch.
+2. Clones fresh into `/workspace/repo` in the agent sandbox.
 3. Runs the agent loop (`src/coding/agent.ts`) with four tools: `list_files`, `read_file`, `write_file`, `run_command`.
-4. Commits as the bot, pushes the branch, opens the pull request.
-5. Destroys the sandbox.
+4. Extracts the agent's changes as a binary patch — no token involved.
+5. In a second, fresh sandbox: clones again, cuts an `apollo/<slug>-<id>` branch, applies the patch, commits as the bot, pushes, and opens the pull request.
+6. Destroys both sandboxes.
 
 The result comes back through the same path as deep research: a short spoken summary, the full run log in R2, and a `background_result` on the wire.
 
@@ -30,6 +31,7 @@ Installation tokens last an hour, so one is minted immediately before the push r
 - **The base branch is never a push target.** Work always lands on a new branch, and `createGithubPullRequest` refuses a head equal to the base.
 - **The agent cannot leave the repository.** `resolveWorkspaceFilePath` rejects `..` escapes and any path under `.git`.
 - **The agent cannot see the token.** Its sandbox port has no way to pass environment variables, and git receives the token through a credential helper reading the environment — never through `argv` or the remote URL. Output is redacted on the way out regardless.
+- **The agent cannot ambush the push.** After the clone, no token-carrying command runs in the sandbox the agent has a shell in. The changes leave it as a patch, and the authenticated push happens in a fresh sandbox where the patch is inert data — `git apply` refuses paths outside the worktree and under `.git` — so a planted hook, a repointed `origin`, a rewritten `.git/config`, or a replaced `git` binary never meets the token.
 - **The loop is bounded** by a round cap, so a confused model stops instead of burning tokens.
 
 ## Configuration

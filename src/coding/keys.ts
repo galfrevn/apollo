@@ -10,3 +10,7 @@ export function buildCodingSandboxId(instanceId: string): string {
   // same container instead of cloning into a fresh one.
   return `apollo-coding-${instanceId}`;
 }
+
+export function buildCodingPublishSandboxId(instanceId: string): string {
+  return `apollo-coding-publish-${instanceId}`;
+}

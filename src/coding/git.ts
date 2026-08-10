@@ -3,6 +3,7 @@ import type { GithubRepositoryReference } from '@/github/repository';
 export const CODING_WORKSPACE_PATH = '/workspace/repo';
 export const CODING_TOKEN_ENVIRONMENT_NAME = 'APOLLO_GITHUB_TOKEN';
 export const DISABLED_GIT_HOOKS_PATH = '/var/empty/apollo-no-hooks';
+export const CODING_PATCH_PATH = '/workspace/changes.patch';
 
 const BRANCH_SLUG_MAX_LENGTH = 40;
 
@@ -38,9 +39,6 @@ function buildCredentialHelperFlag(): string {
   return `-c credential.helper=${quoteShellArgument(helperScript)}`;
 }
 
-// Any git command carrying the token runs hooks from an empty directory. The
-// agent has a shell in this workspace, so it could otherwise drop a pre-push
-// hook that git would run with the installation token in its environment.
 function buildDisabledHooksFlag(): string {
   return `-c core.hooksPath=${quoteShellArgument(DISABLED_GIT_HOOKS_PATH)}`;
 }
@@ -80,11 +78,20 @@ export function buildCreateBranchCommand(branchName: string): string {
   return `git checkout -b ${quoteShellArgument(branchName)}`;
 }
 
-export function buildStageAndCommitCommand(commitMessage: string): string {
-  return [
-    'git add -A',
-    `git ${buildDisabledHooksFlag()} commit -m ${quoteShellArgument(commitMessage)}`,
-  ].join(' && ');
+export function buildStageAllCommand(): string {
+  return 'git add -A';
+}
+
+export function buildWritePatchCommand(patchPath: string = CODING_PATCH_PATH): string {
+  return `git diff --cached --binary --output=${quoteShellArgument(patchPath)}`;
+}
+
+export function buildApplyPatchCommand(patchPath: string = CODING_PATCH_PATH): string {
+  return `git ${buildDisabledHooksFlag()} apply --index ${quoteShellArgument(patchPath)}`;
+}
+
+export function buildCommitCommand(commitMessage: string): string {
+  return `git ${buildDisabledHooksFlag()} commit -m ${quoteShellArgument(commitMessage)}`;
 }
 
 export function buildPushBranchCommand(branchName: string): string {
@@ -96,6 +103,7 @@ export function buildPushBranchCommand(branchName: string): string {
     buildCredentialHelperFlag(),
     buildDisabledHooksFlag(),
     'push',
+    '--no-verify',
     'origin',
     quoteShellArgument(branchName),
   ].join(' ');

@@ -1,10 +1,14 @@
 import {
+  buildApplyPatchCommand,
   buildChangedFileListCommand,
   buildCloneCommand,
+  buildCommitCommand,
   buildConfigureIdentityCommand,
   buildCreateBranchCommand,
   buildPushBranchCommand,
-  buildStageAndCommitCommand,
+  buildStageAllCommand,
+  buildWritePatchCommand,
+  CODING_PATCH_PATH,
   CODING_TOKEN_ENVIRONMENT_NAME,
   CODING_WORKSPACE_PATH,
   hasStagedOrUnstagedChanges,
@@ -77,12 +81,78 @@ export async function prepareCodingWorkspace(input: {
   readonly sandbox: SandboxLike;
   readonly repository: GithubRepositoryReference;
   readonly baseBranch: string;
-  readonly branchName: string;
-  readonly commitIdentity: GithubCommitIdentity;
   readonly installationToken: string;
   readonly workspacePath?: string;
 }): Promise<void> {
+  await runGitCommand({
+    sandbox: input.sandbox,
+    command: buildCloneCommand({
+      repository: input.repository,
+      baseBranch: input.baseBranch,
+      workspacePath: input.workspacePath ?? CODING_WORKSPACE_PATH,
+    }),
+    installationToken: input.installationToken,
+  });
+}
+
+export type CodingChangeExtraction = {
+  readonly hasChanges: boolean;
+  readonly changedFileSummary: string;
+  readonly patchText: string;
+};
+
+// Runs in the agent-tainted sandbox: no command here may carry the token.
+export async function extractCodingChanges(input: {
+  readonly sandbox: SandboxLike;
+  readonly workspacePath?: string;
+  readonly patchPath?: string;
+}): Promise<CodingChangeExtraction> {
   const workspacePath = input.workspacePath ?? CODING_WORKSPACE_PATH;
+  const patchPath = input.patchPath ?? CODING_PATCH_PATH;
+
+  await runGitCommand({
+    sandbox: input.sandbox,
+    command: buildStageAllCommand(),
+    cwd: workspacePath,
+  });
+  const statusResult = await runGitCommand({
+    sandbox: input.sandbox,
+    command: buildChangedFileListCommand(),
+    cwd: workspacePath,
+  });
+  if (!hasStagedOrUnstagedChanges(statusResult.stdout)) {
+    return { hasChanges: false, changedFileSummary: '', patchText: '' };
+  }
+
+  await runGitCommand({
+    sandbox: input.sandbox,
+    command: buildWritePatchCommand(patchPath),
+    cwd: workspacePath,
+  });
+  const patchFile = await input.sandbox.readFile(patchPath);
+
+  return {
+    hasChanges: true,
+    changedFileSummary: statusResult.stdout.trim(),
+    patchText: patchFile.content,
+  };
+}
+
+// Must run in a fresh sandbox the agent never had a shell in.
+export async function publishCodingChanges(input: {
+  readonly sandbox: SandboxLike;
+  readonly repository: GithubRepositoryReference;
+  readonly baseBranch: string;
+  readonly branchName: string;
+  readonly commitIdentity: GithubCommitIdentity;
+  readonly commitMessage: string;
+  readonly patchText: string;
+  readonly installationToken: string;
+  readonly workspacePath?: string;
+  readonly patchPath?: string;
+}): Promise<void> {
+  const workspacePath = input.workspacePath ?? CODING_WORKSPACE_PATH;
+  const patchPath = input.patchPath ?? CODING_PATCH_PATH;
 
   await runGitCommand({
     sandbox: input.sandbox,
@@ -103,34 +173,15 @@ export async function prepareCodingWorkspace(input: {
     command: buildCreateBranchCommand(input.branchName),
     cwd: workspacePath,
   });
-}
-
-export type CodingPushOutcome = {
-  readonly didPush: boolean;
-  readonly changedFileSummary: string;
-};
-
-export async function commitAndPushCodingChanges(input: {
-  readonly sandbox: SandboxLike;
-  readonly branchName: string;
-  readonly commitMessage: string;
-  readonly installationToken: string;
-  readonly workspacePath?: string;
-}): Promise<CodingPushOutcome> {
-  const workspacePath = input.workspacePath ?? CODING_WORKSPACE_PATH;
-
-  const statusResult = await runGitCommand({
-    sandbox: input.sandbox,
-    command: buildChangedFileListCommand(),
-    cwd: workspacePath,
-  });
-  if (!hasStagedOrUnstagedChanges(statusResult.stdout)) {
-    return { didPush: false, changedFileSummary: '' };
-  }
-
+  await input.sandbox.writeFile(patchPath, input.patchText);
   await runGitCommand({
     sandbox: input.sandbox,
-    command: buildStageAndCommitCommand(input.commitMessage),
+    command: buildApplyPatchCommand(patchPath),
+    cwd: workspacePath,
+  });
+  await runGitCommand({
+    sandbox: input.sandbox,
+    command: buildCommitCommand(input.commitMessage),
     cwd: workspacePath,
   });
   await runGitCommand({
@@ -139,6 +190,4 @@ export async function commitAndPushCodingChanges(input: {
     installationToken: input.installationToken,
     cwd: workspacePath,
   });
-
-  return { didPush: true, changedFileSummary: statusResult.stdout.trim() };
 }

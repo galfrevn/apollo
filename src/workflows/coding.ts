@@ -7,11 +7,16 @@ import { getAgentByName } from 'agents';
 
 import { runCodingAgent } from '@/coding/agent';
 import { buildCodingBranchName } from '@/coding/git';
-import { buildCodingDocumentObjectKey, buildCodingSandboxId } from '@/coding/keys';
+import {
+  buildCodingDocumentObjectKey,
+  buildCodingPublishSandboxId,
+  buildCodingSandboxId,
+} from '@/coding/keys';
 import {
   buildAgentSandboxPort,
-  commitAndPushCodingChanges,
+  extractCodingChanges,
   prepareCodingWorkspace,
+  publishCodingChanges,
   type SandboxLike,
 } from '@/coding/run';
 import {
@@ -47,7 +52,8 @@ export class ApolloCoding extends WorkflowEntrypoint<Env, ApolloCodingParams> {
   ): Promise<ApolloCodingResult> {
     const repository = parseGithubRepositoryReference(event.payload.repository);
     const repositoryLabel = `${repository.owner}/${repository.repository}`;
-    const sandboxId = buildCodingSandboxId(event.instanceId);
+    const agentSandboxId = buildCodingSandboxId(event.instanceId);
+    const publishSandboxId = buildCodingPublishSandboxId(event.instanceId);
 
     // First and outside the container: a repository the App was never installed
     // on fails here, before a container boots or a model token is spent.
@@ -79,14 +85,12 @@ export class ApolloCoding extends WorkflowEntrypoint<Env, ApolloCodingParams> {
 
     try {
       await step.do('prepare-workspace', async () => {
-        const sandbox = await this.#getSandbox(sandboxId);
+        const sandbox = await this.#getSandbox(agentSandboxId);
         const installationToken = await this.#mintInstallationToken(repository);
         await prepareCodingWorkspace({
           sandbox,
           repository,
           baseBranch: setup.baseBranch,
-          branchName,
-          commitIdentity: setup.commitIdentity,
           installationToken,
         });
         return true;
@@ -96,7 +100,7 @@ export class ApolloCoding extends WorkflowEntrypoint<Env, ApolloCodingParams> {
         'run-coding-agent',
         { retries: { limit: 1, delay: '10 seconds', backoff: 'constant' } },
         async () => {
-          const sandbox = await this.#getSandbox(sandboxId);
+          const sandbox = await this.#getSandbox(agentSandboxId);
           return runCodingAgent({
             sandbox: buildAgentSandboxPort(sandbox),
             callLlm: async ({ messageList, toolDefinitionList }) =>
@@ -112,26 +116,36 @@ export class ApolloCoding extends WorkflowEntrypoint<Env, ApolloCodingParams> {
         },
       );
 
-      // Minted again rather than reused: a token lasts an hour and the agent
-      // loop above can run longer than that.
-      const pushOutcome = await step.do('commit-and-push', async () => {
-        const sandbox = await this.#getSandbox(sandboxId);
-        const installationToken = await this.#mintInstallationToken(repository);
-        return commitAndPushCodingChanges({
-          sandbox,
-          branchName,
-          commitMessage: buildCommitMessage(event.payload.task),
-          installationToken,
-        });
+      const extraction = await step.do('extract-changes', async () => {
+        const sandbox = await this.#getSandbox(agentSandboxId);
+        return extractCodingChanges({ sandbox });
       });
 
-      if (!pushOutcome.didPush) {
+      if (!extraction.hasChanges) {
         const summary = agentOutcome.didReachRoundLimit
           ? `Me quedé sin vueltas en ${repositoryLabel} y no llegué a cambiar nada.`
           : `Revisé ${repositoryLabel} y no hizo falta cambiar nada.`;
         await this.#notifyDevice(event.payload.deviceId, event.payload.task, summary);
         return { summary };
       }
+
+      // Minted again rather than reused: a token lasts an hour and the agent
+      // loop above can run longer than that.
+      await step.do('publish-changes', async () => {
+        const sandbox = await this.#getSandbox(publishSandboxId);
+        const installationToken = await this.#mintInstallationToken(repository);
+        await publishCodingChanges({
+          sandbox,
+          repository,
+          baseBranch: setup.baseBranch,
+          branchName,
+          commitIdentity: setup.commitIdentity,
+          commitMessage: buildCommitMessage(event.payload.task),
+          patchText: extraction.patchText,
+          installationToken,
+        });
+        return true;
+      });
 
       const pullRequest = await step.do('open-pull-request', async () => {
         const installationToken = await this.#mintInstallationToken(repository);
@@ -144,7 +158,7 @@ export class ApolloCoding extends WorkflowEntrypoint<Env, ApolloCodingParams> {
           body: buildPullRequestBody({
             taskText: event.payload.task,
             agentSummary: agentOutcome.summary,
-            changedFileSummary: pushOutcome.changedFileSummary,
+            changedFileSummary: extraction.changedFileSummary,
           }),
         });
       });
@@ -181,21 +195,26 @@ export class ApolloCoding extends WorkflowEntrypoint<Env, ApolloCodingParams> {
       // failure — but it must not turn a finished run into a failed one, nor
       // bury the error that brought us here.
       await step.do('destroy-sandbox', async () => {
-        try {
-          const sandbox = await this.#getSandbox(sandboxId);
-          await sandbox.destroy();
-          return true;
-        } catch (error) {
-          console.error(
-            JSON.stringify({
-              level: 'error',
-              message: 'apollo_coding_sandbox_destroy_failed',
-              sandboxId,
-              error: error instanceof Error ? error.message : String(error),
-            }),
-          );
-          return false;
-        }
+        const destroyedList = await Promise.all(
+          [agentSandboxId, publishSandboxId].map(async (sandboxId) => {
+            try {
+              const sandbox = await this.#getSandbox(sandboxId);
+              await sandbox.destroy();
+              return true;
+            } catch (error) {
+              console.error(
+                JSON.stringify({
+                  level: 'error',
+                  message: 'apollo_coding_sandbox_destroy_failed',
+                  sandboxId,
+                  error: error instanceof Error ? error.message : String(error),
+                }),
+              );
+              return false;
+            }
+          }),
+        );
+        return destroyedList.every((wasDestroyed) => wasDestroyed);
       });
     }
   }

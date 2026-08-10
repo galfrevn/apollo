@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
+  buildApplyPatchCommand,
   buildBranchSlug,
   buildCloneCommand,
   buildCodingBranchName,
+  buildCommitCommand,
   buildConfigureIdentityCommand,
   buildCreateBranchCommand,
   buildPushBranchCommand,
-  buildStageAndCommitCommand,
+  buildWritePatchCommand,
+  CODING_PATCH_PATH,
   CODING_TOKEN_ENVIRONMENT_NAME,
   DISABLED_GIT_HOOKS_PATH,
   hasStagedOrUnstagedChanges,
@@ -81,28 +84,34 @@ describe('git command builders', () => {
     expect(buildCreateBranchCommand("apollo/it's-fine")).toBe(
       "git checkout -b 'apollo/it'\\''s-fine'",
     );
-    expect(buildStageAndCommitCommand("arreglar el bug de 'foo'")).toContain(
+    expect(buildCommitCommand("arreglar el bug de 'foo'")).toContain(
       "commit -m 'arreglar el bug de '\\''foo'\\'''",
     );
   });
 
-  it('disables hooks on every command that carries the token', () => {
-    // The agent has a shell in this workspace and could write .git/hooks/pre-push,
-    // which git would otherwise run with the installation token in its environment.
-    const tokenCarryingCommandList = [
+  it('writes and applies the patch through the staged index', () => {
+    expect(buildWritePatchCommand()).toBe(
+      `git diff --cached --binary --output='${CODING_PATCH_PATH}'`,
+    );
+    expect(buildApplyPatchCommand()).toContain(`apply --index '${CODING_PATCH_PATH}'`);
+  });
+
+  it('disables hooks on every command that runs in the publish sandbox', () => {
+    const publishCommandList = [
       buildCloneCommand({ repository: apolloRepository, baseBranch: 'main' }),
+      buildApplyPatchCommand(),
+      buildCommitCommand('fix: algo'),
       buildPushBranchCommand('apollo/x-1'),
-      buildStageAndCommitCommand('fix: algo'),
     ];
 
-    for (const command of tokenCarryingCommandList) {
+    for (const command of publishCommandList) {
       expect(command).toContain(`core.hooksPath='${DISABLED_GIT_HOOKS_PATH}'`);
     }
   });
 
-  it('pushes only the named branch and refuses an empty one', () => {
+  it('pushes only the named branch, skipping hooks, and refuses an empty one', () => {
     const command = buildPushBranchCommand('apollo/x-1');
-    expect(command).toContain("push origin 'apollo/x-1'");
+    expect(command).toContain("push --no-verify origin 'apollo/x-1'");
     expect(command).not.toContain('--force');
     expect(() => buildPushBranchCommand('   ')).toThrow();
   });
