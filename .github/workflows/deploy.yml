@@ -1,0 +1,47 @@
+# Deploys the worker on every push to main, after a fresh test run in this
+# job — hermetic on purpose, so the gate holds even if ci.yml changes.
+# Doc-only merges skip it. Requires two repository secrets:
+#   CLOUDFLARE_API_TOKEN   Workers deploy rights on the account
+#   CLOUDFLARE_ACCOUNT_ID  the Cloudflare account id
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'documentation/**'
+      - '.cursor/**'
+      - '.vscode/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Run tests
+        run: bun test
+
+      # wrangler builds the Sandbox container image as part of the deploy,
+      # which is why this runs on the runner's Docker daemon.
+      - name: Deploy
+        run: bun run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
