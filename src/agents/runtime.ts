@@ -60,25 +60,20 @@ export async function executeApolloTurn(
 
   const isMockVoice = dependencies.environment.MOCK_VOICE === '1';
   const sessionSystemPrompt = await buildSessionSystemPrompt(dependencies.session);
-  const semanticMemoryContentList = isMockVoice
-    ? []
-    : await recallSemanticMemoryContent({
-        vectorizeIndex: dependencies.environment.VECTORIZE,
-        openRouterApiKey: dependencies.environment.OPENROUTER_API_KEY,
-        embeddingModelId: dependencies.environment.OPENROUTER_EMBEDDING_MODEL,
-        queryText: turnPart.text ?? '',
-        deviceId: dependencies.deviceId,
-      });
+  const recallSemanticMemoryContentList = async (
+    queryText: string,
+  ): Promise<readonly string[]> =>
+    recallSemanticMemoryContent({
+      vectorizeIndex: dependencies.environment.VECTORIZE,
+      openRouterApiKey: dependencies.environment.OPENROUTER_API_KEY,
+      embeddingModelId: dependencies.environment.OPENROUTER_EMBEDDING_MODEL,
+      queryText,
+      deviceId: dependencies.deviceId,
+    });
 
   const focusNote = focusState.active
     ? '\n\nFocus activo: evitá announces ruidosos; sé breve.'
     : '\n\nFocus inactivo.';
-  const semanticNote =
-    semanticMemoryContentList.length === 0
-      ? ''
-      : `\n\nRecall semántico (Vectorize):\n${semanticMemoryContentList
-          .map((content) => `- ${content}`)
-          .join('\n')}`;
 
   const voiceAdapters: VoiceAdapters = isMockVoice
     ? {
@@ -128,8 +123,8 @@ export async function executeApolloTurn(
     confirmOk: turnPart.confirmOk,
     nowMilliseconds,
     deviceId: dependencies.deviceId,
-    systemPromptOverride: `${sessionSystemPrompt}${semanticNote}${focusNote}`,
-    semanticMemoryContentList,
+    systemPromptOverride: `${sessionSystemPrompt}${focusNote}`,
+    ...(isMockVoice ? {} : { recallSemanticMemoryContentList }),
     effects: dependencies.effects,
     onThinkingCaption: async (caption) => {
       const liveState = dependencies.getCurrentState();
@@ -286,11 +281,11 @@ export async function executeApolloTurn(
     }
   }
 
-  if (turnPart.text !== undefined && turnPart.text.length > 0) {
+  if (turnOutput.transcript.length > 0) {
     await dependencies.session.appendMessage({
       id: crypto.randomUUID(),
       role: 'user',
-      parts: [{ type: 'text', text: turnPart.text }],
+      parts: [{ type: 'text', text: turnOutput.transcript }],
     });
     await dependencies.session.appendMessage({
       id: crypto.randomUUID(),

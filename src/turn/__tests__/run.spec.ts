@@ -83,6 +83,67 @@ describe('runDeskTurn', () => {
     expect(capturedSystemPrompt).toContain('Fecha y hora actual:');
   });
 
+  it('returns the transcript of a spoken turn and recalls semantic memory with it', async () => {
+    const semanticQueryTextList: string[] = [];
+    let capturedSystemPrompt = '';
+
+    const output = await runDeskTurn({
+      audioBuffer: new TextEncoder().encode('audio-crudo').buffer as ArrayBuffer,
+      speechMode: 'default',
+      focusState: createInactiveDeskFocusState(),
+      sqlExecutor: createInMemorySqlExecutor(),
+      environment: fakeEnvironment,
+      toolDefinitionMap: buildToolDefinitionMap([]),
+      nowMilliseconds: 10,
+      systemPromptOverride: 'Prompt de sesión.',
+      recallSemanticMemoryContentList: async (queryText) => {
+        semanticQueryTextList.push(queryText);
+        return ['al usuario le gusta el café cargado'];
+      },
+      adapters: {
+        stt: async () => 'qué tomo a la mañana?',
+        llm: async ({ messageList }) => {
+          const systemMessage = messageList.find((message) => message.role === 'system');
+          capturedSystemPrompt =
+            systemMessage?.role === 'system' ? systemMessage.content : '';
+          return { text: 'Café cargado.', toolCallList: [] };
+        },
+        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
+      },
+    });
+
+    expect(output.transcript).toBe('qué tomo a la mañana?');
+    expect(semanticQueryTextList).toEqual(['qué tomo a la mañana?']);
+    expect(capturedSystemPrompt).toContain('café cargado');
+  });
+
+  it('reports an empty transcript when the audio held no words', async () => {
+    let didRecallSemanticMemory = false;
+
+    const output = await runDeskTurn({
+      audioBuffer: new TextEncoder().encode('silencio').buffer as ArrayBuffer,
+      speechMode: 'default',
+      focusState: createInactiveDeskFocusState(),
+      sqlExecutor: createInMemorySqlExecutor(),
+      environment: fakeEnvironment,
+      toolDefinitionMap: buildToolDefinitionMap([]),
+      nowMilliseconds: 10,
+      recallSemanticMemoryContentList: async () => {
+        didRecallSemanticMemory = true;
+        return [];
+      },
+      adapters: {
+        stt: async () => '',
+        llm: async () => ({ text: 'nunca', toolCallList: [] }),
+        tts: async () => new ArrayBuffer(0),
+      },
+    });
+
+    expect(output.transcript).toBe('');
+    expect(output.spokenText).toBe('No te escuché.');
+    expect(didRecallSemanticMemory).toBe(false);
+  });
+
   it('unsafe tool pauses for confirm', async () => {
     const unsafeTool: ToolDefinition = {
       name: 'shell_exec_test',
