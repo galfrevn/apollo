@@ -39,3 +39,4 @@ This handbook is meant to be read in order. Later chapters assume the concepts i
 ### Part V — Reference
 
 19. [Mapping](reference/mapping.md) — Handbook topics to `src/` folders
+20. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
