@@ -8,10 +8,9 @@ describe('recallMemoryTool', () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = Object.assign(
       async () =>
-        new Response(
-          JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }] }),
-          { status: 200 },
-        ),
+        new Response(JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }] }), {
+          status: 200,
+        }),
       { preconnect: () => {} },
     ) as typeof fetch;
 
@@ -52,10 +51,7 @@ describe('recallMemoryTool', () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = Object.assign(
       async () =>
-        new Response(
-          JSON.stringify({ data: [{ embedding: [0.1] }] }),
-          { status: 200 },
-        ),
+        new Response(JSON.stringify({ data: [{ embedding: [0.1] }] }), { status: 200 }),
       { preconnect: () => {} },
     ) as typeof fetch;
     try {

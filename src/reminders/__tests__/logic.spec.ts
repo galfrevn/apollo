@@ -62,9 +62,7 @@ describe('reminder schedule logic', () => {
       },
     ];
     expect(
-      selectReminderRowsForCancel(reminderList, { cancelAll: true }).map(
-        (row) => row.id,
-      ),
+      selectReminderRowsForCancel(reminderList, { cancelAll: true }).map((row) => row.id),
     ).toEqual(['1', '2']);
     expect(
       selectReminderRowsForCancel(reminderList, {
@@ -75,9 +73,7 @@ describe('reminder schedule logic', () => {
   });
 
   it('formats list and cancel summaries in Spanish', () => {
-    expect(formatListRemindersSummary([], 0)).toBe(
-      'No hay recordatorios pendientes',
-    );
+    expect(formatListRemindersSummary([], 0)).toBe('No hay recordatorios pendientes');
     expect(
       formatCancelRemindersSummary({
         cancelledMessageList: [],

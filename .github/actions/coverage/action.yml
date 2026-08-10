@@ -1,0 +1,203 @@
+name: Coverage
+description: Report line coverage over the lines this pull request adds, and fail below a threshold
+
+inputs:
+  github-token:
+    description: Token used to read the pull request diff and post the coverage comment
+    required: true
+  threshold:
+    description: Minimum percentage of added, instrumented lines that must be covered
+    required: false
+    default: '80'
+  lcov-path:
+    description: Path to the lcov report produced by the test run
+    required: false
+    default: coverage/lcov.info
+
+runs:
+  using: composite
+  steps:
+    - name: Report patch coverage
+      uses: actions/github-script@v7
+      env:
+        COVERAGE_THRESHOLD: ${{ inputs.threshold }}
+        COVERAGE_LCOV_PATH: ${{ inputs.lcov-path }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const fileSystem = require('node:fs');
+
+          const coverageCommentMarker = '<!-- apollo-patch-coverage -->';
+          const coverageThresholdPercentage = Number(process.env.COVERAGE_THRESHOLD);
+          const lcovReportPath = process.env.COVERAGE_LCOV_PATH;
+
+          if (!fileSystem.existsSync(lcovReportPath)) {
+            core.setFailed(
+              `No lcov report at ${lcovReportPath}. The test step must run before this action.`,
+            );
+            return;
+          }
+
+          function parseLcovHitCountByLineNumber(lcovReportText) {
+            const hitCountByLineNumberByFilePath = new Map();
+            let currentFilePath = null;
+            for (const reportLine of lcovReportText.split('\n')) {
+              if (reportLine.startsWith('SF:')) {
+                currentFilePath = reportLine.slice(3).trim().replace(/^\.\//, '');
+                if (!hitCountByLineNumberByFilePath.has(currentFilePath)) {
+                  hitCountByLineNumberByFilePath.set(currentFilePath, new Map());
+                }
+                continue;
+              }
+              if (reportLine.startsWith('end_of_record')) {
+                currentFilePath = null;
+                continue;
+              }
+              if (currentFilePath === null || !reportLine.startsWith('DA:')) {
+                continue;
+              }
+              const [rawLineNumber, rawHitCount] = reportLine.slice(3).split(',');
+              const lineNumber = Number(rawLineNumber);
+              const hitCount = Number(rawHitCount);
+              if (Number.isNaN(lineNumber) || Number.isNaN(hitCount)) {
+                continue;
+              }
+              hitCountByLineNumberByFilePath.get(currentFilePath).set(lineNumber, hitCount);
+            }
+            return hitCountByLineNumberByFilePath;
+          }
+
+          function parseAddedLineNumberList(filePatch) {
+            const addedLineNumberList = [];
+            let currentLineNumber = 0;
+            for (const patchLine of filePatch.split('\n')) {
+              const hunkHeaderMatch = patchLine.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+              if (hunkHeaderMatch !== null) {
+                currentLineNumber = Number(hunkHeaderMatch[1]);
+                continue;
+              }
+              if (patchLine.startsWith('+++') || patchLine.startsWith('---')) {
+                continue;
+              }
+              if (patchLine.startsWith('+')) {
+                addedLineNumberList.push(currentLineNumber);
+                currentLineNumber += 1;
+                continue;
+              }
+              if (patchLine.startsWith('-')) {
+                continue;
+              }
+              currentLineNumber += 1;
+            }
+            return addedLineNumberList;
+          }
+
+          const hitCountByLineNumberByFilePath = parseLcovHitCountByLineNumber(
+            fileSystem.readFileSync(lcovReportPath, 'utf8'),
+          );
+
+          const changedFileList = await github.paginate(github.rest.pulls.listFiles, {
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number,
+            per_page: 100,
+          });
+
+          let coveredAddedLineCount = 0;
+          let instrumentedAddedLineCount = 0;
+          const uncoveredFileSummaryList = [];
+
+          for (const changedFile of changedFileList) {
+            if (changedFile.status === 'removed' || changedFile.patch === undefined) {
+              continue;
+            }
+            const hitCountByLineNumber = hitCountByLineNumberByFilePath.get(
+              changedFile.filename,
+            );
+            if (hitCountByLineNumber === undefined) {
+              continue;
+            }
+            let fileCoveredCount = 0;
+            let fileInstrumentedCount = 0;
+            for (const addedLineNumber of parseAddedLineNumberList(changedFile.patch)) {
+              const hitCount = hitCountByLineNumber.get(addedLineNumber);
+              if (hitCount === undefined) {
+                continue;
+              }
+              fileInstrumentedCount += 1;
+              if (hitCount > 0) {
+                fileCoveredCount += 1;
+              }
+            }
+            coveredAddedLineCount += fileCoveredCount;
+            instrumentedAddedLineCount += fileInstrumentedCount;
+            if (fileInstrumentedCount > fileCoveredCount) {
+              uncoveredFileSummaryList.push(
+                `| \`${changedFile.filename}\` | ${fileCoveredCount}/${fileInstrumentedCount} |`,
+              );
+            }
+          }
+
+          if (instrumentedAddedLineCount === 0) {
+            core.info('No instrumented lines were added by this pull request.');
+            return;
+          }
+
+          const patchCoveragePercentage =
+            (coveredAddedLineCount / instrumentedAddedLineCount) * 100;
+          const isAboveThreshold = patchCoveragePercentage >= coverageThresholdPercentage;
+          const resultLabel = isAboveThreshold ? '✅' : '❌';
+
+          const commentBodySectionList = [
+            coverageCommentMarker,
+            `### ${resultLabel} Patch coverage: ${patchCoveragePercentage.toFixed(2)}%`,
+            '',
+            `${coveredAddedLineCount} of ${instrumentedAddedLineCount} added lines covered (threshold ${coverageThresholdPercentage}%).`,
+          ];
+          if (uncoveredFileSummaryList.length > 0) {
+            commentBodySectionList.push(
+              '',
+              '| File | Covered |',
+              '| --- | --- |',
+              ...uncoveredFileSummaryList,
+            );
+          }
+          const commentBody = commentBodySectionList.join('\n');
+
+          const existingCommentList = await github.paginate(
+            github.rest.issues.listComments,
+            {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            },
+          );
+          const previousCoverageComment = existingCommentList.find((comment) =>
+            comment.body?.includes(coverageCommentMarker),
+          );
+
+          if (previousCoverageComment === undefined) {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: commentBody,
+            });
+          } else {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: previousCoverageComment.id,
+              body: commentBody,
+            });
+          }
+
+          core.summary.addRaw(commentBody.replace(coverageCommentMarker, ''));
+          await core.summary.write();
+
+          if (!isAboveThreshold) {
+            core.setFailed(
+              `Patch coverage ${patchCoveragePercentage.toFixed(2)}% is below the ${coverageThresholdPercentage}% threshold.`,
+            );
+          }

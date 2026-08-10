@@ -63,10 +63,7 @@ export function selectReminderRowsForCancel(
   );
 }
 
-function formatRelativeFireLabel(
-  firesAtIso: string,
-  nowMilliseconds: number,
-): string {
+function formatRelativeFireLabel(firesAtIso: string, nowMilliseconds: number): string {
   const remainingMilliseconds = Math.max(
     0,
     new Date(firesAtIso).getTime() - nowMilliseconds,
