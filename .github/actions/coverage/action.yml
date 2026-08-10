@@ -18,7 +18,7 @@ runs:
   using: composite
   steps:
     - name: Report patch coverage
-      uses: actions/github-script@v7
+      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.0.1
       env:
         COVERAGE_THRESHOLD: ${{ inputs.threshold }}
         COVERAGE_LCOV_PATH: ${{ inputs.lcov-path }}
@@ -76,7 +76,13 @@ runs:
                 currentLineNumber = Number(hunkHeaderMatch[1]);
                 continue;
               }
-              if (patchLine.startsWith('+++') || patchLine.startsWith('---')) {
+              // "\ No newline at end of file" annotates the preceding line
+              // rather than being one, so counting it shifts every line after.
+              if (
+                patchLine.startsWith('+++') ||
+                patchLine.startsWith('---') ||
+                patchLine.startsWith('\\')
+              ) {
                 continue;
               }
               if (patchLine.startsWith('+')) {
@@ -106,14 +112,24 @@ runs:
           let coveredAddedLineCount = 0;
           let instrumentedAddedLineCount = 0;
           const uncoveredFileSummaryList = [];
+          const unmeasuredFileList = [];
 
           for (const changedFile of changedFileList) {
-            if (changedFile.status === 'removed' || changedFile.patch === undefined) {
+            if (changedFile.status === 'removed') {
               continue;
             }
             const hitCountByLineNumber = hitCountByLineNumberByFilePath.get(
               changedFile.filename,
             );
+            // The API omits `patch` on very large diffs. Those lines are
+            // instrumented but unmeasurable, and silently dropping them would
+            // report a coverage number that looks like full coverage.
+            if (changedFile.patch === undefined) {
+              if (hitCountByLineNumber !== undefined) {
+                unmeasuredFileList.push(changedFile.filename);
+              }
+              continue;
+            }
             if (hitCountByLineNumber === undefined) {
               continue;
             }
@@ -162,35 +178,50 @@ runs:
               ...uncoveredFileSummaryList,
             );
           }
+          if (unmeasuredFileList.length > 0) {
+            commentBodySectionList.push(
+              '',
+              `⚠️ Not measured (diff too large for the API to return): ${unmeasuredFileList.join(', ')}`,
+            );
+          }
           const commentBody = commentBodySectionList.join('\n');
 
-          const existingCommentList = await github.paginate(
-            github.rest.issues.listComments,
-            {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              per_page: 100,
-            },
-          );
-          const previousCoverageComment = existingCommentList.find((comment) =>
-            comment.body?.includes(coverageCommentMarker),
-          );
+          // A pull request from a fork gets a read-only token, so commenting
+          // 403s. The coverage verdict still stands; only the delivery is
+          // best-effort, and the job summary always carries it.
+          try {
+            const existingCommentList = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                per_page: 100,
+              },
+            );
+            const previousCoverageComment = existingCommentList.find((comment) =>
+              comment.body?.includes(coverageCommentMarker),
+            );
 
-          if (previousCoverageComment === undefined) {
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: commentBody,
-            });
-          } else {
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: previousCoverageComment.id,
-              body: commentBody,
-            });
+            if (previousCoverageComment === undefined) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody,
+              });
+            } else {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: previousCoverageComment.id,
+                body: commentBody,
+              });
+            }
+          } catch (error) {
+            core.warning(
+              `Could not post the coverage comment (forks get a read-only token): ${error.message}`,
+            );
           }
 
           core.summary.addRaw(commentBody.replace(coverageCommentMarker, ''));
