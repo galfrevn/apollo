@@ -1,7 +1,7 @@
 import type { Connection } from 'agents';
 import { z } from 'zod';
 
-import type { DeskFocusState } from '@/focus/logic';
+import type { DeskAnnounceKind, DeskFocusState } from '@/focus/logic';
 import { shouldAnnounceDuringFocus } from '@/focus/logic';
 import {
   enqueuePendingDeviceMessage,
@@ -76,6 +76,7 @@ export async function deliverDeskDeviceNotification(input: {
   readonly deviceId: string;
   readonly ttsVoiceId: string;
   readonly isMockVoice: boolean;
+  readonly announceKind?: DeskAnnounceKind;
 }): Promise<void> {
   if (input.connectionList.length === 0) {
     await enqueuePendingDeviceMessage(input.sqlExecutor, {
@@ -90,7 +91,10 @@ export async function deliverDeskDeviceNotification(input: {
     connection.send(encodedMessage);
   }
 
-  const shouldAnnounce = shouldAnnounceDuringFocus(input.focusState, 'normal');
+  const shouldAnnounce = shouldAnnounceDuringFocus(
+    input.focusState,
+    input.announceKind ?? 'normal',
+  );
   if (!shouldAnnounce) {
     return;
   }

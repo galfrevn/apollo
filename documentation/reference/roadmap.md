@@ -16,17 +16,13 @@ The server already tracks `focus` state and sends `focusRemainingSec` on every `
 - **Spoken notice**: ✅ done. `deliverDeskDeviceNotification` (`src/agents/notify.ts`) synthesizes and paces TTS for both `background_result` and `reminder`, queues them as pending messages when nobody is connected, and stays quiet during focus. What is left is cosmetic: the announcement speaks the summary directly rather than framing it ("terminé \<task\>: …").
 - **QR on screen**: when a `documentKey` is present, show a QR with the document URL. The gfx engine already has a QR widget (`emote_set_qrcode_data` in `emote_op.c`), so the firmware only needs to route a new message (say `"type": "qr"`) through to that widget, with an auto-close timeout. The reports are already emailed in parallel, so the QR is a convenience, not the only way to reach one.
 
-### 3. Device → server telemetry + agent reactions
+### 3. Device → server telemetry + agent reactions — ✅ shipped 2026-08-10
 
-The protocol has no device → server status message at all. The board already measures battery (`adc_battery_estimation`, and a local `low_battery.ogg` exists).
+`{"type":"telemetry", battery, charging, volume, wifiRssi, firmwareVersion, ts}` goes out on channel open, every 60 s, and immediately on a charging edge. The server keeps the snapshot in memory, stamps it into the system prompt while fresh, and announces low battery (≤15%, 30 min cooldown, hysteresis at 25%) piercing focus as `critical`. Battery sensing required wiring `AdcBatteryMonitor` into the 1.85C board — the schematic puts BAT_ADC on GPIO8 through a 200K/100K divider; there is no charge-status GPIO, so charging is the estimation library's voltage-trend guess. See `src/telemetry/logic.ts` and `Application::MaybeSendTelemetry`.
 
-- **Firmware**: a periodic `{"type":"telemetry", battery, charging, volume, ...}` message, plus an immediate push on sharp changes, along with WiFi signal and firmware version. (Mute state is no longer part of this: the silent double-tap mute that caused the original bug was removed on both sides — with push-to-talk the mic is only open while a finger is down, so there is nothing to mute.)
-- **Server**: keep the latest snapshot in agent state; expose it to the agent in the turn's system prompt; proactive reactions ("estás con 15% de batería, enchufame") over the notification channel.
-- **Schema**: add the message to `deviceToServerMessageSchema` in `src/protocol/schema.ts`.
+### 4. Semantic `audio_end` — ✅ shipped 2026-08-10
 
-### 4. Semantic `audio_end`
-
-The schema already distinguishes `hold_end` (finger released) from `audio_end` (VAD-detected end after a wake word), but the firmware always sends `hold_end` (`SendStopListening` in `apollo_protocol.cc`). Small change: remember which mode started the listen and send the matching event. It gives the server the signal it needs to adapt behavior, such as using different timeouts.
+The firmware now remembers which mode started the listen (`listen_started_by_hold_` in `apollo_protocol.cc`) and ends it with the matching event: `hold_end` for push-to-talk, `audio_end` for wake-word turns. The server dispatches them as separate cases (identical behavior today) so timeouts or continuity can diverge without a flash.
 
 ### 5. Device-side MCP: the agent with hands on the hardware
 
@@ -83,9 +79,9 @@ Touch barge-in shipped alongside it, through a dedicated `abort` message rather 
 
 Still open: `long_press` is not in the gesture enum, so "hold to start a pomodoro or a briefing" needs one enum entry on each side.
 
-### 12. Server-triggered earcons (`play_effect`)
+### 12. Server-triggered earcons (`play_effect`) — ✅ shipped 2026-08-10
 
-A `{"type":"play_effect", "name":"ding"|...}` message that plays effects already burned into flash — the ogg/opus pipeline with pitch variants already exists. Instant, free feedback: the timer sounds immediately while the announcement's TTS is still being synthesized, a confirmation chime, an error tone without spending ElevenLabs credits.
+`{"type":"play_effect", "name":"ding"|"chime"|"error"|"low_battery"}` plays effects already burned into flash. The names are logical — the firmware maps them to assets (`ding`→success, `chime`→popup, `error`→exclamation) so the server can re-purpose sounds without a flash. Wired at three sites: reminder/timer delivery (the ding lands while the TTS is still synthesizing), confirm requests, and turn failures, plus the low-battery announcement from item 3.
 
 ### 13. `set_volume` from the server
 

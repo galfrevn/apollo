@@ -40,6 +40,7 @@ import { APOLLO_TTS_VOICE } from '@/persona/soul';
 import {
   encodeServerToDeviceMessage,
   parseDeviceToServerMessage,
+  type DeskSoundEffectName,
   type DeviceToServerMessage,
 } from '@/protocol/schema';
 import {
@@ -48,6 +49,10 @@ import {
   type AgentScheduleLike,
 } from '@/reminders/logic';
 import { createDeskUiMachine, type DeskUiMachine } from '@/session/machine';
+import {
+  evaluateLowBatteryAnnouncement,
+  type DeskTelemetrySnapshot,
+} from '@/telemetry/logic';
 import {
   deletePendingToolConfirmations,
   isPendingConfirmationOrphaned,
@@ -65,6 +70,8 @@ import {
 // A quarter second of 16 kHz mono 16-bit PCM. Below this there is no word to
 // transcribe, only the tail of a press that ended too early.
 const MINIMUM_TURN_AUDIO_BYTE_LENGTH = 8000;
+
+const LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY = 'lowBatteryLastAnnounceAt';
 
 function mapUnknownScheduleListToAgentScheduleLikeList(
   scheduleList: readonly {
@@ -123,6 +130,7 @@ export class Apollo extends Agent<Env, ApolloState> {
   #isSpeechAborted = false;
   #session: Session | undefined;
   #lastKnownWeatherSnapshot: DeskWeatherSnapshot | undefined;
+  #lastTelemetrySnapshot: DeskTelemetrySnapshot | undefined;
 
   get session(): Session {
     if (this.#session === undefined) {
@@ -273,7 +281,10 @@ export class Apollo extends Agent<Env, ApolloState> {
         this.#pushUiState(connection);
         break;
       }
-      case 'hold_end':
+      case 'hold_end': {
+        await this.#runTurnFromAudio(connection);
+        break;
+      }
       case 'audio_end': {
         await this.#runTurnFromAudio(connection);
         break;
@@ -294,6 +305,10 @@ export class Apollo extends Agent<Env, ApolloState> {
       }
       case 'gesture': {
         await this.#handleGesture(connection, deviceMessage.gesture);
+        break;
+      }
+      case 'telemetry': {
+        await this.#handleTelemetry(deviceMessage);
         break;
       }
     }
@@ -365,6 +380,9 @@ export class Apollo extends Agent<Env, ApolloState> {
 
   async deliverReminder(payload: unknown): Promise<void> {
     const parsedPayload = deliverReminderPayloadSchema.parse(payload);
+    // The earcon goes out before the notification so it lands while the TTS
+    // announcement is still being synthesized.
+    this.#broadcastPlayEffect('ding');
     await deliverDeskDeviceNotification({
       notification: { type: 'reminder', message: parsedPayload.message },
       connectionList: [...this.getConnections()],
@@ -535,6 +553,77 @@ export class Apollo extends Agent<Env, ApolloState> {
     this.#pushUiState(connection);
   }
 
+  async #handleTelemetry(
+    deviceMessage: Extract<DeviceToServerMessage, { type: 'telemetry' }>,
+  ): Promise<void> {
+    const snapshot: DeskTelemetrySnapshot = {
+      ...(deviceMessage.battery !== undefined ? { battery: deviceMessage.battery } : {}),
+      ...(deviceMessage.charging !== undefined
+        ? { charging: deviceMessage.charging }
+        : {}),
+      ...(deviceMessage.volume !== undefined ? { volume: deviceMessage.volume } : {}),
+      ...(deviceMessage.wifiRssi !== undefined
+        ? { wifiRssi: deviceMessage.wifiRssi }
+        : {}),
+      ...(deviceMessage.firmwareVersion !== undefined
+        ? { firmwareVersion: deviceMessage.firmwareVersion }
+        : {}),
+      receivedAtMs: Date.now(),
+    };
+    this.#lastTelemetrySnapshot = snapshot;
+
+    const storedAnnounceAt = await getSessionPreference(
+      this.#sqlExecutor(),
+      LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY,
+    );
+    const parsedAnnounceAt = Number(storedAnnounceAt);
+    const lastAnnounceAtMilliseconds =
+      Number.isFinite(parsedAnnounceAt) && parsedAnnounceAt > 0 ? parsedAnnounceAt : null;
+
+    const evaluation = evaluateLowBatteryAnnouncement({
+      snapshot,
+      lastAnnounceAtMilliseconds,
+      nowMilliseconds: Date.now(),
+    });
+    if (evaluation.shouldRearm) {
+      await setSessionPreference(
+        this.#sqlExecutor(),
+        LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY,
+        '0',
+      );
+    }
+    if (!evaluation.shouldAnnounce || evaluation.message === undefined) {
+      return;
+    }
+    await setSessionPreference(
+      this.#sqlExecutor(),
+      LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY,
+      String(Date.now()),
+    );
+    this.#broadcastPlayEffect('low_battery');
+    await deliverDeskDeviceNotification({
+      notification: { type: 'reminder', message: evaluation.message },
+      connectionList: [...this.getConnections()],
+      sqlExecutor: this.#sqlExecutor(),
+      focusState: this.#currentFocusState(),
+      environment: this.env,
+      deviceId: this.name ?? 'default',
+      ttsVoiceId: APOLLO_TTS_VOICE,
+      isMockVoice: this.env.MOCK_VOICE === '1',
+      announceKind: 'critical',
+    });
+  }
+
+  #broadcastPlayEffect(effectName: DeskSoundEffectName): void {
+    const encodedMessage = encodeServerToDeviceMessage({
+      type: 'play_effect',
+      name: effectName,
+    });
+    for (const connection of this.getConnections()) {
+      connection.send(encodedMessage);
+    }
+  }
+
   async #runTurnFromText(connection: Connection, text: string): Promise<void> {
     this.#applyUiEvent('START_LISTEN');
     await this.#executeTurn(connection, { text });
@@ -669,6 +758,9 @@ export class Apollo extends Agent<Env, ApolloState> {
           deviceId,
           effects: deskToolEffects,
           isSpeechAborted: () => this.#isSpeechAborted,
+          ...(this.#lastTelemetrySnapshot !== undefined
+            ? { telemetrySnapshot: this.#lastTelemetrySnapshot }
+            : {}),
         },
         turnPart,
       );
@@ -693,6 +785,9 @@ export class Apollo extends Agent<Env, ApolloState> {
         pendingConfirmId: null,
         pendingConfirmSummary: null,
       });
+      connection.send(
+        encodeServerToDeviceMessage({ type: 'play_effect', name: 'error' }),
+      );
       connection.send(
         encodeServerToDeviceMessage({
           type: 'error',

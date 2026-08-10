@@ -11,6 +11,7 @@ import { resolveDeskFaceEmotion } from '@/persona/face';
 import { APOLLO_TTS_VOICE } from '@/persona/soul';
 import { encodeServerToDeviceMessage } from '@/protocol/schema';
 import type { DeskUiMachine } from '@/session/machine';
+import { buildTelemetryPromptNote, type DeskTelemetrySnapshot } from '@/telemetry/logic';
 import { createBuiltinToolDefinitionMap } from '@/tools/catalog';
 import type { DeskToolEffects, PendingToolConfirmation } from '@/tools/types';
 import { runDeskTurn, type VoiceAdapters } from '@/turn/run';
@@ -33,6 +34,7 @@ export type ApolloTurnRuntimeDependencies = {
   readonly deviceId: string;
   readonly effects: DeskToolEffects;
   readonly isSpeechAborted?: () => boolean;
+  readonly telemetrySnapshot?: DeskTelemetrySnapshot;
 };
 
 export async function executeApolloTurn(
@@ -72,6 +74,10 @@ export async function executeApolloTurn(
   const focusNote = focusState.active
     ? '\n\nFocus activo: evitá announces ruidosos; sé breve.'
     : '\n\nFocus inactivo.';
+  const telemetryNote = buildTelemetryPromptNote(
+    dependencies.telemetrySnapshot,
+    nowMilliseconds,
+  );
 
   const voiceAdapters: VoiceAdapters = isMockVoice
     ? {
@@ -121,7 +127,7 @@ export async function executeApolloTurn(
     confirmOk: turnPart.confirmOk,
     nowMilliseconds,
     deviceId: dependencies.deviceId,
-    systemPromptOverride: `${sessionSystemPrompt}${focusNote}`,
+    systemPromptOverride: `${sessionSystemPrompt}${focusNote}${telemetryNote}`,
     ...(isMockVoice ? {} : { recallSemanticMemoryContentList }),
     effects: dependencies.effects,
     onThinkingCaption: async (caption) => {
@@ -192,6 +198,7 @@ export async function executeApolloTurn(
   });
 
   if (turnOutput.pendingConfirmation !== undefined) {
+    connection.send(encodeServerToDeviceMessage({ type: 'play_effect', name: 'chime' }));
     connection.send(
       encodeServerToDeviceMessage({
         type: 'confirm_request',
