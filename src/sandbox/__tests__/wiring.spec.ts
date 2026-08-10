@@ -6,7 +6,7 @@ import {
 } from '@/configuration/testing';
 import {
   deletePendingToolConfirmations,
-  readLatestPendingToolConfirmation,
+  readPendingToolConfirmation,
   savePendingToolConfirmation,
 } from '@/tools/pending';
 import { createBuiltinToolDefinitionMap } from '@/tools/catalog';
@@ -69,7 +69,7 @@ describe('sandbox end-to-end wiring', () => {
     await savePendingToolConfirmation(sqlExecutor, outcome.pending);
 
     // Everything the agent held in memory is gone, as after a hibernation.
-    const restoredConfirmation = await readLatestPendingToolConfirmation(sqlExecutor);
+    const restoredConfirmation = await readPendingToolConfirmation(sqlExecutor);
     expect(restoredConfirmation).toBeDefined();
     if (restoredConfirmation === undefined) {
       throw new Error('expected the confirmation to survive hibernation');
@@ -93,7 +93,7 @@ describe('sandbox end-to-end wiring', () => {
     ]);
 
     await deletePendingToolConfirmations(sqlExecutor);
-    expect(await readLatestPendingToolConfirmation(sqlExecutor)).toBeUndefined();
+    expect(await readPendingToolConfirmation(sqlExecutor)).toBeUndefined();
   });
 
   it('never reaches the container when the user declines', async () => {
