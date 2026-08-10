@@ -31,7 +31,7 @@ This handbook is meant to be read in order. Later chapters assume the concepts i
 15. [Lists](capabilities/lists.md) — Durable spoken lists
 16. [Dollar rates](capabilities/rates.md) — Argentine dollar quotes
 17. [Email](capabilities/email.md) — Reports and notes to the owner
-18. [Sandbox](capabilities/sandbox.md) — Isolated code execution (currently disabled)
+18. [Sandbox](capabilities/sandbox.md) — Isolated code execution
 
 ### Part IV — Operations
 

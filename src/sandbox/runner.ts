@@ -67,10 +67,13 @@ export async function runCodeInApolloSandbox(input: {
   };
 }
 
+export const DEFAULT_SANDBOX_COMMAND_TIMEOUT_MILLISECONDS = 30_000;
+
 export async function execCommandInApolloSandbox(input: {
   readonly environment: Env;
   readonly deviceId: string;
   readonly command: string;
+  readonly timeoutMilliseconds?: number;
 }): Promise<SandboxCommandRunResult> {
   const { getSandbox } = await import('@cloudflare/sandbox');
   const sandbox = getSandbox(
@@ -80,7 +83,7 @@ export async function execCommandInApolloSandbox(input: {
   );
   const execResult = await sandbox.exec(input.command, {
     cwd: '/workspace',
-    timeout: 30_000,
+    timeout: input.timeoutMilliseconds ?? DEFAULT_SANDBOX_COMMAND_TIMEOUT_MILLISECONDS,
   });
 
   const summary = execResult.success

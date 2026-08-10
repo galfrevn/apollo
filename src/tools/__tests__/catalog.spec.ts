@@ -17,12 +17,25 @@ describe('builtin tool catalog', () => {
     expect(nameList).toContain('set_reminder');
     expect(nameList).toContain('list_reminders');
     expect(nameList).toContain('cancel_reminder');
+    expect(nameList).toContain('sandbox_run_code');
+    expect(nameList).toContain('sandbox_exec');
     expect(nameList).not.toContain('github_list_prs');
     expect(nameList).not.toContain('gmail_search');
     expect(nameList).not.toContain('gmail_send');
     for (const tool of listBuiltinToolDefinitionList()) {
       expect(tool.parameters).toBeDefined();
       expect(typeof tool.parameters).toBe('object');
+    }
+  });
+
+  it('marks both sandbox tools as unsafe so they require confirmation', () => {
+    const sandboxToolList = listBuiltinToolDefinitionList().filter((tool) =>
+      tool.name.startsWith('sandbox_'),
+    );
+    expect(sandboxToolList).toHaveLength(2);
+    for (const sandboxTool of sandboxToolList) {
+      expect(sandboxTool.safety).toBe('unsafe');
+      expect(sandboxTool.buildConfirmSummary).toBeDefined();
     }
   });
 });

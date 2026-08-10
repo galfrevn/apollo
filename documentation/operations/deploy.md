@@ -11,7 +11,7 @@ Apollo deploys as a Cloudflare Worker named `apollo` with several bindings.
 | `VECTORIZE` | Memory embeddings index (`apollo-memory`) |
 | `APOLLO_QUEUE` | Background job queue (`apollo-jobs`) |
 | `BACKGROUND` | Workflow binding for `apollo-background` |
-| `Sandbox` | **Commented out** — Containers need the Workers Paid plan (see [Sandbox](../capabilities/sandbox.md)) |
+| `Sandbox` | Container-backed durable object for sandbox tools (see [Sandbox](../capabilities/sandbox.md)) |
 
 ## Secrets
 
@@ -42,6 +42,8 @@ See `wrangler.jsonc` for the authoritative list and the migration tags.
 ## Deploy command
 
 Use your usual Wrangler deploy flow after secrets and resources exist in the target account. Do not invent resource names beyond what the config declares.
+
+The `Sandbox` container image is built by the Docker CLI as part of every deploy, including `--dry-run`, so the daemon has to be running. To ship a Worker-only change without it, pass `--containers-rollout=none`.
 
 ## Navigation
 
