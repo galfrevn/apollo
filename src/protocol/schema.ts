@@ -30,6 +30,10 @@ export const deviceGestureSchema = z.enum([
   'swipe_right',
 ]);
 
+export const deskSoundEffectSchema = z.enum(['ding', 'chime', 'error', 'low_battery']);
+
+export type DeskSoundEffectName = z.infer<typeof deskSoundEffectSchema>;
+
 export const deviceToServerMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('hello'),
@@ -69,6 +73,15 @@ export const deviceToServerMessageSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('abort'),
+    ts: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal('telemetry'),
+    battery: z.number().int().nonnegative().max(100).optional(),
+    charging: z.boolean().optional(),
+    volume: z.number().int().nonnegative().optional(),
+    wifiRssi: z.number().int().optional(),
+    firmwareVersion: z.string().min(1).optional(),
     ts: z.number().int().nonnegative(),
   }),
 ]);
@@ -128,6 +141,10 @@ export const serverToDeviceMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('reminder'),
     message: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('play_effect'),
+    name: deskSoundEffectSchema,
   }),
 ]);
 

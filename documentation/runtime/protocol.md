@@ -9,11 +9,24 @@ Device and server speak a Zod-validated JSON protocol defined in `src/protocol/s
 | `hello` | Identify the device after connect |
 | `hold_start` / `hold_end` | Push-to-talk boundaries |
 | `wake` | Wake without a full hold gesture |
-| `audio_end` | End of an utterance |
+| `audio_end` | End of a wake-word utterance (VAD-detected) |
 | `gesture` | `tap`, `double_tap`, `swipe_left`, `swipe_right` |
 | `confirm` | Accept or reject a pending confirmation |
 | `text_input` | Typed fallback input |
 | `abort` | Stop the speech currently streaming (barge-in) |
+| `telemetry` | Battery, charging, volume, WiFi RSSI, firmware version |
+
+A listen session ends with the event matching how it started: `hold_end` when a finger
+lifts, `audio_end` when a wake-word turn hits its VAD timeout. Both run the turn today;
+the split exists so the server can diverge (timeouts, continuity) without a flash.
+
+`telemetry` goes out right after the channel opens, then every 60 seconds, and
+immediately on a charging edge. Every payload field is optional — the device omits what
+its hardware cannot measure (on the 1.85C the charging bit is a voltage-trend estimate;
+there is no charge-status GPIO). The server keeps the latest snapshot in memory, stamps
+it into the system prompt while fresh (5 minutes), and announces low battery (≤15%,
+30-minute cooldown, re-armed by charging or recovery to 25%) — that announcement pierces
+focus mode as `critical`.
 
 Gesture meaning lives on the server, not the device: `tap` toggles the dashboard,
 `swipe_left` / `swipe_right` cycle the speech mode, and `double_tap` is deliberately a
@@ -32,6 +45,13 @@ no-op (it used to mute the microphone and did so invisibly — see `#handleGestu
 | `dashboard` | Clock + weather snapshot |
 | `background_result` | Completed async work summary |
 | `reminder` | Reminder delivery |
+| `play_effect` | Play a sound effect already burned into device flash |
+
+`play_effect` carries a logical `name` — `ding` (timer/reminder landing), `chime`
+(confirmation request), `error` (turn failure), `low_battery` — and the firmware maps
+names to flash assets, so the server can re-purpose sounds without a flash. Unknown
+names are logged and ignored. The point is latency: the earcon plays instantly while the
+TTS announcement is still being synthesized, and it costs no ElevenLabs credits.
 
 `tts_start` carries `format` (always `pcm` in production), `bytes` for the clip that
 follows, and optional `sampleRate` / `channels` — 24 000 Hz mono, so the ESP32 needs no

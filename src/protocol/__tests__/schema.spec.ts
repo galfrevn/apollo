@@ -22,6 +22,41 @@ describe('protocol schema', () => {
     expect(() => parseDeviceToServerMessage(JSON.stringify({ type: 'nope' }))).toThrow();
   });
 
+  it('parses telemetry with every field', () => {
+    const message = parseDeviceToServerMessage({
+      type: 'telemetry',
+      battery: 87,
+      charging: false,
+      volume: 70,
+      wifiRssi: -52,
+      firmwareVersion: '2.4.2',
+      ts: 3,
+    });
+    expect(message).toEqual({
+      type: 'telemetry',
+      battery: 87,
+      charging: false,
+      volume: 70,
+      wifiRssi: -52,
+      firmwareVersion: '2.4.2',
+      ts: 3,
+    });
+  });
+
+  it('parses telemetry with only type and ts', () => {
+    const message = parseDeviceToServerMessage({ type: 'telemetry', ts: 4 });
+    expect(message).toEqual({ type: 'telemetry', ts: 4 });
+  });
+
+  it('rejects telemetry with battery out of range', () => {
+    expect(() =>
+      parseDeviceToServerMessage({ type: 'telemetry', battery: -1, ts: 5 }),
+    ).toThrow();
+    expect(() =>
+      parseDeviceToServerMessage({ type: 'telemetry', battery: 101, ts: 5 }),
+    ).toThrow();
+  });
+
   it('encodes ui_state', () => {
     const raw = encodeServerToDeviceMessage({
       type: 'ui_state',
@@ -103,5 +138,24 @@ describe('protocol schema', () => {
         }),
       ),
     ).toMatchObject({ type: 'reminder', message: 'Tomá agua' });
+  });
+
+  it('encodes play_effect for every catalog name', () => {
+    for (const effectName of ['ding', 'chime', 'error', 'low_battery'] as const) {
+      expect(
+        JSON.parse(
+          encodeServerToDeviceMessage({ type: 'play_effect', name: effectName }),
+        ),
+      ).toEqual({ type: 'play_effect', name: effectName });
+    }
+  });
+
+  it('rejects play_effect with an unknown name', () => {
+    expect(() =>
+      encodeServerToDeviceMessage({
+        type: 'play_effect',
+        name: 'nope' as never,
+      }),
+    ).toThrow();
   });
 });
