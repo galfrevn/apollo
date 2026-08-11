@@ -34,6 +34,10 @@ export const deskSoundEffectSchema = z.enum(['ding', 'chime', 'error', 'low_batt
 
 export type DeskSoundEffectName = z.infer<typeof deskSoundEffectSchema>;
 
+export const confirmCloseReasonSchema = z.enum(['resolved', 'expired', 'orphaned']);
+
+export type ConfirmCloseReasonName = z.infer<typeof confirmCloseReasonSchema>;
+
 export const deviceToServerMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('hello'),
@@ -118,6 +122,11 @@ export const serverToDeviceMessageSchema = z.discriminatedUnion('type', [
     id: z.string().min(1),
     summary: z.string().min(1),
     expiresAt: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal('confirm_close'),
+    id: z.string().min(1),
+    reason: confirmCloseReasonSchema,
   }),
   z.object({
     type: z.literal('tts_start'),

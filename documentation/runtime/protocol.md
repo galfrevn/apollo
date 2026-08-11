@@ -40,6 +40,7 @@ no-op (it used to mute the microphone and did so invisibly — see `#handleGestu
 |------|------|
 | `ui_state` | Mode, speech mode, caption, focus remaining, face emotion, accent color |
 | `confirm_request` | Ask the user to approve a tool side effect |
+| `confirm_close` | The confirmation window ended (`resolved` / `expired` / `orphaned`), so the device drops its confirm screen |
 | `tts_start` | Announce the next speech clip (one per segment, not one per reply) |
 | `tts_aborted` | The clip announced by `tts_start` was cut short and will never complete |
 | `error` | Structured failure |

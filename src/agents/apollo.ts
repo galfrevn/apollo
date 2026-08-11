@@ -46,6 +46,7 @@ import { APOLLO_TTS_VOICE } from '@/persona/soul';
 import {
   encodeServerToDeviceMessage,
   parseDeviceToServerMessage,
+  type ConfirmCloseReasonName,
   type DeskSoundEffectName,
   type DeviceToServerMessage,
 } from '@/protocol/schema';
@@ -367,14 +368,22 @@ export class Apollo extends Agent<Env, ApolloState> {
         return;
       }
     }
-    await this.#closePendingConfirmation('Confirmación expirada');
+    await this.#closePendingConfirmation('Confirmación expirada', 'expired');
   }
 
   // Closing a confirmation is the same work however it ends: forget it in
   // memory and on disk, leave the confirm UI state, and tell the device — which
   // is sitting on the confirm screen and never learns the window closed unless
   // it is told.
-  async #closePendingConfirmation(caption: string): Promise<void> {
+  async #closePendingConfirmation(
+    caption: string,
+    reason: 'expired' | 'orphaned',
+  ): Promise<void> {
+    const closingConfirmId =
+      this.state.pendingConfirmId ?? this.#pendingConfirmation?.id ?? null;
+    if (closingConfirmId !== null) {
+      this.#broadcastConfirmClose(closingConfirmId, reason);
+    }
     this.#pendingConfirmation = undefined;
     await deletePendingToolConfirmations(this.#sqlExecutor());
     this.#applyUiEvent('CANCEL');
@@ -671,6 +680,17 @@ export class Apollo extends Agent<Env, ApolloState> {
     }
   }
 
+  #broadcastConfirmClose(confirmId: string, reason: ConfirmCloseReasonName): void {
+    const encodedMessage = encodeServerToDeviceMessage({
+      type: 'confirm_close',
+      id: confirmId,
+      reason,
+    });
+    for (const connection of this.getConnections()) {
+      connection.send(encodedMessage);
+    }
+  }
+
   async #runTurnFromText(connection: Connection, text: string): Promise<void> {
     this.#applyUiEvent('START_LISTEN');
     await this.#executeTurn(connection, { text });
@@ -710,12 +730,14 @@ export class Apollo extends Agent<Env, ApolloState> {
       ) {
         await this.#closePendingConfirmation(
           'Se me perdió esa confirmación, pedímelo de nuevo.',
+          'orphaned',
         );
       }
       return;
     }
     this.#pendingConfirmation = undefined;
     await deletePendingToolConfirmations(this.#sqlExecutor());
+    this.#broadcastConfirmClose(pendingConfirmation.id, 'resolved');
     await this.#executeTurn(connection, {
       text: isApproved ? 'confirmado' : 'cancelado',
       confirmOk: isApproved,
@@ -789,7 +811,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     });
 
     try {
-      this.#pendingConfirmation = await executeApolloTurn(
+      await executeApolloTurn(
         connection,
         {
           environment: this.env,
@@ -803,6 +825,10 @@ export class Apollo extends Agent<Env, ApolloState> {
           scheduleConfirmExpiry: async (confirmationId) => {
             await this.schedule(30, 'expireConfirm', { confirmationId });
           },
+          persistPendingConfirmation: async (confirmation) => {
+            this.#pendingConfirmation = confirmation;
+            await savePendingToolConfirmation(this.#sqlExecutor(), confirmation);
+          },
           session: this.session,
           deviceId,
           effects: deskToolEffects,
@@ -813,9 +839,6 @@ export class Apollo extends Agent<Env, ApolloState> {
         },
         turnPart,
       );
-      if (this.#pendingConfirmation !== undefined) {
-        await savePendingToolConfirmation(this.#sqlExecutor(), this.#pendingConfirmation);
-      }
     } catch (error) {
       console.error(
         JSON.stringify({
@@ -826,6 +849,10 @@ export class Apollo extends Agent<Env, ApolloState> {
         }),
       );
       this.#pendingConfirmation = undefined;
+      // The confirmation persists before the turn finishes streaming, so a
+      // failure after that point would otherwise leave a resolvable row for a
+      // request the user was just told failed.
+      await deletePendingToolConfirmations(this.#sqlExecutor());
       this.#applyUiEvent('CANCEL');
       this.setState({
         ...this.state,
