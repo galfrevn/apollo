@@ -78,6 +78,33 @@ export function createFakeMediaBucket(
   return partialBucket as Env['MEDIA'];
 }
 
+export async function buildTestRsaPrivateKeyPem(): Promise<string> {
+  const generatedKey = await crypto.subtle.generateKey(
+    {
+      name: 'RSASSA-PKCS1-v1_5',
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: 'SHA-256',
+    },
+    true,
+    ['sign', 'verify'],
+  );
+  if (!('privateKey' in generatedKey)) {
+    throw new Error('generateKey did not return a key pair');
+  }
+  const exportedKey = await crypto.subtle.exportKey('pkcs8', generatedKey.privateKey);
+  if (!(exportedKey instanceof ArrayBuffer)) {
+    throw new Error('exportKey did not return pkcs8 bytes');
+  }
+  const pkcs8Bytes = new Uint8Array(exportedKey);
+  let binaryText = '';
+  for (const byte of pkcs8Bytes) {
+    binaryText += String.fromCharCode(byte);
+  }
+  const base64Body = btoa(binaryText).replaceAll(/(.{64})/g, '$1\n');
+  return `-----BEGIN PRIVATE KEY-----\n${base64Body}\n-----END PRIVATE KEY-----`;
+}
+
 export function createFakeApolloEnvironment(overrides: Partial<Env> = {}): Env {
   return {
     OPENROUTER_MODEL: 'deepseek/deepseek-v4-flash-0731',

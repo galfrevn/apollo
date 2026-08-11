@@ -15,6 +15,19 @@ Apollo can clone a GitHub repository, change it, run its tests, and open a pull 
 
 The result comes back through the same path as deep research: a short spoken summary, the full run log in R2, and a `background_result` on the wire.
 
+## Naming a repository by voice
+
+Nobody dictates `owner/repo` out loud, so the tool accepts the name however the
+user says it — "apollo", "apollo firmware" — and resolves it against the App's
+installation list (`resolveSpokenRepositoryReference`, `src/github/repository.ts`),
+ignoring case and separators. An exact name wins over a containment; an ambiguous
+name comes back as a spoken question listing the candidates, and an unknown one
+lists what is available instead of asking for a URL. A reference that already
+parses as `owner/repo` or a GitHub URL skips the lookup entirely. The agent can
+also enumerate the options with `list_coding_repositories` — the same
+installation list that acts as the allowlist, read through the App credentials
+(`listGithubAppRepositoryFullNameList`, `src/github/app.ts`).
+
 ## Why the sandbox is disposable
 
 Container disk is ephemeral — when an instance sleeps, it restarts with a fresh disk from the image. So there is nowhere to "leave work in progress": **the git remote is the source of truth**. Every run clones from scratch and ends in a pushed branch. The sandbox runs with `keepAlive` so a 10-minute sleep cannot wipe the workspace mid-run, and is destroyed at the end because billing runs while it is alive.

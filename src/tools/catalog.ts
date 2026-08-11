@@ -1,4 +1,4 @@
-import { startCodingTaskTool } from '@/tools/coding';
+import { listCodingRepositoriesTool, startCodingTaskTool } from '@/tools/coding';
 import { deviceStatusTool, setBrightnessTool, setVolumeTool } from '@/tools/device';
 import { dollarRateTool } from '@/tools/dollar';
 import { sendEmailTool } from '@/tools/email';
@@ -42,6 +42,7 @@ export function listBuiltinToolDefinitionList(): readonly ToolDefinition[] {
     sendEmailTool,
     sandboxRunCodeTool,
     sandboxExecTool,
+    listCodingRepositoriesTool,
     startCodingTaskTool,
   ];
 }

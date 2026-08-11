@@ -10,8 +10,16 @@ export const GITHUB_API_USER_AGENT = 'apollo-desk-agent';
 const APP_JWT_LIFETIME_SECONDS = 480;
 const APP_JWT_CLOCK_SKEW_SECONDS = 30;
 
+const GITHUB_API_PAGE_SIZE = 100;
+
 const installationResponseSchema = z.object({
   id: z.number().int().positive(),
+});
+
+const installationListResponseSchema = z.array(installationResponseSchema);
+
+const installationRepositoriesResponseSchema = z.object({
+  repositories: z.array(z.object({ full_name: z.string().min(1) })),
 });
 
 const installationTokenResponseSchema = z.object({
@@ -147,6 +155,77 @@ export async function createGithubInstallationToken(input: {
 
   const payload = installationTokenResponseSchema.parse(await response.json());
   return { token: payload.token, expiresAt: payload.expires_at };
+}
+
+// The App's installation list doubles as the coding allowlist, so this is
+// also how the agent learns which repositories it may touch.
+export async function listGithubAppRepositoryFullNameList(input: {
+  readonly appId: string;
+  readonly privateKeyPem: string;
+  readonly nowMilliseconds: number;
+  readonly fetchImplementation?: typeof fetch;
+}): Promise<readonly string[]> {
+  if (input.appId.length === 0 || input.privateKeyPem.length === 0) {
+    throw new Error('Faltan GITHUB_APP_ID o GITHUB_APP_PRIVATE_KEY');
+  }
+  const fetchImplementation = input.fetchImplementation ?? globalThis.fetch;
+  const appJsonWebToken = await signGithubAppJsonWebToken({
+    appId: input.appId,
+    privateKeyPem: input.privateKeyPem,
+    nowMilliseconds: input.nowMilliseconds,
+  });
+
+  const installationList: { readonly id: number }[] = [];
+  for (let pageNumber = 1; ; pageNumber += 1) {
+    const installationsResponse = await fetchImplementation(
+      `${GITHUB_API_BASE_URL}/app/installations?per_page=${GITHUB_API_PAGE_SIZE}&page=${pageNumber}`,
+      { headers: buildGithubRequestHeaders(`Bearer ${appJsonWebToken}`) },
+    );
+    if (!installationsResponse.ok) {
+      throw new Error(
+        `No pude listar las instalaciones del App (status ${installationsResponse.status})`,
+      );
+    }
+    const installationPageList = installationListResponseSchema.parse(
+      await installationsResponse.json(),
+    );
+    installationList.push(...installationPageList);
+    if (installationPageList.length < GITHUB_API_PAGE_SIZE) {
+      break;
+    }
+  }
+
+  const fullNameList: string[] = [];
+  for (const installation of installationList) {
+    const installationToken = await createGithubInstallationToken({
+      installationId: installation.id,
+      appJsonWebToken,
+      ...(input.fetchImplementation !== undefined
+        ? { fetchImplementation: input.fetchImplementation }
+        : {}),
+    });
+    for (let pageNumber = 1; ; pageNumber += 1) {
+      const repositoriesResponse = await fetchImplementation(
+        `${GITHUB_API_BASE_URL}/installation/repositories?per_page=${GITHUB_API_PAGE_SIZE}&page=${pageNumber}`,
+        { headers: buildGithubRequestHeaders(`token ${installationToken.token}`) },
+      );
+      if (!repositoriesResponse.ok) {
+        throw new Error(
+          `No pude listar los repositorios de una instalación (status ${repositoriesResponse.status})`,
+        );
+      }
+      const payload = installationRepositoriesResponseSchema.parse(
+        await repositoriesResponse.json(),
+      );
+      fullNameList.push(
+        ...payload.repositories.map((repository) => repository.full_name),
+      );
+      if (payload.repositories.length < GITHUB_API_PAGE_SIZE) {
+        break;
+      }
+    }
+  }
+  return fullNameList;
 }
 
 export async function createGithubInstallationTokenForRepository(input: {

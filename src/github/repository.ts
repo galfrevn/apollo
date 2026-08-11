@@ -48,6 +48,103 @@ export function formatGithubRepositoryReference(
   return `${reference.owner}/${reference.repository}`;
 }
 
+export type SpokenRepositoryResolution =
+  | { readonly kind: 'match'; readonly fullName: string }
+  | { readonly kind: 'ambiguous'; readonly candidateFullNameList: readonly string[] }
+  | { readonly kind: 'none' };
+
+function splitIntoSpokenTokenList(text: string): readonly string[] {
+  return text
+    .toLowerCase()
+    .split(/[\s./_-]+/)
+    .filter((token) => token.length > 0);
+}
+
+function normalizeRepositoryName(name: string): string {
+  return splitIntoSpokenTokenList(name).join('');
+}
+
+// The repository name has to appear as consecutive words somewhere in the
+// spoken phrase, so surrounding words in any language fall away without a
+// stopword list. The widest window wins so "apollo firmware" resolves to
+// apollo-firmware instead of tying with apollo, and on equal width the match
+// with more characters wins: a short name like "repo" coinciding with a
+// spoken word is far more likely incidental than a long one.
+function selectRepositoriesMatchingTokenWindow(
+  spokenTokenList: readonly string[],
+  candidateList: readonly { fullName: string; normalizedNameList: string[] }[],
+): readonly string[] {
+  for (let windowSize = spokenTokenList.length; windowSize >= 1; windowSize -= 1) {
+    const matchedLengthByFullName = new Map<string, number>();
+    for (
+      let startIndex = 0;
+      startIndex + windowSize <= spokenTokenList.length;
+      startIndex += 1
+    ) {
+      const windowText = spokenTokenList
+        .slice(startIndex, startIndex + windowSize)
+        .join('');
+      for (const candidate of candidateList) {
+        if (candidate.normalizedNameList.includes(windowText)) {
+          const knownLength = matchedLengthByFullName.get(candidate.fullName) ?? 0;
+          matchedLengthByFullName.set(
+            candidate.fullName,
+            Math.max(knownLength, windowText.length),
+          );
+        }
+      }
+    }
+    if (matchedLengthByFullName.size > 0) {
+      const widestMatchedLength = Math.max(...matchedLengthByFullName.values());
+      return [...matchedLengthByFullName.entries()]
+        .filter(([, matchedLength]) => matchedLength === widestMatchedLength)
+        .map(([fullName]) => fullName);
+    }
+  }
+  return [];
+}
+
+export function resolveSpokenRepositoryReference(
+  spokenReference: string,
+  installedFullNameList: readonly string[],
+): SpokenRepositoryResolution {
+  const spokenTokenList = splitIntoSpokenTokenList(spokenReference);
+  if (spokenTokenList.length === 0) {
+    return { kind: 'none' };
+  }
+
+  const candidateList = installedFullNameList.map((fullName) => ({
+    fullName,
+    normalizedNameList: [
+      normalizeRepositoryName(fullName.split('/')[1] ?? ''),
+      normalizeRepositoryName(fullName),
+    ].filter((name) => name.length > 0),
+  }));
+
+  const windowMatchList = selectRepositoriesMatchingTokenWindow(
+    spokenTokenList,
+    candidateList,
+  );
+  const normalizedSpoken = spokenTokenList.join('');
+  const matchList =
+    windowMatchList.length > 0
+      ? windowMatchList
+      : candidateList
+          .filter((candidate) =>
+            candidate.normalizedNameList.some((name) => name.includes(normalizedSpoken)),
+          )
+          .map((candidate) => candidate.fullName);
+
+  const [firstMatch] = matchList;
+  if (firstMatch !== undefined && matchList.length === 1) {
+    return { kind: 'match', fullName: firstMatch };
+  }
+  if (matchList.length > 1) {
+    return { kind: 'ambiguous', candidateFullNameList: matchList };
+  }
+  return { kind: 'none' };
+}
+
 // Last line of defence: a command can still echo a token it was handed, so
 // anything bound for a log, a document, an email or TTS passes through here.
 export function redactSecretsFromText(

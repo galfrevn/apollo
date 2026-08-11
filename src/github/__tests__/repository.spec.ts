@@ -4,7 +4,95 @@ import {
   formatGithubRepositoryReference,
   parseGithubRepositoryReference,
   redactSecretsFromText,
+  resolveSpokenRepositoryReference,
 } from '@/github/repository';
+
+describe('resolveSpokenRepositoryReference', () => {
+  const installedList = [
+    'galfrevn/apollo',
+    'galfrevn/apollo-firmware',
+    'galfrevn/dotfiles',
+  ];
+
+  it('matches a bare spoken name regardless of case and separators', () => {
+    expect(resolveSpokenRepositoryReference('dotfiles', installedList)).toEqual({
+      kind: 'match',
+      fullName: 'galfrevn/dotfiles',
+    });
+    expect(resolveSpokenRepositoryReference('Apollo Firmware', installedList)).toEqual({
+      kind: 'match',
+      fullName: 'galfrevn/apollo-firmware',
+    });
+    expect(resolveSpokenRepositoryReference('apollo_firmware', installedList)).toEqual({
+      kind: 'match',
+      fullName: 'galfrevn/apollo-firmware',
+    });
+  });
+
+  it('prefers an exact name over a partial containment', () => {
+    expect(resolveSpokenRepositoryReference('apollo', installedList)).toEqual({
+      kind: 'match',
+      fullName: 'galfrevn/apollo',
+    });
+  });
+
+  it('matches a spoken full name with the owner attached', () => {
+    expect(
+      resolveSpokenRepositoryReference('galfrevn apollo firmware', installedList),
+    ).toEqual({ kind: 'match', fullName: 'galfrevn/apollo-firmware' });
+  });
+
+  it('ignores surrounding words in any language without a stopword list', () => {
+    expect(resolveSpokenRepositoryReference('el repo apollo', installedList)).toEqual({
+      kind: 'match',
+      fullName: 'galfrevn/apollo',
+    });
+    expect(
+      resolveSpokenRepositoryReference('the apollo firmware repository', installedList),
+    ).toEqual({ kind: 'match', fullName: 'galfrevn/apollo-firmware' });
+    expect(
+      resolveSpokenRepositoryReference('mis dotfiles de siempre', installedList),
+    ).toEqual({ kind: 'match', fullName: 'galfrevn/dotfiles' });
+  });
+
+  it('prefers the widest window over its inner names', () => {
+    expect(resolveSpokenRepositoryReference('apollo firmware', installedList)).toEqual({
+      kind: 'match',
+      fullName: 'galfrevn/apollo-firmware',
+    });
+  });
+
+  it('prefers the longer match when a generically named repository also matches', () => {
+    const listWithGenericName = ['galfrevn/repo', 'galfrevn/apollo'];
+    expect(
+      resolveSpokenRepositoryReference('el repo apollo', listWithGenericName),
+    ).toEqual({ kind: 'match', fullName: 'galfrevn/apollo' });
+    expect(resolveSpokenRepositoryReference('el repo', listWithGenericName)).toEqual({
+      kind: 'match',
+      fullName: 'galfrevn/repo',
+    });
+  });
+
+  it('reports ambiguity instead of guessing', () => {
+    const resolution = resolveSpokenRepositoryReference('apol', installedList);
+    expect(resolution.kind).toBe('ambiguous');
+    if (resolution.kind === 'ambiguous') {
+      expect(resolution.candidateFullNameList).toEqual([
+        'galfrevn/apollo',
+        'galfrevn/apollo-firmware',
+      ]);
+    }
+  });
+
+  it('reports none for an unknown name or empty input', () => {
+    expect(resolveSpokenRepositoryReference('inexistente', installedList)).toEqual({
+      kind: 'none',
+    });
+    expect(resolveSpokenRepositoryReference('   ', installedList)).toEqual({
+      kind: 'none',
+    });
+  });
+});
 
 describe('parseGithubRepositoryReference', () => {
   it('accepts the shapes a user might say or paste', () => {
