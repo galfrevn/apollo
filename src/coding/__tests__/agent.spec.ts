@@ -226,8 +226,10 @@ describe('runCodingAgent', () => {
         return { stdout: `${longPrefix}${execCallCount}`, stderr: '', exitCode: 0 };
       },
     };
+    let sawWrapUpRequest = false;
     const callLlm: CodingLlmCaller = async ({ toolDefinitionList }) => {
       if (toolDefinitionList.length === 0) {
+        sawWrapUpRequest = true;
         return { text: 'No pude avanzar con eso.', toolCallList: [] };
       }
       return {
@@ -247,6 +249,7 @@ describe('runCodingAgent', () => {
     // identical as far as it can tell, so the cutoff still fires.
     expect(outcome.didReachRoundLimit).toBe(true);
     expect(execCallCount).toBe(3);
+    expect(sawWrapUpRequest).toBe(true);
   });
 
   it('keeps looping when a repeated call returns different results', async () => {
