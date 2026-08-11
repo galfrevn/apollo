@@ -82,6 +82,9 @@ export type TurnOutput = {
   readonly focusState: DeskFocusState;
   readonly memoryContentList: readonly string[];
   readonly toolResultList: readonly ToolExecutionResult[];
+  // Whether the reply asks the user for something, so the device should
+  // reopen the mic after speaking instead of returning to idle.
+  readonly expectsReply: boolean;
 };
 
 function buildToolDefinitionListFromMap(
@@ -159,6 +162,7 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
         focusState: input.focusState,
         memoryContentList: [],
         toolResultList,
+        expectsReply: false,
       };
     }
     toolResultList.push(resolved);
@@ -178,6 +182,7 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
       focusState: input.focusState,
       memoryContentList: [],
       toolResultList,
+      expectsReply: false,
     };
   }
 
@@ -291,6 +296,7 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
           focusState: input.focusState,
           memoryContentList,
           toolResultList,
+          expectsReply: false,
         };
       }
       toolResultList.push(outcome.result);
@@ -305,6 +311,11 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
   if (spokenText.length === 0) {
     spokenText = toolResultList.map((result) => result.summary).join(' ');
   }
+  // The model appends [[escucho]] when its reply asks the user for something;
+  // a reply that ends in a question counts even if the model forgot the mark.
+  const hasListenMark = /\[\[escucho\]\]/i.test(spokenText);
+  spokenText = spokenText.replace(/\s*\[\[escucho\]\]\s*/gi, ' ').trim();
+  const expectsReply = hasListenMark || /\?\s*$/.test(spokenText);
   spokenText = sanitizeTextForSpeech(spokenText);
 
   const [firstSegmentText, ...ttsFollowUpSegmentTextList] =
@@ -331,5 +342,6 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
     focusState: input.focusState,
     memoryContentList,
     toolResultList,
+    expectsReply,
   };
 }

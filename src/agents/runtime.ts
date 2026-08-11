@@ -216,6 +216,7 @@ export async function executeApolloTurn(
     );
   }
 
+  let speechWasAborted = false;
   if (turnOutput.ttsAudio !== undefined) {
     const followUpSegmentTextList = turnOutput.ttsFollowUpSegmentTextList ?? [];
     let currentAudioBuffer: ArrayBuffer | undefined = turnOutput.ttsAudio;
@@ -282,7 +283,16 @@ export async function executeApolloTurn(
       // speech ends, and that total will never arrive now.
       connection.send(encodeServerToDeviceMessage({ type: 'tts_aborted' }));
     }
+    speechWasAborted = wasAborted;
   }
+
+  // An aborted reply never reopens the mic: the user already cut it off.
+  connection.send(
+    encodeServerToDeviceMessage({
+      type: 'turn_end',
+      expectsReply: turnOutput.expectsReply && !speechWasAborted,
+    }),
+  );
 
   if (turnOutput.transcript.length > 0) {
     await dependencies.session.appendMessage({
