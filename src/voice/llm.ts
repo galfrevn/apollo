@@ -1,36 +1,6 @@
 import { z } from 'zod';
 
-export type OpenRouterToolCall = {
-  readonly id: string;
-  readonly name: string;
-  readonly args: unknown;
-};
-
-export type OpenRouterChatMessage =
-  | { readonly role: 'system'; readonly content: string }
-  | { readonly role: 'user'; readonly content: string }
-  | {
-      readonly role: 'assistant';
-      readonly content: string | null;
-      readonly tool_calls?: readonly {
-        readonly id: string;
-        readonly type: 'function';
-        readonly function: {
-          readonly name: string;
-          readonly arguments: string;
-        };
-      }[];
-    }
-  | {
-      readonly role: 'tool';
-      readonly tool_call_id: string;
-      readonly content: string;
-    };
-
-export type OpenRouterChatResult = {
-  readonly text: string;
-  readonly toolCallList: readonly OpenRouterToolCall[];
-};
+import type { ChatMessage, ChatResult, ChatToolDefinition } from '@/voice/chat';
 
 const openRouterChatResponseSchema = z.object({
   choices: z
@@ -55,7 +25,7 @@ const openRouterChatResponseSchema = z.object({
     .min(1),
 });
 
-export function buildOpenRouterSystemPrompt(input: {
+export function buildApolloSystemPrompt(input: {
   readonly soulSystemPrompt: string;
   readonly memoryContentList: readonly string[];
   readonly isFocusActive: boolean;
@@ -121,7 +91,7 @@ const openRouterStreamChunkSchema = z.object({
 async function consumeOpenRouterStream(
   response: Response,
   onTextDelta: (deltaText: string) => void,
-): Promise<OpenRouterChatResult> {
+): Promise<ChatResult> {
   const bodyReader = response.body?.getReader();
   if (bodyReader === undefined) {
     throw new Error('LLM en streaming sin body');
@@ -199,18 +169,14 @@ async function consumeOpenRouterStream(
 export async function chatWithOpenRouter(input: {
   readonly openRouterApiKey: string;
   readonly modelId: string;
-  readonly messageList: readonly OpenRouterChatMessage[];
-  readonly toolDefinitionList?: readonly {
-    readonly name: string;
-    readonly description: string;
-    readonly parameters: Record<string, unknown>;
-  }[];
+  readonly messageList: readonly ChatMessage[];
+  readonly toolDefinitionList?: readonly ChatToolDefinition[];
   // When given, the request streams over SSE and every content delta lands here
   // as it arrives, so the caller can start speaking the first sentence while
   // the model is still writing the rest.
   readonly onTextDelta?: (deltaText: string) => void;
   readonly fetchImplementation?: typeof fetch;
-}): Promise<OpenRouterChatResult> {
+}): Promise<ChatResult> {
   const toolDefinitionPayloadList =
     input.toolDefinitionList !== undefined && input.toolDefinitionList.length > 0
       ? input.toolDefinitionList.map((toolDefinition) => ({

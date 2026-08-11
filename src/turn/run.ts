@@ -11,11 +11,8 @@ import type {
   ToolExecutionResult,
 } from '@/tools/types';
 import { mapToolNameToThinkingCaption } from '@/turn/caption';
-import {
-  buildOpenRouterSystemPrompt,
-  buildSemanticMemoryPromptNote,
-  type OpenRouterChatMessage,
-} from '@/voice/llm';
+import type { ChatMessage, ChatToolDefinition } from '@/voice/chat';
+import { buildApolloSystemPrompt, buildSemanticMemoryPromptNote } from '@/voice/llm';
 import { sanitizeTextForSpeech } from '@/voice/sanitize';
 import {
   SPEECH_SEGMENT_MAX_CHARACTER_COUNT,
@@ -27,12 +24,8 @@ const DEFAULT_MAX_TOOL_ROUND_COUNT = 3;
 export type VoiceAdapters = {
   readonly stt: (audioBuffer: ArrayBuffer) => Promise<string>;
   readonly llm: (input: {
-    readonly messageList: readonly OpenRouterChatMessage[];
-    readonly toolDefinitionList: readonly {
-      readonly name: string;
-      readonly description: string;
-      readonly parameters: Record<string, unknown>;
-    }[];
+    readonly messageList: readonly ChatMessage[];
+    readonly toolDefinitionList: readonly ChatToolDefinition[];
     // Optional streaming hook: adapters that support it push content deltas
     // as they arrive so the turn can start synthesizing speech early.
     readonly onTextDelta?: (deltaText: string) => void;
@@ -108,7 +101,7 @@ function buildAssistantToolCallMessage(
     readonly name: string;
     readonly args: unknown;
   }[],
-): OpenRouterChatMessage {
+): ChatMessage {
   return {
     role: 'assistant',
     content: llmText.trim().length > 0 ? llmText : null,
@@ -126,7 +119,7 @@ function buildAssistantToolCallMessage(
 function buildToolResultMessage(
   toolCallId: string,
   toolResult: ToolExecutionResult,
-): OpenRouterChatMessage {
+): ChatMessage {
   return {
     role: 'tool',
     tool_call_id: toolCallId,
@@ -205,7 +198,7 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
   ];
   const systemPromptBase =
     input.systemPromptOverride === undefined
-      ? buildOpenRouterSystemPrompt({
+      ? buildApolloSystemPrompt({
           soulSystemPrompt: buildApolloSoulPrompt(input.speechMode),
           memoryContentList,
           isFocusActive: input.focusState.active,
@@ -224,7 +217,7 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
   };
   const maxToolRoundCount = input.maxToolRoundCount ?? DEFAULT_MAX_TOOL_ROUND_COUNT;
 
-  const messageList: OpenRouterChatMessage[] = [
+  const messageList: ChatMessage[] = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userText },
   ];

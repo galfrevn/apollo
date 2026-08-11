@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { CODING_WORKSPACE_PATH } from '@/coding/git';
 import { resolveWorkspaceFilePath } from '@/coding/workspace';
 import { truncateSandboxOutputForToolResult } from '@/sandbox/helpers';
-import type { OpenRouterChatMessage, OpenRouterChatResult } from '@/voice/llm';
+import type { ChatMessage, ChatResult, ChatToolDefinition } from '@/voice/chat';
 
 export const DEFAULT_CODING_ROUND_LIMIT = 24;
 // Two rounds with identical calls and identical results get the model a
@@ -30,13 +30,9 @@ export type CodingSandboxPort = {
 };
 
 export type CodingLlmCaller = (input: {
-  readonly messageList: readonly OpenRouterChatMessage[];
-  readonly toolDefinitionList: readonly {
-    readonly name: string;
-    readonly description: string;
-    readonly parameters: Record<string, unknown>;
-  }[];
-}) => Promise<OpenRouterChatResult>;
+  readonly messageList: readonly ChatMessage[];
+  readonly toolDefinitionList: readonly ChatToolDefinition[];
+}) => Promise<ChatResult>;
 
 export type CodingAgentOutcome = {
   readonly summary: string;
@@ -221,7 +217,7 @@ const WRAP_UP_PROMPT =
 // spoken summary instead of throwing the whole run away.
 async function requestWrapUpSummary(
   callLlm: CodingLlmCaller,
-  messageList: readonly OpenRouterChatMessage[],
+  messageList: readonly ChatMessage[],
 ): Promise<string> {
   try {
     const wrapUpResult = await callLlm({
@@ -246,7 +242,7 @@ export async function runCodingAgent(input: {
   const roundLimit = input.roundLimit ?? DEFAULT_CODING_ROUND_LIMIT;
   const transcript: string[] = [];
 
-  const messageList: OpenRouterChatMessage[] = [
+  const messageList: ChatMessage[] = [
     {
       role: 'system',
       content: buildCodingSystemPrompt({

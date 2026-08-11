@@ -6,7 +6,7 @@ import { addMemoryRecord, type MemorySqlExecutor } from '@/memory/store';
 import { buildToolDefinitionMap } from '@/tools/router';
 import type { ToolDefinition } from '@/tools/types';
 import { runDeskTurn } from '@/turn/run';
-import type { OpenRouterChatMessage } from '@/voice/llm';
+import type { ChatMessage } from '@/voice/chat';
 
 function createInMemorySqlExecutor(): MemorySqlExecutor {
   const memoryRowList: Array<{
@@ -249,7 +249,7 @@ describe('runDeskTurn', () => {
         return { ok: true, summary: 'Arranco a programar en apollo.' };
       },
     };
-    let capturedMessageList: readonly OpenRouterChatMessage[] = [];
+    let capturedMessageList: readonly ChatMessage[] = [];
 
     const output = await runDeskTurn({
       text: 'confirmado',

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { buildOpenRouterSystemPrompt, chatWithOpenRouter } from '@/voice/llm';
+import { buildApolloSystemPrompt, chatWithOpenRouter } from '@/voice/llm';
 
 type CapturedFetchCall = {
   readonly url: string;
@@ -30,9 +30,9 @@ function createCapturingFetchMock(
   };
 }
 
-describe('buildOpenRouterSystemPrompt', () => {
+describe('buildApolloSystemPrompt', () => {
   it('lists memories when present', () => {
-    const prompt = buildOpenRouterSystemPrompt({
+    const prompt = buildApolloSystemPrompt({
       soulSystemPrompt: 'Sos Apollo.',
       memoryContentList: ['toma mate', 'vive en Buenos Aires'],
       isFocusActive: false,
@@ -43,7 +43,7 @@ describe('buildOpenRouterSystemPrompt', () => {
   });
 
   it('notes the absence of memories and an active focus', () => {
-    const prompt = buildOpenRouterSystemPrompt({
+    const prompt = buildApolloSystemPrompt({
       soulSystemPrompt: 'Sos Apollo.',
       memoryContentList: [],
       isFocusActive: true,

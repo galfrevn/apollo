@@ -5,7 +5,7 @@ import {
   type CodingSandboxPort,
   type CodingLlmCaller,
 } from '@/coding/agent';
-import type { OpenRouterChatResult } from '@/voice/llm';
+import type { ChatResult } from '@/voice/chat';
 
 type RecordedSandboxCall = {
   readonly kind: 'list' | 'read' | 'write' | 'exec';
@@ -44,7 +44,7 @@ function createFakeSandbox(fileContentByPath: Record<string, string> = {}): {
   };
 }
 
-function createScriptedLlm(resultList: readonly OpenRouterChatResult[]): {
+function createScriptedLlm(resultList: readonly ChatResult[]): {
   readonly callLlm: CodingLlmCaller;
   readonly roundCount: () => number;
 } {
