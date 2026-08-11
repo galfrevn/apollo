@@ -2,6 +2,8 @@
 
 Device and server speak a Zod-validated JSON protocol defined in `src/protocol/schema.ts`. Binary audio rides alongside; control messages stay structured and small for the ESP32.
 
+This chapter is the implementation-oriented tour. The formal, versioned wire contract for third-party device authors is the [Apollo Device Protocol specification](../specification/apollo-device-protocol.md).
+
 ## Device → server
 
 | Type | Role |

@@ -46,6 +46,10 @@ This handbook is meant to be read in order. Later chapters assume the concepts i
 24. [Mapping](reference/mapping.md) — Handbook topics to `src/` folders
 25. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
 
+### Part VI — Specification
+
+26. [Apollo Device Protocol](specification/apollo-device-protocol.md) — The versioned wire contract any device can implement
+
 ## The firmware
 
 The device side lives in `firmware/apollo-firmware`, a git submodule with its own
