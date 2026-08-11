@@ -8,14 +8,6 @@
     "enabled": true,
     "head_sampling_rate": 1,
   },
-  "vars": {
-    "OPENROUTER_MODEL": "deepseek/deepseek-v4-flash-0731",
-    "OPENROUTER_STT_MODEL": "openai/whisper-large-v3",
-    "OPENROUTER_RESEARCH_MODEL": "perplexity/sonar-deep-research",
-    "OPENROUTER_CODING_MODEL": "moonshotai/kimi-k3",
-    "ELEVENLABS_TTS_MODEL": "eleven_multilingual_v2",
-    "OPENROUTER_EMBEDDING_MODEL": "openai/text-embedding-3-small",
-  },
   "containers": [
     {
       "class_name": "Sandbox",

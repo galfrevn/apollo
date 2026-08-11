@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { resolveApolloConfiguration } from '@/configuration/resolve';
 import { formatCurrentDateTimeForPrompt } from '@/persona/clock';
 import { synthesizeQuickWebAnswer } from '@/search/synthesize';
 import { searchWebSourcesWithTavily } from '@/search/tavily';
@@ -36,7 +37,7 @@ export const webSearchTool: ToolDefinition = {
       }
       const answerText = await synthesizeQuickWebAnswer({
         openRouterApiKey: context.environment.OPENROUTER_API_KEY,
-        modelId: context.environment.OPENROUTER_MODEL,
+        modelId: resolveApolloConfiguration(context.environment).models.conversation,
         query: parsedArgs.query,
         currentDateText: formatCurrentDateTimeForPrompt(context.nowMilliseconds),
         sourceList,

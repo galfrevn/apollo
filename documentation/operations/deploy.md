@@ -29,19 +29,23 @@ None of these live in `wrangler.jsonc`; set each with `bunx wrangler secret put 
 | `APOLLO_OWNER_EMAIL` | Pinned recipient for `send_email` and research reports ([Email](../capabilities/email.md)) |
 | `GITHUB_APP_ID` | GitHub App used by coding tasks ([Coding](../capabilities/coding.md)) |
 | `GITHUB_APP_PRIVATE_KEY` | Same App — PKCS#8 PEM ([Coding](../capabilities/coding.md)) |
+| `CODING_PROXY_SECRET` | Optional — signs sandbox proxy tokens; unset falls back to `OPENROUTER_API_KEY` |
 
-## Vars
+## Models
 
-Plain vars in `wrangler.jsonc`: `OPENROUTER_MODEL`, `OPENROUTER_STT_MODEL`,
-`OPENROUTER_RESEARCH_MODEL`, `OPENROUTER_CODING_MODEL`, `OPENROUTER_EMBEDDING_MODEL`,
-and `ELEVENLABS_TTS_MODEL`.
+Model ids are code defaults in `src/configuration/models.ts`, resolved through
+`resolveApolloConfiguration` (`src/configuration/resolve.ts`). Each one can be overridden
+per deployment with a plain environment value — `OPENROUTER_MODEL`,
+`OPENROUTER_STT_MODEL`, `OPENROUTER_RESEARCH_MODEL`, `OPENROUTER_CODING_MODEL`,
+`OPENROUTER_EMBEDDING_MODEL`, `ELEVENLABS_TTS_MODEL` — set as a secret or in `.dev.vars`;
+an unset or empty override falls back to the default.
 
-Changing a var means editing `wrangler.jsonc` and redeploying. `wrangler types` turns each
-var into a *literal* type, so `createFakeApolloEnvironment`
-(`src/configuration/testing.ts`) has to repeat the exact same string — a var change that
-skips it fails typecheck, not tests.
+There are deliberately no `vars` in `wrangler.jsonc`: `wrangler types` freezes each var
+into a *literal* type whose exact value must be repeated in
+`createFakeApolloEnvironment` (`src/configuration/testing.ts`) and committed to the
+public repo.
 
-See `wrangler.jsonc` for the authoritative list and the migration tags.
+See `wrangler.jsonc` for the authoritative binding list and the migration tags.
 
 ## Deploy command
 

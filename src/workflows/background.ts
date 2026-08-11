@@ -5,6 +5,7 @@ import {
 } from 'cloudflare:workers';
 import { getAgentByName } from 'agents';
 
+import { resolveApolloConfiguration } from '@/configuration/resolve';
 import { sendEmailWithResend } from '@/notifications/email';
 import { runDeepResearchWithPerplexity } from '@/search/deepresearch';
 import { buildResearchDocumentObjectKey } from '@/search/keys';
@@ -29,7 +30,7 @@ export class ApolloBackground extends WorkflowEntrypoint<Env, ApolloBackgroundPa
       async () =>
         runDeepResearchWithPerplexity({
           openRouterApiKey: this.env.OPENROUTER_API_KEY,
-          modelId: this.env.OPENROUTER_RESEARCH_MODEL,
+          modelId: resolveApolloConfiguration(this.env).models.research,
           prompt: event.payload.prompt,
           nowMilliseconds: Date.now(),
         }),
@@ -94,7 +95,7 @@ export class ApolloBackground extends WorkflowEntrypoint<Env, ApolloBackgroundPa
       async () =>
         synthesizeResearchSpokenSummary({
           openRouterApiKey: this.env.OPENROUTER_API_KEY,
-          modelId: this.env.OPENROUTER_MODEL,
+          modelId: resolveApolloConfiguration(this.env).models.conversation,
           prompt: event.payload.prompt,
           reportMarkdown,
         }),

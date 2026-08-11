@@ -1,3 +1,4 @@
+import { resolveApolloConfiguration } from '@/configuration/resolve';
 import { embedTextWithOpenRouter, upsertMemoryVector } from '@/memory/vector';
 import { parseApolloQueueJob } from '@/queues/jobs';
 
@@ -5,6 +6,7 @@ export async function consumeApolloQueueBatch(
   batch: MessageBatch<unknown>,
   environment: Env,
 ): Promise<void> {
+  const { models } = resolveApolloConfiguration(environment);
   for (const message of batch.messages) {
     try {
       const job = parseApolloQueueJob(message.body);
@@ -12,7 +14,7 @@ export async function consumeApolloQueueBatch(
       if (job.type === 'index_memory') {
         const values = await embedTextWithOpenRouter({
           openRouterApiKey: environment.OPENROUTER_API_KEY,
-          modelId: environment.OPENROUTER_EMBEDDING_MODEL,
+          modelId: models.embedding,
           text: job.content,
         });
         await upsertMemoryVector({

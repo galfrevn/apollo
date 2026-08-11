@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { resolveApolloConfiguration } from '@/configuration/resolve';
 import type { ToolDefinition } from '@/tools/types';
 
 const rememberFactArgsSchema = z.object({
@@ -59,7 +60,7 @@ export const recallMemoryTool: ToolDefinition = {
         await import('@/memory/vector');
       const values = await embedTextWithOpenRouter({
         openRouterApiKey: context.environment.OPENROUTER_API_KEY,
-        modelId: context.environment.OPENROUTER_EMBEDDING_MODEL,
+        modelId: resolveApolloConfiguration(context.environment).models.embedding,
         text: parsedArgs.query,
       });
       const matchList = await queryMemoryVectors({

@@ -1,3 +1,4 @@
+import { resolveApolloConfiguration } from '@/configuration/resolve';
 import { synthesizeSpeechWithElevenLabs } from '@/voice/elevenlabs';
 import { synthesizeSpeechThroughCache } from '@/voice/ttscache';
 
@@ -8,17 +9,18 @@ export async function synthesizeApolloSpeech(input: {
   readonly text: string;
   readonly voiceId: string;
 }): Promise<ArrayBuffer> {
+  const { models } = resolveApolloConfiguration(input.environment);
   return synthesizeSpeechThroughCache({
     mediaBucket: input.environment.MEDIA,
     text: input.text,
     voiceId: input.voiceId,
-    modelId: input.environment.ELEVENLABS_TTS_MODEL,
+    modelId: models.speech,
     synthesize: () =>
       synthesizeSpeechWithElevenLabs({
         text: input.text,
         voiceId: input.voiceId,
         elevenLabsApiKey: input.environment.ELEVENLABS_API_KEY,
-        modelId: input.environment.ELEVENLABS_TTS_MODEL,
+        modelId: models.speech,
       }),
   });
 }

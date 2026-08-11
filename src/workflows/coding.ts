@@ -8,7 +8,8 @@ import { getAgentByName } from 'agents';
 import { runCodingAgent } from '@/coding/agent';
 import { buildCodingBranchName } from '@/coding/git';
 import { runOpencodeAgent } from '@/coding/opencode';
-import { mintCodingProxyToken } from '@/coding/proxy';
+import { mintCodingProxyToken, resolveCodingProxySigningSecret } from '@/coding/proxy';
+import { resolveApolloConfiguration } from '@/configuration/resolve';
 import {
   buildCodingDocumentObjectKey,
   buildCodingPublishSandboxId,
@@ -107,16 +108,17 @@ export class ApolloCoding extends WorkflowEntrypoint<Env, ApolloCodingParams> {
           // stays as the fallback while the proxy origin is unset, and as an
           // escape hatch behind CODING_ENGINE=legacy.
           const proxyOrigin = this.env.CODING_PROXY_ORIGIN;
+          const codingModelId = resolveApolloConfiguration(this.env).models.coding;
           if (this.env.CODING_ENGINE !== 'legacy' && proxyOrigin !== undefined) {
             return runOpencodeAgent({
               sandbox,
               proxyOrigin,
               proxyToken: await mintCodingProxyToken({
                 instanceId: event.instanceId,
-                openRouterApiKey: this.env.OPENROUTER_API_KEY,
+                signingSecret: resolveCodingProxySigningSecret(this.env),
                 nowMilliseconds: Date.now(),
               }),
-              modelId: this.env.OPENROUTER_CODING_MODEL,
+              modelId: codingModelId,
               taskText: event.payload.task,
             });
           }
@@ -125,7 +127,7 @@ export class ApolloCoding extends WorkflowEntrypoint<Env, ApolloCodingParams> {
             callLlm: async ({ messageList, toolDefinitionList }) =>
               chatWithOpenRouter({
                 openRouterApiKey: this.env.OPENROUTER_API_KEY,
-                modelId: this.env.OPENROUTER_CODING_MODEL,
+                modelId: codingModelId,
                 messageList,
                 toolDefinitionList,
               }),

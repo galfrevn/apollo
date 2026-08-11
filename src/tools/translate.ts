@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { resolveApolloConfiguration } from '@/configuration/resolve';
 import type { ToolDefinition } from '@/tools/types';
 import { chatWithOpenRouter } from '@/voice/llm';
 
@@ -33,7 +34,7 @@ export const translateTool: ToolDefinition = {
     try {
       const chatResult = await chatWithOpenRouter({
         openRouterApiKey: context.environment.OPENROUTER_API_KEY,
-        modelId: context.environment.OPENROUTER_MODEL,
+        modelId: resolveApolloConfiguration(context.environment).models.conversation,
         messageList: [
           {
             role: 'system',

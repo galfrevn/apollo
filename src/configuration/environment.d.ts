@@ -10,6 +10,13 @@ interface Env {
   MOCK_VOICE?: string;
   CODING_PROXY_ORIGIN?: string;
   CODING_ENGINE?: string;
+  CODING_PROXY_SECRET?: string;
+  OPENROUTER_MODEL?: string;
+  OPENROUTER_STT_MODEL?: string;
+  OPENROUTER_RESEARCH_MODEL?: string;
+  OPENROUTER_CODING_MODEL?: string;
+  OPENROUTER_EMBEDDING_MODEL?: string;
+  ELEVENLABS_TTS_MODEL?: string;
 }
 
 declare namespace Cloudflare {
@@ -25,5 +32,12 @@ declare namespace Cloudflare {
     MOCK_VOICE?: string;
     CODING_PROXY_ORIGIN?: string;
     CODING_ENGINE?: string;
+    CODING_PROXY_SECRET?: string;
+    OPENROUTER_MODEL?: string;
+    OPENROUTER_STT_MODEL?: string;
+    OPENROUTER_RESEARCH_MODEL?: string;
+    OPENROUTER_CODING_MODEL?: string;
+    OPENROUTER_EMBEDDING_MODEL?: string;
+    ELEVENLABS_TTS_MODEL?: string;
   }
 }

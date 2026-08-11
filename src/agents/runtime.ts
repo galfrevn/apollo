@@ -2,6 +2,7 @@ import type { Connection } from 'agents';
 import type { Session } from 'agents/experimental/memory/session';
 
 import type { ApolloState } from '@/agents/apollo';
+import { resolveApolloConfiguration } from '@/configuration/resolve';
 import { createInactiveDeskFocusState, tickDeskFocus } from '@/focus/logic';
 import { buildSessionSystemPrompt } from '@/memory/session';
 import type { MemorySqlExecutor } from '@/memory/store';
@@ -62,6 +63,7 @@ export async function executeApolloTurn(
   );
 
   const isMockVoice = dependencies.environment.MOCK_VOICE === '1';
+  const { models } = resolveApolloConfiguration(dependencies.environment);
   const sessionSystemPrompt = await buildSessionSystemPrompt(dependencies.session);
   const recallSemanticMemoryContentList = async (
     queryText: string,
@@ -69,7 +71,7 @@ export async function executeApolloTurn(
     recallSemanticMemoryContent({
       vectorizeIndex: dependencies.environment.VECTORIZE,
       openRouterApiKey: dependencies.environment.OPENROUTER_API_KEY,
-      embeddingModelId: dependencies.environment.OPENROUTER_EMBEDDING_MODEL,
+      embeddingModelId: models.embedding,
       queryText,
       deviceId: dependencies.deviceId,
     });
@@ -100,12 +102,12 @@ export async function executeApolloTurn(
           transcribeAudioWithOpenRouter({
             audioBuffer: wrapPcmAsWavBuffer({ pcmBuffer: audioBuffer }),
             openRouterApiKey: dependencies.environment.OPENROUTER_API_KEY,
-            modelId: dependencies.environment.OPENROUTER_STT_MODEL,
+            modelId: models.transcription,
           }),
         llm: async ({ messageList, toolDefinitionList, onTextDelta }) =>
           chatWithOpenRouter({
             openRouterApiKey: dependencies.environment.OPENROUTER_API_KEY,
-            modelId: dependencies.environment.OPENROUTER_MODEL,
+            modelId: models.conversation,
             messageList,
             toolDefinitionList,
             ...(onTextDelta !== undefined ? { onTextDelta } : {}),

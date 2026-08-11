@@ -53,7 +53,8 @@ Installation tokens last an hour, so one is minted immediately before the push r
 |---------|---------|
 | `GITHUB_APP_ID` | Secret — the App's numeric id |
 | `GITHUB_APP_PRIVATE_KEY` | Secret — PKCS#8 PEM. Convert a PKCS#1 key with `openssl pkcs8 -topk8 -nocrypt` |
-| `OPENROUTER_CODING_MODEL` | Var, default `moonshotai/kimi-k3` |
+| `OPENROUTER_CODING_MODEL` | Optional env override, default `moonshotai/kimi-k3` |
+| `CODING_PROXY_SECRET` | Optional secret signing sandbox proxy tokens; unset falls back to `OPENROUTER_API_KEY` |
 | `instance_type` | `standard-1` — `lite` cannot hold a clone plus an install |
 
 Create the App with **Contents: read & write**, **Pull requests: read & write**, **Metadata: read**, then install it on the repositories Apollo may touch.

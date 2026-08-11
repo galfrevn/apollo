@@ -13,21 +13,21 @@ describe('coding proxy tokens', () => {
   it('accepts a freshly minted token and rejects it after expiry', async () => {
     const token = await mintCodingProxyToken({
       instanceId: 'wf-1',
-      openRouterApiKey: OPENROUTER_API_KEY,
+      signingSecret: OPENROUTER_API_KEY,
       nowMilliseconds: 1_000,
     });
 
     expect(
       await verifyCodingProxyToken({
         token,
-        openRouterApiKey: OPENROUTER_API_KEY,
+        signingSecret: OPENROUTER_API_KEY,
         nowMilliseconds: 2_000,
       }),
     ).toBe(true);
     expect(
       await verifyCodingProxyToken({
         token,
-        openRouterApiKey: OPENROUTER_API_KEY,
+        signingSecret: OPENROUTER_API_KEY,
         nowMilliseconds: 1_000 + 7 * 60 * 60 * 1000,
       }),
     ).toBe(false);
@@ -36,28 +36,28 @@ describe('coding proxy tokens', () => {
   it('rejects a tampered token and a token signed with another key', async () => {
     const token = await mintCodingProxyToken({
       instanceId: 'wf-1',
-      openRouterApiKey: OPENROUTER_API_KEY,
+      signingSecret: OPENROUTER_API_KEY,
       nowMilliseconds: 1_000,
     });
 
     expect(
       await verifyCodingProxyToken({
         token: token.replace('wf-1', 'wf-2'),
-        openRouterApiKey: OPENROUTER_API_KEY,
+        signingSecret: OPENROUTER_API_KEY,
         nowMilliseconds: 2_000,
       }),
     ).toBe(false);
     expect(
       await verifyCodingProxyToken({
         token,
-        openRouterApiKey: 'sk-or-other-key',
+        signingSecret: 'sk-or-other-key',
         nowMilliseconds: 2_000,
       }),
     ).toBe(false);
     expect(
       await verifyCodingProxyToken({
         token: 'garbage',
-        openRouterApiKey: OPENROUTER_API_KEY,
+        signingSecret: OPENROUTER_API_KEY,
         nowMilliseconds: 2_000,
       }),
     ).toBe(false);
@@ -68,7 +68,7 @@ describe('handleCodingLlmProxyRequest', () => {
   async function buildAuthorizedRequest(bodyObject: unknown): Promise<Request> {
     const token = await mintCodingProxyToken({
       instanceId: 'wf-1',
-      openRouterApiKey: OPENROUTER_API_KEY,
+      signingSecret: OPENROUTER_API_KEY,
       nowMilliseconds: Date.now(),
     });
     return new Request('https://apollo.example/coding-llm/v1/chat/completions', {

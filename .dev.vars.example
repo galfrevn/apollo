@@ -8,6 +8,15 @@ GITHUB_APP_ID=
 GITHUB_APP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 MOCK_VOICE=1
 
+# Optional overrides — defaults live in src/configuration/models.ts:
+# OPENROUTER_MODEL=
+# OPENROUTER_STT_MODEL=
+# OPENROUTER_RESEARCH_MODEL=
+# OPENROUTER_CODING_MODEL=
+# OPENROUTER_EMBEDDING_MODEL=
+# ELEVENLABS_TTS_MODEL=
+# CODING_PROXY_SECRET= (sandbox-token signing; falls back to OPENROUTER_API_KEY)
+
 # Remote one-time setup (when you deploy):
 # bunx wrangler vectorize create apollo-memory --dimensions=1536 --metric=cosine
 # bunx wrangler r2 bucket create apollo-media
