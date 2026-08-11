@@ -4,6 +4,7 @@ import {
   buildTelemetryPromptNote,
   evaluateLowBatteryAnnouncement,
   LOW_BATTERY_ANNOUNCE_COOLDOWN_MS,
+  parseStoredTelemetrySnapshot,
   TELEMETRY_PROMPT_STALENESS_MS,
   type DeskTelemetrySnapshot,
 } from '@/telemetry/logic';
@@ -23,6 +24,35 @@ function createSnapshot(
     ...overrides,
   };
 }
+
+describe('parseStoredTelemetrySnapshot', () => {
+  it('restores a stored snapshot', () => {
+    const snapshot = createSnapshot();
+    expect(parseStoredTelemetrySnapshot(JSON.stringify(snapshot))).toEqual(snapshot);
+  });
+
+  it('rejects malformed json', () => {
+    expect(parseStoredTelemetrySnapshot('{"battery":')).toBeUndefined();
+  });
+
+  it('rejects json that is not an object', () => {
+    expect(parseStoredTelemetrySnapshot('null')).toBeUndefined();
+    expect(parseStoredTelemetrySnapshot('"87%"')).toBeUndefined();
+  });
+
+  it('rejects a snapshot without a usable timestamp', () => {
+    expect(parseStoredTelemetrySnapshot('{"battery":87}')).toBeUndefined();
+    expect(
+      parseStoredTelemetrySnapshot('{"battery":87,"receivedAtMs":"reciente"}'),
+    ).toBeUndefined();
+  });
+
+  it('rejects a snapshot whose fields have the wrong type', () => {
+    expect(
+      parseStoredTelemetrySnapshot(`{"battery":"87","receivedAtMs":${NOW_MILLISECONDS}}`),
+    ).toBeUndefined();
+  });
+});
 
 describe('buildTelemetryPromptNote', () => {
   it('describes every field of a fresh snapshot', () => {

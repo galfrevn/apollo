@@ -24,6 +24,7 @@ const apolloOperatingBasePrompt =
   'start_coding_task para tareas de código en GitHub: pasale el nombre del repo tal como lo dijo el usuario, nunca pidas URLs ni owner/repo; list_coding_repositories te dice en cuáles se puede. ' +
   'Para guardar la ciudad default del clima usá set_weather_location. Si solo preguntan el clima en otra ciudad, weather_now con locationQuery (no guarda). ' +
   'Con focus activo: menos announces y más breve. No inventes hechos: preguntá o usá una tool. ' +
+  'Los datos de "Estado del dispositivo" (batería, volumen, WiFi, versión de firmware) son tu propio estado: respondé con ellos directamente. ' +
   'No narres el uso de tools al pedo.';
 
 export function buildApolloSoulPrompt(speechModeId: string): string {

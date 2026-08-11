@@ -58,6 +58,7 @@ import {
 import { createDeskUiMachine, type DeskUiMachine } from '@/session/machine';
 import {
   evaluateLowBatteryAnnouncement,
+  parseStoredTelemetrySnapshot,
   type DeskTelemetrySnapshot,
 } from '@/telemetry/logic';
 import {
@@ -79,6 +80,7 @@ import {
 const MINIMUM_TURN_AUDIO_BYTE_LENGTH = 8000;
 
 const LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY = 'lowBatteryLastAnnounceAt';
+const TELEMETRY_SNAPSHOT_PREFERENCE_KEY = 'lastTelemetrySnapshot';
 
 function mapUnknownScheduleListToAgentScheduleLikeList(
   scheduleList: readonly {
@@ -598,6 +600,14 @@ export class Apollo extends Agent<Env, ApolloState> {
       receivedAtMs: Date.now(),
     };
     this.#lastTelemetrySnapshot = snapshot;
+    // A deploy or hibernation wipes the in-memory snapshot, and the next turn
+    // may run before the device's next telemetry tick — the prompt would then
+    // silently miss battery/firmware. The stored copy bridges that gap.
+    await setSessionPreference(
+      this.#sqlExecutor(),
+      TELEMETRY_SNAPSHOT_PREFERENCE_KEY,
+      JSON.stringify(snapshot),
+    );
 
     const storedAnnounceAt = await getSessionPreference(
       this.#sqlExecutor(),
@@ -761,8 +771,16 @@ export class Apollo extends Agent<Env, ApolloState> {
     },
   ): Promise<void> {
     const deviceId = this.name ?? 'default';
-    // A new turn clears any interruption left over from the previous one.
     this.#isSpeechAborted = false;
+    if (this.#lastTelemetrySnapshot === undefined) {
+      const storedSnapshot = await getSessionPreference(
+        this.#sqlExecutor(),
+        TELEMETRY_SNAPSHOT_PREFERENCE_KEY,
+      );
+      if (storedSnapshot !== undefined && storedSnapshot !== null) {
+        this.#lastTelemetrySnapshot = parseStoredTelemetrySnapshot(storedSnapshot);
+      }
+    }
     const deskToolEffects = createDeskToolEffects({
       sqlExecutor: this.#sqlExecutor(),
       environment: this.env,
