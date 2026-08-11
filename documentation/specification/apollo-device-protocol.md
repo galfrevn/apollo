@@ -569,8 +569,8 @@ Deltas between this draft and the shipped reference implementation:
 
 | Spec item | Status |
 |---|---|
-| `hello.protocol` field | **Not yet implemented** — additive; absence already defaults to 1.0 per [§2](#2-versioning-and-negotiation) |
-| `/health` `protocol` advertisement | **Not yet implemented** — additive |
+| `hello.protocol` field | Shipped — `src/protocol/schema.ts`, resolved in `src/protocol/version.ts` |
+| `/health` `protocol` advertisement | Shipped — `src/index.ts` |
 | Everything else in this document | Shipped and observable on the wire today |
 
 ## Changelog

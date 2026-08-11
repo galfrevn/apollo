@@ -4,6 +4,7 @@ import { Sandbox } from '@cloudflare/sandbox';
 import { authorizeApolloConnection, Apollo } from '@/agents/apollo';
 import { CODING_PROXY_PATH_PREFIX, handleCodingLlmProxyRequest } from '@/coding/proxy';
 import { handleOtaRequest } from '@/ota/routes';
+import { APOLLO_DEVICE_PROTOCOL_VERSION } from '@/protocol/version';
 import { consumeApolloQueueBatch } from '@/queues/consume';
 import { ApolloBackground } from '@/workflows/background';
 import { ApolloCoding } from '@/workflows/coding';
@@ -18,6 +19,7 @@ export default {
       return Response.json({
         ok: true,
         name: 'apollo',
+        protocol: APOLLO_DEVICE_PROTOCOL_VERSION,
         features: ['session', 'vectorize', 'r2', 'queues', 'workflows'],
       });
     }

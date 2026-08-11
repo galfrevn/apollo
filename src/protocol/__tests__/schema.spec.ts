@@ -6,6 +6,31 @@ import {
 } from '@/protocol/schema';
 
 describe('protocol schema', () => {
+  it('parses hello with and without a declared protocol version', () => {
+    expect(
+      parseDeviceToServerMessage({ type: 'hello', deviceId: 'desk-01', ts: 1 }),
+    ).toEqual({ type: 'hello', deviceId: 'desk-01', ts: 1 });
+    expect(
+      parseDeviceToServerMessage({
+        type: 'hello',
+        deviceId: 'desk-01',
+        protocol: '1.0',
+        ts: 1,
+      }),
+    ).toEqual({ type: 'hello', deviceId: 'desk-01', protocol: '1.0', ts: 1 });
+  });
+
+  it('rejects hello with an empty protocol version', () => {
+    expect(() =>
+      parseDeviceToServerMessage({
+        type: 'hello',
+        deviceId: 'desk-01',
+        protocol: '',
+        ts: 1,
+      }),
+    ).toThrow();
+  });
+
   it('parses hold_start', () => {
     const message = parseDeviceToServerMessage(
       JSON.stringify({ type: 'hold_start', ts: 1 }),

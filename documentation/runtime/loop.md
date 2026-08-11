@@ -4,7 +4,7 @@ A desk interaction is a loop: connect, authorize, exchange control messages and 
 
 ## Entry points
 
-- `GET /health` returns a small JSON capability advertisement
+- `GET /health` returns a small JSON capability advertisement, including the device-protocol version it speaks
 - Agent WebSocket/HTTP routes are handled via the Cloudflare Agents request router
 - Queue consumers process background jobs outside the interactive turn
 

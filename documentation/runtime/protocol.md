@@ -8,7 +8,7 @@ This chapter is the implementation-oriented tour. The formal, versioned wire con
 
 | Type | Role |
 |------|------|
-| `hello` | Identify the device after connect |
+| `hello` | Identify the device (and the protocol version it speaks) after connect |
 | `hold_start` / `hold_end` | Push-to-talk boundaries |
 | `wake` | Wake without a full hold gesture |
 | `audio_end` | End of a wake-word utterance (VAD-detected) |
@@ -104,7 +104,7 @@ normally. See [Deploy](../operations/deploy.md) for the R2 publishing steps.
 - Discriminated unions keep parsing strict on both sides
 - Optional fields stay optional — the device should tolerate missing captions, focus seconds, emotion, or accent color
 - `ui_state.emotion` and `ui_state.accentColor` tell the device what to render on the face; see [Face](face.md) for the full mapping
-- Every device message carries `ts`; `hello` also carries `deviceId`
+- Every device message carries `ts`; `hello` also carries `deviceId` and optionally `protocol`, the spec version the device speaks (absent means 1.0 — see the [specification](../specification/apollo-device-protocol.md))
 
 ## Interruption
 

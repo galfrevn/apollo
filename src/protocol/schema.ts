@@ -42,6 +42,7 @@ export const deviceToServerMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('hello'),
     deviceId: z.string().min(1),
+    protocol: z.string().min(1).optional(),
     ts: z.number().int().nonnegative(),
   }),
   z.object({

@@ -50,6 +50,7 @@ import {
   type DeskSoundEffectName,
   type DeviceToServerMessage,
 } from '@/protocol/schema';
+import { resolveDeclaredProtocolVersion } from '@/protocol/version';
 import {
   mapAgentScheduleListToReminderList,
   selectReminderRowsForCancel,
@@ -279,6 +280,14 @@ export class Apollo extends Agent<Env, ApolloState> {
 
     switch (deviceMessage.type) {
       case 'hello': {
+        console.log(
+          JSON.stringify({
+            level: 'info',
+            message: 'apollo_device_hello',
+            deviceId: deviceMessage.deviceId,
+            protocol: resolveDeclaredProtocolVersion(deviceMessage.protocol),
+          }),
+        );
         this.#pushUiState(connection);
         break;
       }
