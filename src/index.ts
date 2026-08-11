@@ -2,6 +2,7 @@ import { routeAgentRequest } from 'agents';
 import { Sandbox } from '@cloudflare/sandbox';
 
 import { authorizeApolloConnection, Apollo } from '@/agents/apollo';
+import { CODING_PROXY_PATH_PREFIX, handleCodingLlmProxyRequest } from '@/coding/proxy';
 import { handleOtaRequest } from '@/ota/routes';
 import { consumeApolloQueueBatch } from '@/queues/consume';
 import { ApolloBackground } from '@/workflows/background';
@@ -23,6 +24,10 @@ export default {
 
     if (requestUrl.pathname.startsWith('/ota/')) {
       return handleOtaRequest(request, requestUrl, environment);
+    }
+
+    if (requestUrl.pathname.startsWith(`${CODING_PROXY_PATH_PREFIX}/`)) {
+      return handleCodingLlmProxyRequest(request, requestUrl, environment);
     }
 
     const agentResponse = await routeAgentRequest(request, environment, {

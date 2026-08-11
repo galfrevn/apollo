@@ -7,6 +7,8 @@ import { getAgentByName } from 'agents';
 
 import { runCodingAgent } from '@/coding/agent';
 import { buildCodingBranchName } from '@/coding/git';
+import { runOpencodeAgent } from '@/coding/opencode';
+import { mintCodingProxyToken } from '@/coding/proxy';
 import {
   buildCodingDocumentObjectKey,
   buildCodingPublishSandboxId,
@@ -101,6 +103,23 @@ export class ApolloCoding extends WorkflowEntrypoint<Env, ApolloCodingParams> {
         { retries: { limit: 1, delay: '10 seconds', backoff: 'constant' } },
         async () => {
           const sandbox = await this.#getSandbox(agentSandboxId);
+          // opencode manages its own loop and context; the hand-rolled agent
+          // stays as the fallback while the proxy origin is unset, and as an
+          // escape hatch behind CODING_ENGINE=legacy.
+          const proxyOrigin = this.env.CODING_PROXY_ORIGIN;
+          if (this.env.CODING_ENGINE !== 'legacy' && proxyOrigin !== undefined) {
+            return runOpencodeAgent({
+              sandbox,
+              proxyOrigin,
+              proxyToken: await mintCodingProxyToken({
+                instanceId: event.instanceId,
+                openRouterApiKey: this.env.OPENROUTER_API_KEY,
+                nowMilliseconds: Date.now(),
+              }),
+              modelId: this.env.OPENROUTER_CODING_MODEL,
+              taskText: event.payload.task,
+            });
+          }
           return runCodingAgent({
             sandbox: buildAgentSandboxPort(sandbox),
             callLlm: async ({ messageList, toolDefinitionList }) =>
