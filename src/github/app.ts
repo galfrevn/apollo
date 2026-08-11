@@ -14,6 +14,12 @@ const installationResponseSchema = z.object({
   id: z.number().int().positive(),
 });
 
+const installationListResponseSchema = z.array(installationResponseSchema);
+
+const installationRepositoriesResponseSchema = z.object({
+  repositories: z.array(z.object({ full_name: z.string().min(1) })),
+});
+
 const installationTokenResponseSchema = z.object({
   token: z.string().min(1),
   expires_at: z.string().min(1),
@@ -147,6 +153,63 @@ export async function createGithubInstallationToken(input: {
 
   const payload = installationTokenResponseSchema.parse(await response.json());
   return { token: payload.token, expiresAt: payload.expires_at };
+}
+
+// The App's installation list doubles as the coding allowlist, so this is
+// also how the agent learns which repositories it may touch.
+export async function listGithubAppRepositoryFullNameList(input: {
+  readonly appId: string;
+  readonly privateKeyPem: string;
+  readonly nowMilliseconds: number;
+  readonly fetchImplementation?: typeof fetch;
+}): Promise<readonly string[]> {
+  if (input.appId.length === 0 || input.privateKeyPem.length === 0) {
+    throw new Error('Faltan GITHUB_APP_ID o GITHUB_APP_PRIVATE_KEY');
+  }
+  const fetchImplementation = input.fetchImplementation ?? globalThis.fetch;
+  const appJsonWebToken = await signGithubAppJsonWebToken({
+    appId: input.appId,
+    privateKeyPem: input.privateKeyPem,
+    nowMilliseconds: input.nowMilliseconds,
+  });
+
+  const installationsResponse = await fetchImplementation(
+    `${GITHUB_API_BASE_URL}/app/installations?per_page=100`,
+    { headers: buildGithubRequestHeaders(`Bearer ${appJsonWebToken}`) },
+  );
+  if (!installationsResponse.ok) {
+    throw new Error(
+      `No pude listar las instalaciones del App (status ${installationsResponse.status})`,
+    );
+  }
+  const installationList = installationListResponseSchema.parse(
+    await installationsResponse.json(),
+  );
+
+  const fullNameList: string[] = [];
+  for (const installation of installationList) {
+    const installationToken = await createGithubInstallationToken({
+      installationId: installation.id,
+      appJsonWebToken,
+      ...(input.fetchImplementation !== undefined
+        ? { fetchImplementation: input.fetchImplementation }
+        : {}),
+    });
+    const repositoriesResponse = await fetchImplementation(
+      `${GITHUB_API_BASE_URL}/installation/repositories?per_page=100`,
+      { headers: buildGithubRequestHeaders(`token ${installationToken.token}`) },
+    );
+    if (!repositoriesResponse.ok) {
+      throw new Error(
+        `No pude listar los repositorios de una instalación (status ${repositoriesResponse.status})`,
+      );
+    }
+    const payload = installationRepositoriesResponseSchema.parse(
+      await repositoriesResponse.json(),
+    );
+    fullNameList.push(...payload.repositories.map((repository) => repository.full_name));
+  }
+  return fullNameList;
 }
 
 export async function createGithubInstallationTokenForRepository(input: {

@@ -48,6 +48,58 @@ export function formatGithubRepositoryReference(
   return `${reference.owner}/${reference.repository}`;
 }
 
+export type SpokenRepositoryResolution =
+  | { readonly kind: 'match'; readonly fullName: string }
+  | { readonly kind: 'ambiguous'; readonly candidateFullNameList: readonly string[] }
+  | { readonly kind: 'none' };
+
+// A spoken repo name arrives however the transcriber heard it: "apollo
+// firmware", "Apollo-Firmware", "el repo apollo". Separators and case carry
+// no information at that point, so matching drops them entirely.
+function normalizeRepositoryNameForSpeech(text: string): string {
+  return text.toLowerCase().replaceAll(/[\s./_-]+/g, '');
+}
+
+export function resolveSpokenRepositoryReference(
+  spokenReference: string,
+  installedFullNameList: readonly string[],
+): SpokenRepositoryResolution {
+  const normalizedSpoken = normalizeRepositoryNameForSpeech(spokenReference);
+  if (normalizedSpoken.length === 0) {
+    return { kind: 'none' };
+  }
+
+  const selectMatches = (
+    isMatch: (normalizedCandidate: string) => boolean,
+  ): readonly string[] =>
+    installedFullNameList.filter((fullName) => {
+      const shortName = fullName.split('/')[1] ?? '';
+      return (
+        isMatch(normalizeRepositoryNameForSpeech(shortName)) ||
+        isMatch(normalizeRepositoryNameForSpeech(fullName))
+      );
+    });
+
+  const exactMatchList = selectMatches(
+    (normalizedCandidate) => normalizedCandidate === normalizedSpoken,
+  );
+  const matchList =
+    exactMatchList.length > 0
+      ? exactMatchList
+      : selectMatches((normalizedCandidate) =>
+          normalizedCandidate.includes(normalizedSpoken),
+        );
+
+  const [firstMatch] = matchList;
+  if (firstMatch !== undefined && matchList.length === 1) {
+    return { kind: 'match', fullName: firstMatch };
+  }
+  if (matchList.length > 1) {
+    return { kind: 'ambiguous', candidateFullNameList: matchList };
+  }
+  return { kind: 'none' };
+}
+
 // Last line of defence: a command can still echo a token it was handed, so
 // anything bound for a log, a document, an email or TTS passes through here.
 export function redactSecretsFromText(

@@ -4,7 +4,60 @@ import {
   formatGithubRepositoryReference,
   parseGithubRepositoryReference,
   redactSecretsFromText,
+  resolveSpokenRepositoryReference,
 } from '@/github/repository';
+
+describe('resolveSpokenRepositoryReference', () => {
+  const installedList = ['galfrevn/apollo', 'galfrevn/apollo-firmware', 'galfrevn/dotfiles'];
+
+  it('matches a bare spoken name regardless of case and separators', () => {
+    expect(resolveSpokenRepositoryReference('dotfiles', installedList)).toEqual({
+      kind: 'match',
+      fullName: 'galfrevn/dotfiles',
+    });
+    expect(resolveSpokenRepositoryReference('Apollo Firmware', installedList)).toEqual({
+      kind: 'match',
+      fullName: 'galfrevn/apollo-firmware',
+    });
+    expect(resolveSpokenRepositoryReference('apollo_firmware', installedList)).toEqual({
+      kind: 'match',
+      fullName: 'galfrevn/apollo-firmware',
+    });
+  });
+
+  it('prefers an exact name over a partial containment', () => {
+    expect(resolveSpokenRepositoryReference('apollo', installedList)).toEqual({
+      kind: 'match',
+      fullName: 'galfrevn/apollo',
+    });
+  });
+
+  it('matches a spoken full name with the owner attached', () => {
+    expect(
+      resolveSpokenRepositoryReference('galfrevn apollo firmware', installedList),
+    ).toEqual({ kind: 'match', fullName: 'galfrevn/apollo-firmware' });
+  });
+
+  it('reports ambiguity instead of guessing', () => {
+    const resolution = resolveSpokenRepositoryReference('apol', installedList);
+    expect(resolution.kind).toBe('ambiguous');
+    if (resolution.kind === 'ambiguous') {
+      expect(resolution.candidateFullNameList).toEqual([
+        'galfrevn/apollo',
+        'galfrevn/apollo-firmware',
+      ]);
+    }
+  });
+
+  it('reports none for an unknown name or empty input', () => {
+    expect(resolveSpokenRepositoryReference('inexistente', installedList)).toEqual({
+      kind: 'none',
+    });
+    expect(resolveSpokenRepositoryReference('   ', installedList)).toEqual({
+      kind: 'none',
+    });
+  });
+});
 
 describe('parseGithubRepositoryReference', () => {
   it('accepts the shapes a user might say or paste', () => {
