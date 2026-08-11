@@ -1,3 +1,14 @@
+import { z } from 'zod';
+
+const deskTelemetrySnapshotSchema = z.object({
+  battery: z.number().optional(),
+  charging: z.boolean().optional(),
+  volume: z.number().optional(),
+  wifiRssi: z.number().optional(),
+  firmwareVersion: z.string().optional(),
+  receivedAtMs: z.number().finite(),
+});
+
 export type DeskTelemetrySnapshot = {
   readonly battery?: number;
   readonly charging?: boolean;
@@ -6,6 +17,17 @@ export type DeskTelemetrySnapshot = {
   readonly firmwareVersion?: string;
   readonly receivedAtMs: number;
 };
+
+export function parseStoredTelemetrySnapshot(
+  storedSnapshot: string,
+): DeskTelemetrySnapshot | undefined {
+  try {
+    const parsed = deskTelemetrySnapshotSchema.safeParse(JSON.parse(storedSnapshot));
+    return parsed.success ? parsed.data : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export const LOW_BATTERY_ANNOUNCE_THRESHOLD_PERCENT = 15;
 export const LOW_BATTERY_REARM_THRESHOLD_PERCENT = 25;

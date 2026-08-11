@@ -58,6 +58,7 @@ import {
 import { createDeskUiMachine, type DeskUiMachine } from '@/session/machine';
 import {
   evaluateLowBatteryAnnouncement,
+  parseStoredTelemetrySnapshot,
   type DeskTelemetrySnapshot,
 } from '@/telemetry/logic';
 import {
@@ -770,7 +771,6 @@ export class Apollo extends Agent<Env, ApolloState> {
     },
   ): Promise<void> {
     const deviceId = this.name ?? 'default';
-    // A new turn clears any interruption left over from the previous one.
     this.#isSpeechAborted = false;
     if (this.#lastTelemetrySnapshot === undefined) {
       const storedSnapshot = await getSessionPreference(
@@ -778,13 +778,7 @@ export class Apollo extends Agent<Env, ApolloState> {
         TELEMETRY_SNAPSHOT_PREFERENCE_KEY,
       );
       if (storedSnapshot !== undefined && storedSnapshot !== null) {
-        try {
-          this.#lastTelemetrySnapshot = JSON.parse(
-            storedSnapshot,
-          ) as DeskTelemetrySnapshot;
-        } catch {
-          // A corrupt stored snapshot is no worse than the missing one.
-        }
+        this.#lastTelemetrySnapshot = parseStoredTelemetrySnapshot(storedSnapshot);
       }
     }
     const deskToolEffects = createDeskToolEffects({
