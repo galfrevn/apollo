@@ -93,10 +93,7 @@ export const startCodingTaskTool: ToolDefinition = {
       repositoryLabel = formatGithubRepositoryReference(
         parseGithubRepositoryReference(parsedArgs.repository),
       );
-    } catch {
-      // Not an owner/repo or URL: a spoken name, resolved against the
-      // installation list below.
-    }
+    } catch {}
 
     if (repositoryLabel === undefined) {
       let installedFullNameList: readonly string[];

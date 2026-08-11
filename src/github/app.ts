@@ -10,6 +10,8 @@ export const GITHUB_API_USER_AGENT = 'apollo-desk-agent';
 const APP_JWT_LIFETIME_SECONDS = 480;
 const APP_JWT_CLOCK_SKEW_SECONDS = 30;
 
+const GITHUB_API_PAGE_SIZE = 100;
+
 const installationResponseSchema = z.object({
   id: z.number().int().positive(),
 });
@@ -173,18 +175,25 @@ export async function listGithubAppRepositoryFullNameList(input: {
     nowMilliseconds: input.nowMilliseconds,
   });
 
-  const installationsResponse = await fetchImplementation(
-    `${GITHUB_API_BASE_URL}/app/installations?per_page=100`,
-    { headers: buildGithubRequestHeaders(`Bearer ${appJsonWebToken}`) },
-  );
-  if (!installationsResponse.ok) {
-    throw new Error(
-      `No pude listar las instalaciones del App (status ${installationsResponse.status})`,
+  const installationList: { readonly id: number }[] = [];
+  for (let pageNumber = 1; ; pageNumber += 1) {
+    const installationsResponse = await fetchImplementation(
+      `${GITHUB_API_BASE_URL}/app/installations?per_page=${GITHUB_API_PAGE_SIZE}&page=${pageNumber}`,
+      { headers: buildGithubRequestHeaders(`Bearer ${appJsonWebToken}`) },
     );
+    if (!installationsResponse.ok) {
+      throw new Error(
+        `No pude listar las instalaciones del App (status ${installationsResponse.status})`,
+      );
+    }
+    const installationPageList = installationListResponseSchema.parse(
+      await installationsResponse.json(),
+    );
+    installationList.push(...installationPageList);
+    if (installationPageList.length < GITHUB_API_PAGE_SIZE) {
+      break;
+    }
   }
-  const installationList = installationListResponseSchema.parse(
-    await installationsResponse.json(),
-  );
 
   const fullNameList: string[] = [];
   for (const installation of installationList) {
@@ -195,19 +204,26 @@ export async function listGithubAppRepositoryFullNameList(input: {
         ? { fetchImplementation: input.fetchImplementation }
         : {}),
     });
-    const repositoriesResponse = await fetchImplementation(
-      `${GITHUB_API_BASE_URL}/installation/repositories?per_page=100`,
-      { headers: buildGithubRequestHeaders(`token ${installationToken.token}`) },
-    );
-    if (!repositoriesResponse.ok) {
-      throw new Error(
-        `No pude listar los repositorios de una instalación (status ${repositoriesResponse.status})`,
+    for (let pageNumber = 1; ; pageNumber += 1) {
+      const repositoriesResponse = await fetchImplementation(
+        `${GITHUB_API_BASE_URL}/installation/repositories?per_page=${GITHUB_API_PAGE_SIZE}&page=${pageNumber}`,
+        { headers: buildGithubRequestHeaders(`token ${installationToken.token}`) },
       );
+      if (!repositoriesResponse.ok) {
+        throw new Error(
+          `No pude listar los repositorios de una instalación (status ${repositoriesResponse.status})`,
+        );
+      }
+      const payload = installationRepositoriesResponseSchema.parse(
+        await repositoriesResponse.json(),
+      );
+      fullNameList.push(
+        ...payload.repositories.map((repository) => repository.full_name),
+      );
+      if (payload.repositories.length < GITHUB_API_PAGE_SIZE) {
+        break;
+      }
     }
-    const payload = installationRepositoriesResponseSchema.parse(
-      await repositoriesResponse.json(),
-    );
-    fullNameList.push(...payload.repositories.map((repository) => repository.full_name));
   }
   return fullNameList;
 }

@@ -1,14 +1,85 @@
-import { describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
 
 import {
+  buildTestRsaPrivateKeyPem,
   createFakeApolloEnvironment,
   createStubDeskToolEffects,
 } from '@/configuration/testing';
 import { createBuiltinToolDefinitionMap } from '@/tools/catalog';
-import { startCodingTaskTool } from '@/tools/coding';
+import { listCodingRepositoriesTool, startCodingTaskTool } from '@/tools/coding';
 import { executeToolByName } from '@/tools/router';
 
 const fakeEnvironment = createFakeApolloEnvironment();
+
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
+function stubGithubFetch(installedFullNameList: readonly string[]): void {
+  const fetchHandler = async (input: string | URL | Request): Promise<Response> => {
+    const url = String(input);
+    if (url.includes('/access_tokens')) {
+      return new Response(
+        JSON.stringify({ token: 'ghs_token', expires_at: '2026-08-10T13:00:00Z' }),
+        { status: 201 },
+      );
+    }
+    if (url.includes('/app/installations')) {
+      return new Response(JSON.stringify([{ id: 7 }]), { status: 200 });
+    }
+    if (url.includes('/installation/repositories')) {
+      return new Response(
+        JSON.stringify({
+          repositories: installedFullNameList.map((fullName) => ({
+            full_name: fullName,
+          })),
+        }),
+        { status: 200 },
+      );
+    }
+    return new Response('{}', { status: 500 });
+  };
+  globalThis.fetch = Object.assign(fetchHandler, {
+    preconnect: () => {},
+  }) as typeof fetch;
+}
+
+async function buildConfiguredEnvironment(): Promise<Env> {
+  return createFakeApolloEnvironment({
+    GITHUB_APP_ID: '123456',
+    GITHUB_APP_PRIVATE_KEY: await buildTestRsaPrivateKeyPem(),
+  });
+}
+
+describe('listCodingRepositoriesTool', () => {
+  it('speaks the installation list', async () => {
+    stubGithubFetch(['galfrevn/apollo', 'galfrevn/dotfiles']);
+
+    const result = await listCodingRepositoriesTool.handler(
+      {},
+      {
+        environment: await buildConfiguredEnvironment(),
+        nowMilliseconds: 1_700_000_000_000,
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.summary).toContain('galfrevn/apollo');
+    expect(result.summary).toContain('galfrevn/dotfiles');
+  });
+
+  it('reports the configuration gap when the app is missing', async () => {
+    const result = await listCodingRepositoriesTool.handler(
+      {},
+      { environment: fakeEnvironment, nowMilliseconds: 0 },
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.summary).toContain('GITHUB_APP_ID');
+  });
+});
 
 describe('startCodingTaskTool', () => {
   it('requires confirmation before anything is enqueued', async () => {
@@ -82,6 +153,77 @@ describe('startCodingTaskTool', () => {
     );
 
     expect(result.ok).toBe(false);
+    expect(enqueuedList).toHaveLength(0);
+  });
+
+  it('resolves a spoken name against the installed repositories', async () => {
+    stubGithubFetch(['galfrevn/apollo', 'galfrevn/apollo-firmware']);
+    const enqueuedList: { repository: string; task: string }[] = [];
+
+    const result = await startCodingTaskTool.handler(
+      { repository: 'el repo apollo firmware', task: 'agregar un test' },
+      {
+        environment: await buildConfiguredEnvironment(),
+        nowMilliseconds: 1_700_000_000_000,
+        deviceId: 'desk-01',
+        effects: createStubDeskToolEffects({
+          enqueueCodingTask: async (input) => {
+            enqueuedList.push(input);
+          },
+        }),
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(enqueuedList).toEqual([
+      { repository: 'galfrevn/apollo-firmware', task: 'agregar un test' },
+    ]);
+  });
+
+  it('asks which candidate instead of guessing an ambiguous name', async () => {
+    stubGithubFetch(['galfrevn/apollo', 'galfrevn/apollo-firmware']);
+    const enqueuedList: { repository: string; task: string }[] = [];
+
+    const result = await startCodingTaskTool.handler(
+      { repository: 'apol', task: 'hacer algo' },
+      {
+        environment: await buildConfiguredEnvironment(),
+        nowMilliseconds: 1_700_000_000_000,
+        deviceId: 'desk-01',
+        effects: createStubDeskToolEffects({
+          enqueueCodingTask: async (input) => {
+            enqueuedList.push(input);
+          },
+        }),
+      },
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.summary).toContain('galfrevn/apollo');
+    expect(result.summary).toContain('galfrevn/apollo-firmware');
+    expect(enqueuedList).toHaveLength(0);
+  });
+
+  it('answers with the available repositories for an unknown name', async () => {
+    stubGithubFetch(['galfrevn/apollo']);
+    const enqueuedList: { repository: string; task: string }[] = [];
+
+    const result = await startCodingTaskTool.handler(
+      { repository: 'inexistente', task: 'hacer algo' },
+      {
+        environment: await buildConfiguredEnvironment(),
+        nowMilliseconds: 1_700_000_000_000,
+        deviceId: 'desk-01',
+        effects: createStubDeskToolEffects({
+          enqueueCodingTask: async (input) => {
+            enqueuedList.push(input);
+          },
+        }),
+      },
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.summary).toContain('galfrevn/apollo');
     expect(enqueuedList).toHaveLength(0);
   });
 });

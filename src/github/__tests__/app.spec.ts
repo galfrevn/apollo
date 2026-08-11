@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 
+import { buildTestRsaPrivateKeyPem } from '@/configuration/testing';
 import {
   createGithubInstallationTokenForRepository,
+  listGithubAppRepositoryFullNameList,
   resolveGithubInstallationId,
   signGithubAppJsonWebToken,
 } from '@/github/app';
@@ -11,33 +13,6 @@ type CapturedRequest = {
   readonly url: string;
   readonly init: RequestInit;
 };
-
-async function buildTestPrivateKeyPem(): Promise<string> {
-  const generatedKey = await crypto.subtle.generateKey(
-    {
-      name: 'RSASSA-PKCS1-v1_5',
-      modulusLength: 2048,
-      publicExponent: new Uint8Array([1, 0, 1]),
-      hash: 'SHA-256',
-    },
-    true,
-    ['sign', 'verify'],
-  );
-  if (!('privateKey' in generatedKey)) {
-    throw new Error('generateKey did not return a key pair');
-  }
-  const exportedKey = await crypto.subtle.exportKey('pkcs8', generatedKey.privateKey);
-  if (!(exportedKey instanceof ArrayBuffer)) {
-    throw new Error('exportKey did not return pkcs8 bytes');
-  }
-  const pkcs8Bytes = new Uint8Array(exportedKey);
-  let binaryText = '';
-  for (const byte of pkcs8Bytes) {
-    binaryText += String.fromCharCode(byte);
-  }
-  const base64Body = btoa(binaryText).replaceAll(/(.{64})/g, '$1\n');
-  return `-----BEGIN PRIVATE KEY-----\n${base64Body}\n-----END PRIVATE KEY-----`;
-}
 
 function decodeBase64UrlJson(segment: string): Record<string, unknown> {
   const base64Text = segment.replaceAll('-', '+').replaceAll('_', '/');
@@ -79,7 +54,7 @@ function createFetchMock(
 
 describe('signGithubAppJsonWebToken', () => {
   it('signs an RS256 token whose claims GitHub will accept', async () => {
-    const privateKeyPem = await buildTestPrivateKeyPem();
+    const privateKeyPem = await buildTestRsaPrivateKeyPem();
     const nowMilliseconds = 1_700_000_000_000;
 
     const jsonWebToken = await signGithubAppJsonWebToken({
@@ -117,7 +92,7 @@ describe('signGithubAppJsonWebToken', () => {
   });
 
   it('tolerates a PEM pasted as a single line with escaped newlines', async () => {
-    const privateKeyPem = await buildTestPrivateKeyPem();
+    const privateKeyPem = await buildTestRsaPrivateKeyPem();
     const singleLinePem = privateKeyPem.replaceAll('\n', '\\n');
     await expect(
       signGithubAppJsonWebToken({
@@ -147,7 +122,7 @@ describe('resolveGithubInstallationId', () => {
 
 describe('createGithubInstallationTokenForRepository', () => {
   it('exchanges the app key for an installation token', async () => {
-    const privateKeyPem = await buildTestPrivateKeyPem();
+    const privateKeyPem = await buildTestRsaPrivateKeyPem();
     const { fetchImplementation, callList } = createFetchMock([
       { fragment: '/installation', status: 200, body: { id: 42 } },
       {
@@ -177,6 +152,122 @@ describe('createGithubInstallationTokenForRepository', () => {
     await expect(
       createGithubInstallationTokenForRepository({
         repository: parseGithubRepositoryReference('galfrevn/apollo'),
+        appId: '',
+        privateKeyPem: '',
+        nowMilliseconds: 0,
+        fetchImplementation,
+      }),
+    ).rejects.toThrow(/GITHUB_APP_ID/);
+    expect(callList).toHaveLength(0);
+  });
+});
+
+describe('listGithubAppRepositoryFullNameList', () => {
+  it('aggregates the repositories of every installation', async () => {
+    const privateKeyPem = await buildTestRsaPrivateKeyPem();
+    const { fetchImplementation } = createFetchMock([
+      {
+        fragment: '/app/installations?per_page=100&page=1',
+        status: 200,
+        body: [{ id: 7 }, { id: 9 }],
+      },
+      {
+        fragment: '/access_tokens',
+        status: 201,
+        body: { token: 'ghs_token', expires_at: '2026-08-10T13:00:00Z' },
+      },
+      {
+        fragment: '/installation/repositories?per_page=100&page=1',
+        status: 200,
+        body: {
+          repositories: [
+            { full_name: 'galfrevn/apollo' },
+            { full_name: 'galfrevn/dotfiles' },
+          ],
+        },
+      },
+    ]);
+
+    const fullNameList = await listGithubAppRepositoryFullNameList({
+      appId: '123456',
+      privateKeyPem,
+      nowMilliseconds: 1_700_000_000_000,
+      fetchImplementation,
+    });
+
+    expect(fullNameList).toEqual([
+      'galfrevn/apollo',
+      'galfrevn/dotfiles',
+      'galfrevn/apollo',
+      'galfrevn/dotfiles',
+    ]);
+  });
+
+  it('follows pagination past the first page of repositories', async () => {
+    const privateKeyPem = await buildTestRsaPrivateKeyPem();
+    const firstPageRepositoryList = Array.from({ length: 100 }, (_, index) => ({
+      full_name: `galfrevn/repo-${index}`,
+    }));
+    const { fetchImplementation, callList } = createFetchMock([
+      {
+        fragment: '/app/installations?per_page=100&page=1',
+        status: 200,
+        body: [{ id: 7 }],
+      },
+      {
+        fragment: '/access_tokens',
+        status: 201,
+        body: { token: 'ghs_token', expires_at: '2026-08-10T13:00:00Z' },
+      },
+      {
+        fragment: '/installation/repositories?per_page=100&page=1',
+        status: 200,
+        body: { repositories: firstPageRepositoryList },
+      },
+      {
+        fragment: '/installation/repositories?per_page=100&page=2',
+        status: 200,
+        body: { repositories: [{ full_name: 'galfrevn/repo-100' }] },
+      },
+    ]);
+
+    const fullNameList = await listGithubAppRepositoryFullNameList({
+      appId: '123456',
+      privateKeyPem,
+      nowMilliseconds: 1_700_000_000_000,
+      fetchImplementation,
+    });
+
+    expect(fullNameList).toHaveLength(101);
+    expect(fullNameList.at(-1)).toBe('galfrevn/repo-100');
+    expect(
+      callList.some((request) =>
+        request.url.includes('/installation/repositories?per_page=100&page=2'),
+      ),
+    ).toBe(true);
+  });
+
+  it('surfaces a failed installations listing as an error', async () => {
+    const privateKeyPem = await buildTestRsaPrivateKeyPem();
+    const { fetchImplementation } = createFetchMock([
+      { fragment: '/app/installations', status: 500, body: {} },
+    ]);
+
+    await expect(
+      listGithubAppRepositoryFullNameList({
+        appId: '123456',
+        privateKeyPem,
+        nowMilliseconds: 1_700_000_000_000,
+        fetchImplementation,
+      }),
+    ).rejects.toThrow(/instalaciones/);
+  });
+
+  it('refuses to call GitHub when the app is not configured', async () => {
+    const { fetchImplementation, callList } = createFetchMock([]);
+
+    await expect(
+      listGithubAppRepositoryFullNameList({
         appId: '',
         privateKeyPem: '',
         nowMilliseconds: 0,

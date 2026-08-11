@@ -53,42 +53,78 @@ export type SpokenRepositoryResolution =
   | { readonly kind: 'ambiguous'; readonly candidateFullNameList: readonly string[] }
   | { readonly kind: 'none' };
 
-// A spoken repo name arrives however the transcriber heard it: "apollo
-// firmware", "Apollo-Firmware", "el repo apollo". Separators and case carry
-// no information at that point, so matching drops them entirely.
-function normalizeRepositoryNameForSpeech(text: string): string {
-  return text.toLowerCase().replaceAll(/[\s./_-]+/g, '');
+function splitIntoSpokenTokenList(text: string): readonly string[] {
+  return text
+    .toLowerCase()
+    .split(/[\s./_-]+/)
+    .filter((token) => token.length > 0);
+}
+
+function normalizeRepositoryName(name: string): string {
+  return splitIntoSpokenTokenList(name).join('');
+}
+
+// The repository name has to appear as consecutive words somewhere in the
+// spoken phrase, so surrounding words in any language fall away without a
+// stopword list; the widest window wins so "apollo firmware" resolves to
+// apollo-firmware instead of tying with apollo.
+function selectRepositoriesMatchingTokenWindow(
+  spokenTokenList: readonly string[],
+  candidateList: readonly { fullName: string; normalizedNameList: string[] }[],
+): readonly string[] {
+  for (let windowSize = spokenTokenList.length; windowSize >= 1; windowSize -= 1) {
+    const matchedFullNameSet = new Set<string>();
+    for (
+      let startIndex = 0;
+      startIndex + windowSize <= spokenTokenList.length;
+      startIndex += 1
+    ) {
+      const windowText = spokenTokenList
+        .slice(startIndex, startIndex + windowSize)
+        .join('');
+      for (const candidate of candidateList) {
+        if (candidate.normalizedNameList.includes(windowText)) {
+          matchedFullNameSet.add(candidate.fullName);
+        }
+      }
+    }
+    if (matchedFullNameSet.size > 0) {
+      return [...matchedFullNameSet];
+    }
+  }
+  return [];
 }
 
 export function resolveSpokenRepositoryReference(
   spokenReference: string,
   installedFullNameList: readonly string[],
 ): SpokenRepositoryResolution {
-  const normalizedSpoken = normalizeRepositoryNameForSpeech(spokenReference);
-  if (normalizedSpoken.length === 0) {
+  const spokenTokenList = splitIntoSpokenTokenList(spokenReference);
+  if (spokenTokenList.length === 0) {
     return { kind: 'none' };
   }
 
-  const selectMatches = (
-    isMatch: (normalizedCandidate: string) => boolean,
-  ): readonly string[] =>
-    installedFullNameList.filter((fullName) => {
-      const shortName = fullName.split('/')[1] ?? '';
-      return (
-        isMatch(normalizeRepositoryNameForSpeech(shortName)) ||
-        isMatch(normalizeRepositoryNameForSpeech(fullName))
-      );
-    });
+  const candidateList = installedFullNameList.map((fullName) => ({
+    fullName,
+    normalizedNameList: [
+      normalizeRepositoryName(fullName.split('/')[1] ?? ''),
+      normalizeRepositoryName(fullName),
+    ].filter((name) => name.length > 0),
+  }));
 
-  const exactMatchList = selectMatches(
-    (normalizedCandidate) => normalizedCandidate === normalizedSpoken,
+  const windowMatchList = selectRepositoriesMatchingTokenWindow(
+    spokenTokenList,
+    candidateList,
   );
+  const normalizedSpoken = spokenTokenList.join('');
   const matchList =
-    exactMatchList.length > 0
-      ? exactMatchList
-      : selectMatches((normalizedCandidate) =>
-          normalizedCandidate.includes(normalizedSpoken),
-        );
+    windowMatchList.length > 0
+      ? windowMatchList
+      : candidateList
+          .filter((candidate) =>
+            candidate.normalizedNameList.some((name) => name.includes(normalizedSpoken)),
+          )
+          .map((candidate) => candidate.fullName);
 
   const [firstMatch] = matchList;
   if (firstMatch !== undefined && matchList.length === 1) {
