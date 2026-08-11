@@ -1,4 +1,8 @@
+import { z } from 'zod';
+
 const OPENROUTER_CHAT_COMPLETIONS_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+const proxyRequestBodySchema = z.object({ model: z.string() }).passthrough();
 export const CODING_PROXY_PATH_PREFIX = '/coding-llm/v1';
 export const CODING_PROXY_TOKEN_TTL_MILLISECONDS = 6 * 60 * 60 * 1000;
 
@@ -105,13 +109,17 @@ export async function handleCodingLlmProxyRequest(
   }
 
   const requestBodyText = await request.text();
-  let requestedModel: unknown;
+  let parsedBodyJson: unknown;
   try {
-    requestedModel = (JSON.parse(requestBodyText) as { model?: unknown }).model;
+    parsedBodyJson = JSON.parse(requestBodyText);
   } catch {
     return new Response('Bad request', { status: 400 });
   }
-  if (requestedModel !== environment.OPENROUTER_CODING_MODEL) {
+  const parsedBody = proxyRequestBodySchema.safeParse(parsedBodyJson);
+  if (!parsedBody.success) {
+    return new Response('Bad request', { status: 400 });
+  }
+  if (parsedBody.data.model !== environment.OPENROUTER_CODING_MODEL) {
     return new Response('Model not allowed', { status: 403 });
   }
 

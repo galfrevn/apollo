@@ -89,6 +89,9 @@ export async function runOpencodeAgent(input: {
     OPENCODE_CONFIG_PATH,
     buildOpencodeConfig({ proxyOrigin: input.proxyOrigin, modelId: input.modelId }),
   );
+  // A retry runs in the same persistent sandbox: a summary left behind by a
+  // failed attempt must not pass as this run's result.
+  await input.sandbox.writeFile(OPENCODE_SUMMARY_PATH, '');
 
   const runResult = await input.sandbox.exec(
     buildOpencodeRunCommand({ modelId: input.modelId, taskText: input.taskText }),

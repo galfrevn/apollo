@@ -122,6 +122,14 @@ describe('handleCodingLlmProxyRequest', () => {
     );
     expect(unauthorizedResponse.status).toBe(401);
 
+    const missingModelRequest = await buildAuthorizedRequest({ messages: [] });
+    const missingModelResponse = await handleCodingLlmProxyRequest(
+      missingModelRequest,
+      new URL(missingModelRequest.url),
+      environment,
+    );
+    expect(missingModelResponse.status).toBe(400);
+
     const foreignModelRequest = await buildAuthorizedRequest({
       model: 'openai/gpt-5',
       messages: [],

@@ -86,6 +86,8 @@ describe('runOpencodeAgent', () => {
     });
 
     expect(writtenFileByPath[OPENCODE_CONFIG_PATH]).toContain('coding-llm/v1');
+    // A failed attempt's summary must not leak into the retry that follows it.
+    expect(writtenFileByPath[OPENCODE_SUMMARY_PATH]).toBe('');
     const execCall = execCallList[0];
     expect(execCall.command).toContain('opencode run');
     expect(execCall.command).toContain("'apollo/moonshotai/kimi-k3'");
