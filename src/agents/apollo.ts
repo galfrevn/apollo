@@ -117,6 +117,7 @@ export type ApolloState = {
   readonly uiState: DeskUiState;
   readonly speechMode: string;
   readonly focusEndsAt: number | null;
+  readonly focusStartedAt: number | null;
   readonly caption: string | null;
   readonly pendingConfirmId: string | null;
   readonly pendingConfirmSummary: string | null;
@@ -127,6 +128,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     uiState: 'idle',
     speechMode: 'default',
     focusEndsAt: null,
+    focusStartedAt: null,
     caption: null,
     pendingConfirmId: null,
     pendingConfirmSummary: null,
@@ -142,6 +144,12 @@ export class Apollo extends Agent<Env, ApolloState> {
   #lastTelemetrySnapshot: DeskTelemetrySnapshot | undefined;
   #isAnnouncingLowBattery = false;
   #deviceMcpRequestRegistry = createDeviceMcpRequestRegistry();
+  #ttsSequence = 0;
+  #lastPlaybackAck: {
+    readonly seq: number;
+    readonly playedMilliseconds: number;
+    readonly receivedAtMilliseconds: number;
+  } | null = null;
 
   get session(): Session {
     if (this.#session === undefined) {
@@ -332,6 +340,14 @@ export class Apollo extends Agent<Env, ApolloState> {
         this.#deviceMcpRequestRegistry.resolvePendingRequest(deviceMessage.payload);
         break;
       }
+      case 'playback_ack': {
+        this.#lastPlaybackAck = {
+          seq: deviceMessage.seq,
+          playedMilliseconds: deviceMessage.playedMs,
+          receivedAtMilliseconds: Date.now(),
+        };
+        break;
+      }
     }
   }
 
@@ -509,6 +525,15 @@ export class Apollo extends Agent<Env, ApolloState> {
         speechMode: this.state.speechMode,
         caption: this.state.caption ?? undefined,
         focusRemainingSec,
+        ...(this.state.focusEndsAt !== null
+          ? {
+              focusEndsAt: Math.floor(this.state.focusEndsAt / 1000),
+              ...(this.state.focusStartedAt !== null &&
+              this.state.focusStartedAt !== undefined
+                ? { focusStartedAt: Math.floor(this.state.focusStartedAt / 1000) }
+                : {}),
+            }
+          : {}),
         emotion: resolveDeskFaceEmotion(this.state.uiState),
         accentColor: resolveDeskSpeechMode(this.state.speechMode).accentColor,
       }),
@@ -707,6 +732,21 @@ export class Apollo extends Agent<Env, ApolloState> {
     }
   }
 
+  #broadcastTimerArc(durationSeconds: number | undefined): void {
+    const encodedMessage = encodeServerToDeviceMessage(
+      durationSeconds === undefined
+        ? { type: 'timer' }
+        : {
+            type: 'timer',
+            endsAt: Math.floor(Date.now() / 1000) + durationSeconds,
+            durationSec: durationSeconds,
+          },
+    );
+    for (const connection of this.getConnections()) {
+      connection.send(encodedMessage);
+    }
+  }
+
   async #runTurnFromText(connection: Connection, text: string): Promise<void> {
     this.#applyUiEvent('START_LISTEN');
     await this.#executeTurn(connection, { text });
@@ -787,14 +827,26 @@ export class Apollo extends Agent<Env, ApolloState> {
       deviceId,
       session: this.session,
       applyFocusMinutes: async (minutes) => {
-        const nextFocus = startDeskFocus(Date.now(), minutes * 60);
-        this.setState({ ...this.state, focusEndsAt: nextFocus.endsAt });
+        const startedAt = Date.now();
+        const nextFocus = startDeskFocus(startedAt, minutes * 60);
+        this.setState({
+          ...this.state,
+          focusEndsAt: nextFocus.endsAt,
+          focusStartedAt: startedAt,
+        });
       },
       clearFocus: async () => {
-        this.setState({ ...this.state, focusEndsAt: clearDeskFocus().endsAt });
+        this.setState({
+          ...this.state,
+          focusEndsAt: clearDeskFocus().endsAt,
+          focusStartedAt: null,
+        });
       },
       scheduleReminder: async ({ delaySeconds, message }) => {
         await this.schedule(delaySeconds, 'deliverReminder', { message });
+      },
+      broadcastTimerProgress: async ({ durationSeconds }) => {
+        this.#broadcastTimerArc(durationSeconds);
       },
       listReminders: async () => {
         const scheduleList = await this.listSchedules();
@@ -816,6 +868,11 @@ export class Apollo extends Agent<Env, ApolloState> {
           if (didCancel) {
             cancelledMessageList.push(reminder.message);
           }
+        }
+        // Timers are reminders whose message starts with "Timer" (see
+        // @/tools/timer); cancelling one has to take its arc off the screen.
+        if (cancelledMessageList.some((cancelled) => cancelled.startsWith('Timer'))) {
+          this.#broadcastTimerArc(undefined);
         }
         return {
           cancelledCount: cancelledMessageList.length,
@@ -857,6 +914,17 @@ export class Apollo extends Agent<Env, ApolloState> {
           deviceId,
           effects: deskToolEffects,
           isSpeechAborted: () => this.#isSpeechAborted,
+          allocateTtsSequence: () => {
+            this.#ttsSequence += 1;
+            return this.#ttsSequence;
+          },
+          getPlaybackAckForSequence: (sequence) =>
+            this.#lastPlaybackAck !== null && this.#lastPlaybackAck.seq === sequence
+              ? {
+                  playedMilliseconds: this.#lastPlaybackAck.playedMilliseconds,
+                  receivedAtMilliseconds: this.#lastPlaybackAck.receivedAtMilliseconds,
+                }
+              : null,
           ...(this.#lastTelemetrySnapshot !== undefined
             ? { telemetrySnapshot: this.#lastTelemetrySnapshot }
             : {}),

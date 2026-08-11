@@ -18,7 +18,10 @@ import { runDeskTurn, type VoiceAdapters } from '@/turn/run';
 import { TTS_PCM_CHANNEL_COUNT, TTS_PCM_SAMPLE_RATE_HZ } from '@/voice/elevenlabs';
 import { chatWithOpenRouter } from '@/voice/llm';
 import { transcribeAudioWithOpenRouter } from '@/voice/stt';
-import { streamAudioChunksAtPlaybackPace } from '@/voice/stream';
+import {
+  streamAudioChunksAtPlaybackPace,
+  type PlaybackAckSnapshot,
+} from '@/voice/stream';
 import { synthesizeApolloSpeech } from '@/voice/synthesize';
 import { wrapPcmAsWavBuffer } from '@/voice/wav';
 
@@ -38,6 +41,8 @@ export type ApolloTurnRuntimeDependencies = {
   readonly effects: DeskToolEffects;
   readonly isSpeechAborted?: () => boolean;
   readonly telemetrySnapshot?: DeskTelemetrySnapshot;
+  readonly allocateTtsSequence?: () => number;
+  readonly getPlaybackAckForSequence?: (sequence: number) => PlaybackAckSnapshot | null;
 };
 
 export async function executeApolloTurn(
@@ -154,6 +159,10 @@ export async function executeApolloTurn(
                   0,
                   Math.ceil((liveState.focusEndsAt - Date.now()) / 1000),
                 ),
+                focusEndsAt: Math.floor(liveState.focusEndsAt / 1000),
+                ...(liveState.focusStartedAt !== null
+                  ? { focusStartedAt: Math.floor(liveState.focusStartedAt / 1000) }
+                  : {}),
               }
             : {}),
         }),
@@ -202,6 +211,7 @@ export async function executeApolloTurn(
     pendingConfirmId: turnOutput.pendingConfirmation?.id ?? null,
     pendingConfirmSummary: turnOutput.pendingConfirmation?.summary ?? null,
     focusEndsAt: finalFocusEndsAt,
+    focusStartedAt: finalFocusEndsAt === null ? null : liveState.focusStartedAt,
   });
 
   if (turnOutput.pendingConfirmation !== undefined) {
@@ -244,16 +254,19 @@ export async function executeApolloTurn(
           : undefined;
       const isFirstSegment = followUpIndex === 0;
       followUpIndex += 1;
+      const ttsSequence = dependencies.allocateTtsSequence?.();
 
       connection.send(
         encodeServerToDeviceMessage({
           type: 'tts_start',
           format: 'pcm',
           bytes: currentAudioBuffer.byteLength,
+          ...(ttsSequence !== undefined ? { seq: ttsSequence } : {}),
           sampleRate: TTS_PCM_SAMPLE_RATE_HZ,
           channels: TTS_PCM_CHANNEL_COUNT,
         }),
       );
+      const getPlaybackAckForSequence = dependencies.getPlaybackAckForSequence;
       await streamAudioChunksAtPlaybackPace({
         audioBuffer: currentAudioBuffer,
         sampleRateHz: TTS_PCM_SAMPLE_RATE_HZ,
@@ -269,12 +282,16 @@ export async function executeApolloTurn(
         ...(dependencies.isSpeechAborted !== undefined
           ? { shouldStop: dependencies.isSpeechAborted }
           : {}),
+        ...(ttsSequence !== undefined && getPlaybackAckForSequence !== undefined
+          ? { getPlaybackAck: () => getPlaybackAckForSequence(ttsSequence) }
+          : {}),
       });
 
       if (dependencies.isSpeechAborted?.() === true) {
         wasAborted = true;
         break;
       }
+      connection.send(encodeServerToDeviceMessage({ type: 'tts_end' }));
       currentAudioBuffer = await nextAudioBufferPromise;
     }
 

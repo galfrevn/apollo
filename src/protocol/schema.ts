@@ -107,6 +107,12 @@ export const deviceToServerMessageSchema = z.discriminatedUnion('type', [
     }),
     ts: z.number().int().nonnegative(),
   }),
+  z.object({
+    type: z.literal('playback_ack'),
+    seq: z.number().int().nonnegative(),
+    playedMs: z.number().int().nonnegative(),
+    ts: z.number().int().nonnegative(),
+  }),
 ]);
 
 export type DeviceToServerMessage = z.infer<typeof deviceToServerMessageSchema>;
@@ -118,6 +124,10 @@ export const serverToDeviceMessageSchema = z.discriminatedUnion('type', [
     speechMode: z.string().min(1),
     caption: z.string().optional(),
     focusRemainingSec: z.number().int().nonnegative().optional(),
+    // Epoch seconds: ui_state pushes are event-driven, so the device needs the
+    // whole window to count down locally between pushes.
+    focusStartedAt: z.number().int().nonnegative().optional(),
+    focusEndsAt: z.number().int().nonnegative().optional(),
     emotion: deskFaceEmotionSchema.optional(),
     accentColor: z.string().optional(),
   }),
@@ -135,12 +145,24 @@ export const serverToDeviceMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('tts_start'),
     format: z.enum(['mp3', 'wav', 'pcm']),
-    bytes: z.number().int().nonnegative(),
+    // Optional since tts_end closes runs; firmware before 2.7.0 treats a
+    // missing total as an empty run, so keep sending it whenever it is known.
+    bytes: z.number().int().nonnegative().optional(),
+    seq: z.number().int().nonnegative().optional(),
     sampleRate: z.number().int().positive().optional(),
     channels: z.number().int().positive().optional(),
   }),
   z.object({
+    type: z.literal('tts_end'),
+  }),
+  z.object({
     type: z.literal('tts_aborted'),
+  }),
+  z.object({
+    type: z.literal('timer'),
+    // Epoch seconds; both absent means clear whatever arc is showing.
+    endsAt: z.number().int().nonnegative().optional(),
+    durationSec: z.number().int().positive().optional(),
   }),
   z.object({
     type: z.literal('turn_end'),

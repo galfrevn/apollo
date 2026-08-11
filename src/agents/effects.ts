@@ -25,6 +25,7 @@ export function createDeskToolEffects(input: {
     delaySeconds: number;
     message: string;
   }) => Promise<void>;
+  readonly broadcastTimerProgress: DeskToolEffects['broadcastTimerProgress'];
   readonly listReminders: DeskToolEffects['listReminders'];
   readonly cancelReminders: DeskToolEffects['cancelReminders'];
   readonly resolveWeatherLocation: DeskToolEffects['resolveWeatherLocation'];
@@ -58,6 +59,7 @@ export function createDeskToolEffects(input: {
       });
     },
     scheduleReminder: input.scheduleReminder,
+    broadcastTimerProgress: input.broadcastTimerProgress,
     listReminders: input.listReminders,
     cancelReminders: input.cancelReminders,
     resolveWeatherLocation: input.resolveWeatherLocation,

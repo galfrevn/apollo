@@ -77,6 +77,9 @@ function createRecordingEffects(): DeskToolEffects & {
     scheduleReminder: async ({ delaySeconds, message }) => {
       calls.push(`remind:${delaySeconds}:${message}`);
     },
+    broadcastTimerProgress: async ({ durationSeconds }) => {
+      calls.push(`timerArc:${durationSeconds}`);
+    },
     listReminders: async () => {
       calls.push('listReminders');
       return [

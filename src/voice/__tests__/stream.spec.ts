@@ -230,4 +230,91 @@ describe('streamAudioChunksAtPlaybackPace', () => {
       TTS_STREAM_PREBUFFER_MILLISECONDS - 500,
     );
   });
+
+  it('holds the measured backlog at the ceiling when the device acks playback', async () => {
+    const sink = createRecordingSink();
+    const sampleRateHz = 24000;
+    let virtualNowMilliseconds = 0;
+    let playedMilliseconds = 0;
+    const wait = async (milliseconds: number): Promise<void> => {
+      sink.waitMillisecondsList.push(milliseconds);
+      virtualNowMilliseconds += milliseconds;
+      playedMilliseconds += milliseconds;
+    };
+
+    await streamAudioChunksAtPlaybackPace({
+      audioBuffer: buildAudioBuffer(8192 * 700),
+      sampleRateHz,
+      channelCount: 1,
+      send: sink.send,
+      wait,
+      now: () => virtualNowMilliseconds,
+      getPlaybackAck: () => ({
+        playedMilliseconds,
+        receivedAtMilliseconds: virtualNowMilliseconds,
+      }),
+    });
+
+    const chunkMilliseconds = computeChunkPlaybackMilliseconds({
+      chunkByteLength: 8192,
+      sampleRateHz,
+      channelCount: 1,
+    });
+    let deliveredMilliseconds = 0;
+    let drainedMilliseconds = 0;
+    let peakBacklogMilliseconds = 0;
+    for (let index = 0; index < sink.sentByteLengthList.length; index += 1) {
+      drainedMilliseconds += sink.waitMillisecondsList[index - 1] ?? 0;
+      deliveredMilliseconds += chunkMilliseconds;
+      peakBacklogMilliseconds = Math.max(
+        peakBacklogMilliseconds,
+        deliveredMilliseconds - drainedMilliseconds,
+      );
+    }
+
+    expect(sink.sentByteLengthList).toHaveLength(700);
+    expect(peakBacklogMilliseconds).toBeLessThanOrEqual(
+      TTS_STREAM_MAX_BACKLOG_MILLISECONDS + 1,
+    );
+  });
+
+  it('trusts the reported backlog over the open-loop pace when acks say the device is behind', async () => {
+    const sink = createRecordingSink();
+    const sampleRateHz = 24000;
+    let virtualNowMilliseconds = 0;
+    const wait = async (milliseconds: number): Promise<void> => {
+      sink.waitMillisecondsList.push(milliseconds);
+      virtualNowMilliseconds += milliseconds;
+    };
+
+    // The device never advances: every wait must come from the measured
+    // backlog alone, so delivery keeps pace with the extrapolated estimate
+    // instead of racing ahead at link speed.
+    await streamAudioChunksAtPlaybackPace({
+      audioBuffer: buildAudioBuffer(8192 * 100),
+      sampleRateHz,
+      channelCount: 1,
+      send: sink.send,
+      wait,
+      now: () => virtualNowMilliseconds,
+      getPlaybackAck: () => ({
+        playedMilliseconds: 0,
+        receivedAtMilliseconds: 0,
+      }),
+    });
+
+    const totalWaitMilliseconds = sink.waitMillisecondsList.reduce(
+      (sum, milliseconds) => sum + milliseconds,
+      0,
+    );
+    const totalAudioMilliseconds = computeChunkPlaybackMilliseconds({
+      chunkByteLength: 8192 * 100,
+      sampleRateHz,
+      channelCount: 1,
+    });
+    expect(sink.sentByteLengthList).toHaveLength(100);
+    expect(totalWaitMilliseconds).toBeGreaterThan(
+      totalAudioMilliseconds - TTS_STREAM_MAX_BACKLOG_MILLISECONDS - 1000,
+    );
+  });
 });

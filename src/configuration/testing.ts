@@ -144,6 +144,7 @@ export function createStubDeskToolEffects(
     enqueueResearch: async () => {},
     enqueueCodingTask: async () => {},
     scheduleReminder: async () => {},
+    broadcastTimerProgress: async () => {},
     listReminders: async () => [],
     cancelReminders: async () => ({ cancelledCount: 0, cancelledMessageList: [] }),
     resolveWeatherLocation: async () => ({
