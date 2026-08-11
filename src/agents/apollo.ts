@@ -146,7 +146,7 @@ export class Apollo extends Agent<Env, ApolloState> {
   #deviceMcpRequestRegistry = createDeviceMcpRequestRegistry();
   #ttsSequence = 0;
   #lastPlaybackAck: {
-    readonly seq: number;
+    readonly sequence: number;
     readonly playedMilliseconds: number;
     readonly receivedAtMilliseconds: number;
   } | null = null;
@@ -342,8 +342,8 @@ export class Apollo extends Agent<Env, ApolloState> {
       }
       case 'playback_ack': {
         this.#lastPlaybackAck = {
-          seq: deviceMessage.seq,
-          playedMilliseconds: deviceMessage.playedMs,
+          sequence: deviceMessage.sequence,
+          playedMilliseconds: deviceMessage.playedMilliseconds,
           receivedAtMilliseconds: Date.now(),
         };
         break;
@@ -732,19 +732,45 @@ export class Apollo extends Agent<Env, ApolloState> {
     }
   }
 
-  #broadcastTimerArc(durationSeconds: number | undefined): void {
+  #broadcastTimerArc(
+    arc:
+      | { readonly endsAtEpochSeconds: number; readonly durationSeconds: number }
+      | undefined,
+  ): void {
     const encodedMessage = encodeServerToDeviceMessage(
-      durationSeconds === undefined
+      arc === undefined
         ? { type: 'timer' }
         : {
             type: 'timer',
-            endsAt: Math.floor(Date.now() / 1000) + durationSeconds,
-            durationSec: durationSeconds,
+            endsAt: arc.endsAtEpochSeconds,
+            durationSeconds: arc.durationSeconds,
           },
     );
     for (const connection of this.getConnections()) {
       connection.send(encodedMessage);
     }
+  }
+
+  async #broadcastSoonestRemainingTimerArc(): Promise<void> {
+    const remainingReminderList = mapAgentScheduleListToReminderList(
+      mapUnknownScheduleListToAgentScheduleLikeList(await this.listSchedules()),
+    );
+    const remainingTimerList = remainingReminderList
+      .filter(
+        (reminder) =>
+          reminder.message.startsWith('Timer') &&
+          typeof reminder.delayInSeconds === 'number',
+      )
+      .toSorted((left, right) => left.firesAtIso.localeCompare(right.firesAtIso));
+    const soonestTimer = remainingTimerList[0];
+    if (soonestTimer === undefined || soonestTimer.delayInSeconds === undefined) {
+      this.#broadcastTimerArc(undefined);
+      return;
+    }
+    this.#broadcastTimerArc({
+      endsAtEpochSeconds: Math.floor(Date.parse(soonestTimer.firesAtIso) / 1000),
+      durationSeconds: soonestTimer.delayInSeconds,
+    });
   }
 
   async #runTurnFromText(connection: Connection, text: string): Promise<void> {
@@ -846,7 +872,10 @@ export class Apollo extends Agent<Env, ApolloState> {
         await this.schedule(delaySeconds, 'deliverReminder', { message });
       },
       broadcastTimerProgress: async ({ durationSeconds }) => {
-        this.#broadcastTimerArc(durationSeconds);
+        this.#broadcastTimerArc({
+          endsAtEpochSeconds: Math.floor(Date.now() / 1000) + durationSeconds,
+          durationSeconds,
+        });
       },
       listReminders: async () => {
         const scheduleList = await this.listSchedules();
@@ -870,9 +899,10 @@ export class Apollo extends Agent<Env, ApolloState> {
           }
         }
         // Timers are reminders whose message starts with "Timer" (see
-        // @/tools/timer); cancelling one has to take its arc off the screen.
+        // @/tools/timer); cancelling one has to take its arc off the screen —
+        // unless another timer is still running, whose arc takes over.
         if (cancelledMessageList.some((cancelled) => cancelled.startsWith('Timer'))) {
-          this.#broadcastTimerArc(undefined);
+          await this.#broadcastSoonestRemainingTimerArc();
         }
         return {
           cancelledCount: cancelledMessageList.length,
@@ -919,7 +949,7 @@ export class Apollo extends Agent<Env, ApolloState> {
             return this.#ttsSequence;
           },
           getPlaybackAckForSequence: (sequence) =>
-            this.#lastPlaybackAck !== null && this.#lastPlaybackAck.seq === sequence
+            this.#lastPlaybackAck !== null && this.#lastPlaybackAck.sequence === sequence
               ? {
                   playedMilliseconds: this.#lastPlaybackAck.playedMilliseconds,
                   receivedAtMilliseconds: this.#lastPlaybackAck.receivedAtMilliseconds,

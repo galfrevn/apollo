@@ -29,7 +29,7 @@ The firmware remembers which mode started the listen (`listen_started_by_hold_` 
 
 ### 6. Voice timer with ring progress — ✅ implemented 2026-08-11, ships with firmware 2.7.0
 
-"Poné 10 minutos" → `set_timer` still rides the reminder scheduler, and now also broadcasts `{"type":"timer", endsAt, durationSec}` so the ring drains in the mode's color until the end (the reminder's ding and TTS already cover completion). A timer arc outranks the focus arc while live; cancelling the timer clears it (`cancel_reminder` detects the `Timer` message prefix). The pomodoro needs no timer message: it activates focus, and the item-1 arc covers it.
+"Poné 10 minutos" → `set_timer` still rides the reminder scheduler, and now also broadcasts `{"type":"timer", endsAt, durationSeconds}` so the ring drains in the mode's color until the end (the reminder's ding and TTS already cover completion). A timer arc outranks the focus arc while live; cancelling a timer hands the arc to the soonest timer still running, or clears it (`cancel_reminder` detects the `Timer` message prefix). The pomodoro needs no timer message: it activates focus, and the item-1 arc covers it.
 
 ### 7. Live captions (cleared when the turn ends)
 
@@ -84,7 +84,7 @@ Still open: **push-style updates**. Telemetry reports `firmwareVersion`, but the
 ### 15. `tts_end` + playback acks — ✅ implemented 2026-08-11, ships with firmware 2.7.0
 
 - **`tts_end`**: `tts_start.bytes` is now optional vocabulary — a run without a total stays open until the `tts_end` terminator, so audio can be sent mid-synthesis. The server still sends `bytes` (its synthesis is per-sentence and whole-buffer today), which keeps 2.6.0 devices working; piping the ElevenLabs response body through as it arrives is the follow-up the protocol no longer blocks.
-- **Acks**: the device reports `{"type":"playback_ack", seq, playedMs}` once a second while speaking — `playedMs` counted at the codec output in source-stream time, `seq` echoed from `tts_start` so a stale run's acks are discarded. `streamAudioChunksAtPlaybackPace` uses them as a closed loop (measured backlog held at the 4 s ceiling, extrapolated between acks) and falls back to the open-loop 0.85 pace when no ack arrives. Announcements (`notify.ts`) stay open-loop on purpose: a broadcast has no single device whose acks could steer it.
+- **Acks**: the device reports `{"type":"playback_ack", sequence, playedMilliseconds}` once a second while speaking — played time counted at the codec output in source-stream time, `sequence` echoed from `tts_start` so a stale run's acks are discarded. `streamAudioChunksAtPlaybackPace` uses them as a closed loop (measured backlog held at the 4 s ceiling, extrapolated between acks) and falls back to the open-loop 0.85 pace when no ack arrives. Announcements (`notify.ts`) stay open-loop on purpose: a broadcast has no single device whose acks could steer it.
 
 ### 16. Typed on-screen cards (`ui_card`)
 

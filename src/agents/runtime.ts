@@ -261,7 +261,7 @@ export async function executeApolloTurn(
           type: 'tts_start',
           format: 'pcm',
           bytes: currentAudioBuffer.byteLength,
-          ...(ttsSequence !== undefined ? { seq: ttsSequence } : {}),
+          ...(ttsSequence !== undefined ? { sequence: ttsSequence } : {}),
           sampleRate: TTS_PCM_SAMPLE_RATE_HZ,
           channels: TTS_PCM_CHANNEL_COUNT,
         }),

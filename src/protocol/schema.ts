@@ -109,8 +109,8 @@ export const deviceToServerMessageSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('playback_ack'),
-    seq: z.number().int().nonnegative(),
-    playedMs: z.number().int().nonnegative(),
+    sequence: z.number().int().nonnegative(),
+    playedMilliseconds: z.number().int().nonnegative(),
     ts: z.number().int().nonnegative(),
   }),
 ]);
@@ -148,7 +148,7 @@ export const serverToDeviceMessageSchema = z.discriminatedUnion('type', [
     // Optional since tts_end closes runs; firmware before 2.7.0 treats a
     // missing total as an empty run, so keep sending it whenever it is known.
     bytes: z.number().int().nonnegative().optional(),
-    seq: z.number().int().nonnegative().optional(),
+    sequence: z.number().int().nonnegative().optional(),
     sampleRate: z.number().int().positive().optional(),
     channels: z.number().int().positive().optional(),
   }),
@@ -162,7 +162,7 @@ export const serverToDeviceMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('timer'),
     // Epoch seconds; both absent means clear whatever arc is showing.
     endsAt: z.number().int().nonnegative().optional(),
-    durationSec: z.number().int().positive().optional(),
+    durationSeconds: z.number().int().positive().optional(),
   }),
   z.object({
     type: z.literal('turn_end'),
