@@ -306,11 +306,14 @@ export async function runCodingAgent(input: {
       } catch (error) {
         toolOutput = `Error: ${error instanceof Error ? error.message : String(error)}`;
       }
-      toolOutputList.push(toolOutput);
+      // Truncated before both uses: a difference the truncation hides is
+      // invisible to the model, so it must not count as progress either.
+      const truncatedToolOutput = truncateSandboxOutputForToolResult(toolOutput);
+      toolOutputList.push(truncatedToolOutput);
       messageList.push({
         role: 'tool',
         tool_call_id: toolCall.id,
-        content: truncateSandboxOutputForToolResult(toolOutput),
+        content: truncatedToolOutput,
       });
     }
 
