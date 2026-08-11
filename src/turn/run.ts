@@ -138,6 +138,8 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
   const uiEventList: DeskUiEventName[] = ['START_THINK'];
   const toolResultList: ToolExecutionResult[] = [];
   let pendingConfirmation = input.pendingConfirmation;
+  let resolvedConfirmation: PendingToolConfirmation | undefined;
+  let resolvedConfirmationResult: ToolExecutionResult | undefined;
 
   if (pendingConfirmation !== undefined && input.confirmOk !== undefined) {
     const resolved = await resolvePendingToolConfirmation(
@@ -151,6 +153,10 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
         effects: input.effects,
       },
     );
+    if (!('cancelled' in resolved)) {
+      resolvedConfirmation = pendingConfirmation;
+      resolvedConfirmationResult = resolved;
+    }
     pendingConfirmation = undefined;
     if ('cancelled' in resolved) {
       uiEventList.push('CANCEL');
@@ -222,6 +228,21 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userText },
   ];
+  // Each turn builds the LLM conversation from scratch, so an approved
+  // confirmation has to be replayed into it: without the tool call and its
+  // result the model only sees "confirmado" and asks what was approved.
+  if (resolvedConfirmation !== undefined && resolvedConfirmationResult !== undefined) {
+    messageList.push(
+      buildAssistantToolCallMessage('', [
+        {
+          id: resolvedConfirmation.id,
+          name: resolvedConfirmation.toolName,
+          args: resolvedConfirmation.args,
+        },
+      ]),
+      buildToolResultMessage(resolvedConfirmation.id, resolvedConfirmationResult),
+    );
+  }
 
   let spokenText = '';
 
