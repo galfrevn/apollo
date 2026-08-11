@@ -133,13 +133,26 @@ describe('runCodingAgent', () => {
     expect(outcome.summary).toContain('No pude leer eso');
   });
 
-  it('gives up at the round limit instead of looping forever', async () => {
+  it('gives up at the round limit and still wraps up with a spoken summary', async () => {
     const { sandbox } = createFakeSandbox();
     const { callLlm } = createScriptedLlm([
       {
         text: '',
-        toolCallList: [{ id: 'x', name: 'list_files', args: { path: '.' } }],
+        toolCallList: [{ id: 'a', name: 'list_files', args: { path: 'src' } }],
       },
+      {
+        text: '',
+        toolCallList: [{ id: 'b', name: 'list_files', args: { path: 'firmware' } }],
+      },
+      {
+        text: '',
+        toolCallList: [{ id: 'c', name: 'list_files', args: { path: 'documentation' } }],
+      },
+      {
+        text: '',
+        toolCallList: [{ id: 'd', name: 'list_files', args: { path: 'coverage' } }],
+      },
+      { text: 'Revisé todo y no encontré nada para tocar.', toolCallList: [] },
     ]);
 
     const outcome = await runCodingAgent({
@@ -152,7 +165,53 @@ describe('runCodingAgent', () => {
 
     expect(outcome.didReachRoundLimit).toBe(true);
     expect(outcome.roundCount).toBe(4);
-    expect(outcome.summary).toBe('');
+    expect(outcome.summary).toBe('Revisé todo y no encontré nada para tocar.');
+  });
+
+  it('warns on a repeated round and stops after three identical ones', async () => {
+    const { sandbox, callList } = createFakeSandbox();
+    const capturedCallList: {
+      readonly messageList: readonly {
+        readonly role: string;
+        readonly content?: string | null;
+      }[];
+      readonly toolDefinitionCount: number;
+    }[] = [];
+    const callLlm: CodingLlmCaller = async ({ messageList, toolDefinitionList }) => {
+      capturedCallList.push({
+        messageList: [...messageList],
+        toolDefinitionCount: toolDefinitionList.length,
+      });
+      if (toolDefinitionList.length === 0) {
+        return { text: 'Di vueltas sin llegar a nada concreto.', toolCallList: [] };
+      }
+      return {
+        text: '',
+        toolCallList: [{ id: 'x', name: 'list_files', args: { path: '.' } }],
+      };
+    };
+
+    const outcome = await runCodingAgent({
+      sandbox,
+      callLlm,
+      repositoryLabel: 'galfrevn/apollo',
+      taskText: 'dar vueltas para siempre',
+    });
+
+    expect(outcome.didReachRoundLimit).toBe(true);
+    expect(outcome.roundCount).toBe(3);
+    expect(outcome.summary).toBe('Di vueltas sin llegar a nada concreto.');
+    // The third identical round is cut before touching the sandbox.
+    expect(callList.filter((call) => call.kind === 'list')).toHaveLength(2);
+    const flattenedContentList = capturedCallList.flatMap((call) =>
+      call.messageList.map((message) => message.content ?? ''),
+    );
+    expect(flattenedContentList.some((content) => content.includes('repitiendo'))).toBe(
+      true,
+    );
+    const wrapUpCall = capturedCallList.at(-1);
+    expect(wrapUpCall?.toolDefinitionCount).toBe(0);
+    expect(wrapUpCall?.messageList.at(-1)?.content).toContain('Se terminaron las rondas');
   });
 
   it('runs commands at the repository root', async () => {

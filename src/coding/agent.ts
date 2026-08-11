@@ -6,6 +6,10 @@ import { truncateSandboxOutputForToolResult } from '@/sandbox/helpers';
 import type { OpenRouterChatMessage, OpenRouterChatResult } from '@/voice/llm';
 
 export const DEFAULT_CODING_ROUND_LIMIT = 24;
+// Two identical rounds get the model a warning; a third ends the run. Seen in
+// production: a model re-reading the same README and re-running the same ls
+// until the round limit, with nothing to show for it.
+export const REPEATED_ROUND_STOP_COUNT = 3;
 const COMMAND_TIMEOUT_MILLISECONDS = 300_000;
 
 export type CodingSandboxPort = {
@@ -112,6 +116,8 @@ export function buildCodingSystemPrompt(input: {
     '- Si el repo tiene tests o linter, corrélos con run_command y arreglá lo que rompas.',
     '- No toques .git, ni archivos fuera del repositorio, ni secretos.',
     '- No hagas commit ni push: de eso se encarga Apollo cuando terminás.',
+    '- Si la tarea es de solo lectura (auditoría, análisis, revisión), no inventes',
+    '  cambios: tu respuesta final es el informe.',
     '',
     'Cuando la tarea esté lista, respondé sin llamar más herramientas, con un resumen corto',
     'en español rioplatense de qué cambiaste y por qué. Ese resumen se lee en voz alta.',
@@ -191,6 +197,38 @@ async function executeCodingTool(input: {
   return `Herramienta desconocida: ${toolName}`;
 }
 
+function buildRoundSignature(
+  toolCallList: readonly { readonly name: string; readonly args: unknown }[],
+): string {
+  return JSON.stringify(toolCallList.map((toolCall) => [toolCall.name, toolCall.args]));
+}
+
+const REPEATED_ROUND_WARNING =
+  'Estás repitiendo exactamente las mismas llamadas y el resultado no va a cambiar. ' +
+  'Avanzá con la tarea, o si ya está lista respondé sin llamar herramientas.';
+
+const WRAP_UP_PROMPT =
+  'Se terminaron las rondas de herramientas. Respondé ahora, sin llamar ninguna, ' +
+  'con el resumen corto en español rioplatense de qué hiciste o encontraste.';
+
+// The run ended without a plain reply, but the conversation so far still holds
+// everything the model learned: one last call without tools turns that into a
+// spoken summary instead of throwing the whole run away.
+async function requestWrapUpSummary(
+  callLlm: CodingLlmCaller,
+  messageList: readonly OpenRouterChatMessage[],
+): Promise<string> {
+  try {
+    const wrapUpResult = await callLlm({
+      messageList: [...messageList, { role: 'user', content: WRAP_UP_PROMPT }],
+      toolDefinitionList: [],
+    });
+    return wrapUpResult.text.trim();
+  } catch {
+    return '';
+  }
+}
+
 export async function runCodingAgent(input: {
   readonly sandbox: CodingSandboxPort;
   readonly callLlm: CodingLlmCaller;
@@ -215,6 +253,10 @@ export async function runCodingAgent(input: {
     { role: 'user', content: input.taskText },
   ];
 
+  let previousRoundSignature = '';
+  let identicalRoundCount = 0;
+  let completedRoundCount = 0;
+
   for (let roundIndex = 0; roundIndex < roundLimit; roundIndex += 1) {
     const llmResult = await input.callLlm({
       messageList,
@@ -228,6 +270,17 @@ export async function runCodingAgent(input: {
         didReachRoundLimit: false,
         transcript,
       };
+    }
+
+    completedRoundCount = roundIndex + 1;
+    const roundSignature = buildRoundSignature(llmResult.toolCallList);
+    identicalRoundCount =
+      roundSignature === previousRoundSignature ? identicalRoundCount + 1 : 1;
+    previousRoundSignature = roundSignature;
+    // Broken out before the assistant message lands: an assistant tool call
+    // without its tool results would poison the wrap-up request below.
+    if (identicalRoundCount >= REPEATED_ROUND_STOP_COUNT) {
+      break;
     }
 
     messageList.push({
@@ -262,11 +315,15 @@ export async function runCodingAgent(input: {
         content: truncateSandboxOutputForToolResult(toolOutput),
       });
     }
+
+    if (identicalRoundCount >= 2) {
+      messageList.push({ role: 'user', content: REPEATED_ROUND_WARNING });
+    }
   }
 
   return {
-    summary: '',
-    roundCount: roundLimit,
+    summary: await requestWrapUpSummary(input.callLlm, messageList),
+    roundCount: completedRoundCount,
     didReachRoundLimit: true,
     transcript,
   };

@@ -122,10 +122,37 @@ export class ApolloCoding extends WorkflowEntrypoint<Env, ApolloCodingParams> {
       });
 
       if (!extraction.hasChanges) {
-        const summary = agentOutcome.didReachRoundLimit
-          ? `Me quedé sin vueltas en ${repositoryLabel} y no llegué a cambiar nada.`
-          : `Revisé ${repositoryLabel} y no hizo falta cambiar nada.`;
-        await this.#notifyDevice(event.payload.deviceId, event.payload.task, summary);
+        // A read-only task (audit, review) legitimately changes nothing: the
+        // agent's reply is the deliverable, not a fallback line.
+        const summary =
+          agentOutcome.summary.length > 0
+            ? agentOutcome.summary
+            : agentOutcome.didReachRoundLimit
+              ? `Me quedé sin vueltas en ${repositoryLabel} y no llegué a cambiar nada.`
+              : `Revisé ${repositoryLabel} y no hizo falta cambiar nada.`;
+        const documentKey = buildCodingDocumentObjectKey(
+          event.payload.deviceId,
+          event.instanceId,
+        );
+        await step.do('persist-log', async () => {
+          const runLog = buildRunLog({
+            repositoryLabel,
+            taskText: event.payload.task,
+            branchName,
+            agentSummary: agentOutcome.summary,
+            transcript: agentOutcome.transcript,
+          });
+          await this.env.MEDIA.put(documentKey, redactSecretsFromText(runLog), {
+            httpMetadata: { contentType: 'text/markdown; charset=utf-8' },
+          });
+          return true;
+        });
+        await this.#notifyDevice(
+          event.payload.deviceId,
+          event.payload.task,
+          summary,
+          documentKey,
+        );
         return { summary };
       }
 
@@ -306,14 +333,16 @@ function buildRunLog(input: {
   readonly branchName: string;
   readonly agentSummary: string;
   readonly transcript: readonly string[];
-  readonly pullRequestUrl: string;
+  readonly pullRequestUrl?: string;
 }): string {
   return [
     `# Apollo — ${input.repositoryLabel}`,
     '',
     `**Tarea:** ${input.taskText}`,
     `**Branch:** ${input.branchName}`,
-    `**Pull request:** ${input.pullRequestUrl}`,
+    ...(input.pullRequestUrl !== undefined
+      ? [`**Pull request:** ${input.pullRequestUrl}`]
+      : []),
     '',
     '## Resumen',
     input.agentSummary,
