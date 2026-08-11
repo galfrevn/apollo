@@ -133,7 +133,8 @@ async function announceNotificationWithTts(input: {
   }
 
   // Paced once for every listener rather than per connection: the devices play
-  // the same announcement at the same time.
+  // the same announcement at the same time. Open-loop on purpose — a broadcast
+  // has no single device whose acks could steer it.
   await streamAudioChunksAtPlaybackPace({
     audioBuffer: ttsAudio,
     sampleRateHz: TTS_PCM_SAMPLE_RATE_HZ,
@@ -144,6 +145,11 @@ async function announceNotificationWithTts(input: {
       }
     },
   });
+
+  const ttsEndMessage = encodeServerToDeviceMessage({ type: 'tts_end' });
+  for (const connection of input.connectionList) {
+    connection.send(ttsEndMessage);
+  }
 
   // Announcements are one-way: without this the device would reopen the mic
   // after speaking, as if the reminder had asked a question.

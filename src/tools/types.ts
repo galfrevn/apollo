@@ -32,6 +32,9 @@ export type DeskToolEffects = {
     readonly delaySeconds: number;
     readonly message: string;
   }) => Promise<void>;
+  readonly broadcastTimerProgress: (input: {
+    readonly durationSeconds: number;
+  }) => Promise<void>;
   readonly listReminders: () => Promise<readonly ScheduledReminderRow[]>;
   readonly cancelReminders: (input: {
     readonly message?: string;

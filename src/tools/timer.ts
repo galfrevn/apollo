@@ -57,6 +57,9 @@ export const setTimerTool: ToolDefinition = {
           ? `Timer de ${durationText} terminado.`
           : `Timer terminado: ${parsedArgs.label}.`,
     });
+    await context.effects.broadcastTimerProgress({
+      durationSeconds: parsedArgs.durationSeconds,
+    });
     return {
       ok: true,
       summary: `Timer de ${durationText} puesto.`,
