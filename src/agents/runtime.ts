@@ -30,6 +30,9 @@ export type ApolloTurnRuntimeDependencies = {
   readonly getCurrentState: () => ApolloState;
   readonly setAgentState: (nextState: ApolloState) => void;
   readonly scheduleConfirmExpiry: (confirmationId: string) => Promise<void>;
+  readonly persistPendingConfirmation: (
+    confirmation: PendingToolConfirmation,
+  ) => Promise<void>;
   readonly session: Session;
   readonly deviceId: string;
   readonly effects: DeskToolEffects;
@@ -46,7 +49,7 @@ export async function executeApolloTurn(
     readonly confirmOk?: boolean;
     readonly pendingConfirmation?: PendingToolConfirmation;
   },
-): Promise<PendingToolConfirmation | undefined> {
+): Promise<void> {
   const nowMilliseconds = Date.now();
   const focusState = tickDeskFocus(
     dependencies.currentState.focusEndsAt === null
@@ -164,6 +167,10 @@ export async function executeApolloTurn(
   }
 
   if (turnOutput.pendingConfirmation !== undefined) {
+    // Persisted before confirm_request goes out below: the device can answer
+    // the moment the screen appears, while the TTS at the bottom of this
+    // function is still streaming, and #resolveConfirm must find it by then.
+    await dependencies.persistPendingConfirmation(turnOutput.pendingConfirmation);
     await dependencies.scheduleConfirmExpiry(turnOutput.pendingConfirmation.id);
   }
 
@@ -289,8 +296,6 @@ export async function executeApolloTurn(
       parts: [{ type: 'text', text: turnOutput.spokenText }],
     });
   }
-
-  return turnOutput.pendingConfirmation;
 }
 
 export function concatenateArrayBufferList(

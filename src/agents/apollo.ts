@@ -811,7 +811,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     });
 
     try {
-      this.#pendingConfirmation = await executeApolloTurn(
+      await executeApolloTurn(
         connection,
         {
           environment: this.env,
@@ -825,6 +825,10 @@ export class Apollo extends Agent<Env, ApolloState> {
           scheduleConfirmExpiry: async (confirmationId) => {
             await this.schedule(30, 'expireConfirm', { confirmationId });
           },
+          persistPendingConfirmation: async (confirmation) => {
+            this.#pendingConfirmation = confirmation;
+            await savePendingToolConfirmation(this.#sqlExecutor(), confirmation);
+          },
           session: this.session,
           deviceId,
           effects: deskToolEffects,
@@ -835,9 +839,6 @@ export class Apollo extends Agent<Env, ApolloState> {
         },
         turnPart,
       );
-      if (this.#pendingConfirmation !== undefined) {
-        await savePendingToolConfirmation(this.#sqlExecutor(), this.#pendingConfirmation);
-      }
     } catch (error) {
       console.error(
         JSON.stringify({
@@ -848,6 +849,10 @@ export class Apollo extends Agent<Env, ApolloState> {
         }),
       );
       this.#pendingConfirmation = undefined;
+      // The confirmation persists before the turn finishes streaming, so a
+      // failure after that point would otherwise leave a resolvable row for a
+      // request the user was just told failed.
+      await deletePendingToolConfirmations(this.#sqlExecutor());
       this.#applyUiEvent('CANCEL');
       this.setState({
         ...this.state,
