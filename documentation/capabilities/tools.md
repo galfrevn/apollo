@@ -13,7 +13,7 @@ Tools are how Apollo takes action beyond talking. Definitions live under `src/to
 - Timers: `set_timer`, `start_pomodoro` (ride the reminder scheduler; pomodoro also activates focus; `cancel_reminder` cancels timers too)
 - Lists: `add_to_list`, `read_list`, `remove_from_list` (SQL table `list_items`; default list "super")
 - Finance: `dollar_rate` (dolarapi.com, free/keyless: blue, oficial, bolsa, contadoconliqui, tarjeta, cripto)
-- Email: `send_email` (Resend, secret `RESEND_API_KEY`; recipient pinned to `APOLLO_OWNER_EMAIL` var — deep-research reports are also emailed automatically)
+- Email: `send_email` (Resend, secrets `RESEND_API_KEY` and `APOLLO_OWNER_EMAIL`; the recipient is pinned to the latter — deep-research reports are also emailed automatically)
 - Sandbox: `sandbox_run_code`, `sandbox_exec` (both marked `unsafe`, so they route through confirmation)
 - Coding: `start_coding_task` (`unsafe`; clones a repo, edits it, opens a PR — see [Coding](coding.md))
 

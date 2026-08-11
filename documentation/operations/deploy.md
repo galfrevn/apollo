@@ -26,6 +26,7 @@ None of these live in `wrangler.jsonc`; set each with `bunx wrangler secret put 
 | `ELEVENLABS_API_KEY` | TTS |
 | `TAVILY_API_KEY` | Quick `web_search` |
 | `RESEND_API_KEY` | `send_email` and research report delivery |
+| `APOLLO_OWNER_EMAIL` | Pinned recipient for `send_email` and research reports ([Email](../capabilities/email.md)) |
 | `GITHUB_APP_ID` | GitHub App used by coding tasks ([Coding](../capabilities/coding.md)) |
 | `GITHUB_APP_PRIVATE_KEY` | Same App — PKCS#8 PEM ([Coding](../capabilities/coding.md)) |
 
@@ -33,8 +34,7 @@ None of these live in `wrangler.jsonc`; set each with `bunx wrangler secret put 
 
 Plain vars in `wrangler.jsonc`: `OPENROUTER_MODEL`, `OPENROUTER_STT_MODEL`,
 `OPENROUTER_RESEARCH_MODEL`, `OPENROUTER_CODING_MODEL`, `OPENROUTER_EMBEDDING_MODEL`,
-`ELEVENLABS_TTS_MODEL`, and `APOLLO_OWNER_EMAIL` (the pinned recipient for
-[Email](../capabilities/email.md)).
+and `ELEVENLABS_TTS_MODEL`.
 
 Changing a var means editing `wrangler.jsonc` and redeploying. `wrangler types` turns each
 var into a *literal* type, so `createFakeApolloEnvironment`

@@ -15,7 +15,6 @@
     "OPENROUTER_CODING_MODEL": "moonshotai/kimi-k3",
     "ELEVENLABS_TTS_MODEL": "eleven_multilingual_v2",
     "OPENROUTER_EMBEDDING_MODEL": "openai/text-embedding-3-small",
-    "APOLLO_OWNER_EMAIL": "galfre.vn@gmail.com",
   },
   "containers": [
     {

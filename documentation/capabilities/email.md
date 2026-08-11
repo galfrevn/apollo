@@ -9,7 +9,7 @@ note you dictated, a list you want off the device.
 
 ## Why it needs no confirmation
 
-The recipient is pinned to the `APOLLO_OWNER_EMAIL` var (`wrangler.jsonc`), so the model
+The recipient is pinned to the `APOLLO_OWNER_EMAIL` secret, so the model
 cannot address anyone else. That is what keeps the tool `safe` in router terms: the
 blast radius of a hallucinated call is one email to your own inbox. Anything that could
 reach a third party would need `safety: 'unsafe'` and the confirmation flow described in

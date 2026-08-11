@@ -25,10 +25,11 @@ export const sendEmailTool: ToolDefinition = {
   },
   async handler(args, context) {
     const parsedArgs = sendEmailArgsSchema.parse(args);
-    if (!context.environment.RESEND_API_KEY) {
+    if (!context.environment.RESEND_API_KEY || !context.environment.APOLLO_OWNER_EMAIL) {
       return {
         ok: false,
-        summary: 'El email no está configurado todavía (falta RESEND_API_KEY).',
+        summary:
+          'El email no está configurado todavía (falta RESEND_API_KEY o APOLLO_OWNER_EMAIL).',
       };
     }
     try {
