@@ -66,14 +66,16 @@ function normalizeRepositoryName(name: string): string {
 
 // The repository name has to appear as consecutive words somewhere in the
 // spoken phrase, so surrounding words in any language fall away without a
-// stopword list; the widest window wins so "apollo firmware" resolves to
-// apollo-firmware instead of tying with apollo.
+// stopword list. The widest window wins so "apollo firmware" resolves to
+// apollo-firmware instead of tying with apollo, and on equal width the match
+// with more characters wins: a short name like "repo" coinciding with a
+// spoken word is far more likely incidental than a long one.
 function selectRepositoriesMatchingTokenWindow(
   spokenTokenList: readonly string[],
   candidateList: readonly { fullName: string; normalizedNameList: string[] }[],
 ): readonly string[] {
   for (let windowSize = spokenTokenList.length; windowSize >= 1; windowSize -= 1) {
-    const matchedFullNameSet = new Set<string>();
+    const matchedLengthByFullName = new Map<string, number>();
     for (
       let startIndex = 0;
       startIndex + windowSize <= spokenTokenList.length;
@@ -84,12 +86,19 @@ function selectRepositoriesMatchingTokenWindow(
         .join('');
       for (const candidate of candidateList) {
         if (candidate.normalizedNameList.includes(windowText)) {
-          matchedFullNameSet.add(candidate.fullName);
+          const knownLength = matchedLengthByFullName.get(candidate.fullName) ?? 0;
+          matchedLengthByFullName.set(
+            candidate.fullName,
+            Math.max(knownLength, windowText.length),
+          );
         }
       }
     }
-    if (matchedFullNameSet.size > 0) {
-      return [...matchedFullNameSet];
+    if (matchedLengthByFullName.size > 0) {
+      const widestMatchedLength = Math.max(...matchedLengthByFullName.values());
+      return [...matchedLengthByFullName.entries()]
+        .filter(([, matchedLength]) => matchedLength === widestMatchedLength)
+        .map(([fullName]) => fullName);
     }
   }
   return [];

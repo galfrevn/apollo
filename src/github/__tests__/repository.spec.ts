@@ -62,6 +62,17 @@ describe('resolveSpokenRepositoryReference', () => {
     });
   });
 
+  it('prefers the longer match when a generically named repository also matches', () => {
+    const listWithGenericName = ['galfrevn/repo', 'galfrevn/apollo'];
+    expect(
+      resolveSpokenRepositoryReference('el repo apollo', listWithGenericName),
+    ).toEqual({ kind: 'match', fullName: 'galfrevn/apollo' });
+    expect(resolveSpokenRepositoryReference('el repo', listWithGenericName)).toEqual({
+      kind: 'match',
+      fullName: 'galfrevn/repo',
+    });
+  });
+
   it('reports ambiguity instead of guessing', () => {
     const resolution = resolveSpokenRepositoryReference('apol', installedList);
     expect(resolution.kind).toBe('ambiguous');
