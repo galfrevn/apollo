@@ -201,8 +201,9 @@ describe('runCodingAgent', () => {
     expect(outcome.didReachRoundLimit).toBe(true);
     expect(outcome.roundCount).toBe(3);
     expect(outcome.summary).toBe('Di vueltas sin llegar a nada concreto.');
-    // The third identical round is cut before touching the sandbox.
-    expect(callList.filter((call) => call.kind === 'list')).toHaveLength(2);
+    // The third identical round still executes — its results are what prove
+    // the loop — but nothing runs after it.
+    expect(callList.filter((call) => call.kind === 'list')).toHaveLength(3);
     const flattenedContentList = capturedCallList.flatMap((call) =>
       call.messageList.map((message) => message.content ?? ''),
     );
@@ -212,6 +213,48 @@ describe('runCodingAgent', () => {
     const wrapUpCall = capturedCallList.at(-1);
     expect(wrapUpCall?.toolDefinitionCount).toBe(0);
     expect(wrapUpCall?.messageList.at(-1)?.content).toContain('Se terminaron las rondas');
+  });
+
+  it('keeps looping when a repeated call returns different results', async () => {
+    let execCallCount = 0;
+    const { sandbox } = createFakeSandbox();
+    const changingSandbox: CodingSandboxPort = {
+      ...sandbox,
+      exec: async () => {
+        execCallCount += 1;
+        return { stdout: `intento ${execCallCount}`, stderr: '', exitCode: 0 };
+      },
+    };
+    let llmCallCount = 0;
+    const callLlm: CodingLlmCaller = async ({ toolDefinitionList }) => {
+      llmCallCount += 1;
+      if (toolDefinitionList.length > 0 && llmCallCount <= 5) {
+        return {
+          text: '',
+          toolCallList: [
+            {
+              id: `c${llmCallCount}`,
+              name: 'run_command',
+              args: { command: 'bun test' },
+            },
+          ],
+        };
+      }
+      return { text: 'Los tests quedaron en verde.', toolCallList: [] };
+    };
+
+    const outcome = await runCodingAgent({
+      sandbox: changingSandbox,
+      callLlm,
+      repositoryLabel: 'galfrevn/apollo',
+      taskText: 'arreglá los tests',
+    });
+
+    // Same command five times, but each run returned something new: that is
+    // progress, not a loop, so the run ends on the model's own reply.
+    expect(execCallCount).toBe(5);
+    expect(outcome.didReachRoundLimit).toBe(false);
+    expect(outcome.summary).toBe('Los tests quedaron en verde.');
   });
 
   it('runs commands at the repository root', async () => {
