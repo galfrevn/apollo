@@ -10,6 +10,7 @@ Device and server speak a Zod-validated JSON protocol defined in `src/protocol/s
 | `hold_start` / `hold_end` | Push-to-talk boundaries |
 | `wake` | Wake without a full hold gesture |
 | `audio_end` | End of a wake-word utterance (VAD-detected) |
+| `listen_cancel` | The user cancelled an open listen session (tap while listening); discard buffered audio, no turn runs |
 | `gesture` | `tap`, `double_tap`, `swipe_left`, `swipe_right` |
 | `confirm` | Accept or reject a pending confirmation |
 | `text_input` | Typed fallback input |
@@ -43,6 +44,7 @@ no-op (it used to mute the microphone and did so invisibly — see `#handleGestu
 | `confirm_close` | The confirmation window ended (`resolved` / `expired` / `orphaned`), so the device drops its confirm screen |
 | `tts_start` | Announce the next speech clip (one per segment, not one per reply) |
 | `tts_aborted` | The clip announced by `tts_start` was cut short and will never complete |
+| `turn_end` | The turn's speech is fully sent; `expectsReply` says whether the device should reopen the mic after playback or return to idle |
 | `error` | Structured failure |
 | `dashboard` | Clock + weather snapshot |
 | `background_result` | Completed async work summary |
@@ -59,6 +61,13 @@ TTS announcement is still being synthesized, and it costs no ElevenLabs credits.
 `tts_start` carries `format` (always `pcm` in production), `bytes` for the clip that
 follows, and optional `sampleRate` / `channels` — 24 000 Hz mono, so the ESP32 needs no
 decoder. The binary frames that follow belong to the clip just announced.
+
+`turn_end.expectsReply` is the model's own judgment: the persona appends an `[[escucho]]`
+mark when its reply asks the user for something (a reply ending in `?` counts even
+without the mark — see `runDeskTurn` in `src/turn/run.ts`). The mark is stripped before
+TTS. Aborted speech and one-way announcements (reminders, background results) always
+send `expectsReply: false`. Without a `turn_end`, the device falls back to reopening the
+mic, so an old server keeps the old always-listen behavior.
 
 ## Device MCP bridge
 

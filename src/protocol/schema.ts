@@ -61,6 +61,10 @@ export const deviceToServerMessageSchema = z.discriminatedUnion('type', [
     ts: z.number().int().nonnegative(),
   }),
   z.object({
+    type: z.literal('listen_cancel'),
+    ts: z.number().int().nonnegative(),
+  }),
+  z.object({
     type: z.literal('gesture'),
     gesture: deviceGestureSchema,
     ts: z.number().int().nonnegative(),
@@ -137,6 +141,10 @@ export const serverToDeviceMessageSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('tts_aborted'),
+  }),
+  z.object({
+    type: z.literal('turn_end'),
+    expectsReply: z.boolean(),
   }),
   z.object({
     type: z.literal('error'),

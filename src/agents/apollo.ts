@@ -298,6 +298,12 @@ export class Apollo extends Agent<Env, ApolloState> {
         await this.#runTurnFromAudio(connection);
         break;
       }
+      case 'listen_cancel': {
+        this.#audioChunkList = [];
+        this.#applyUiEvent('CANCEL');
+        this.#pushUiState(connection);
+        break;
+      }
       case 'text_input': {
         await this.#runTurnFromText(connection, deviceMessage.text);
         break;

@@ -144,4 +144,14 @@ async function announceNotificationWithTts(input: {
       }
     },
   });
+
+  // Announcements are one-way: without this the device would reopen the mic
+  // after speaking, as if the reminder had asked a question.
+  const turnEndMessage = encodeServerToDeviceMessage({
+    type: 'turn_end',
+    expectsReply: false,
+  });
+  for (const connection of input.connectionList) {
+    connection.send(turnEndMessage);
+  }
 }
