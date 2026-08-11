@@ -6,9 +6,10 @@ import { truncateSandboxOutputForToolResult } from '@/sandbox/helpers';
 import type { OpenRouterChatMessage, OpenRouterChatResult } from '@/voice/llm';
 
 export const DEFAULT_CODING_ROUND_LIMIT = 24;
-// Two identical rounds get the model a warning; a third ends the run. Seen in
-// production: a model re-reading the same README and re-running the same ls
-// until the round limit, with nothing to show for it.
+// Two rounds with identical calls and identical results get the model a
+// warning; a third ends the run. Seen in production: a model re-reading the
+// same README and re-running the same ls until the round limit, with nothing
+// to show for it.
 export const REPEATED_ROUND_STOP_COUNT = 3;
 const COMMAND_TIMEOUT_MILLISECONDS = 300_000;
 
@@ -199,8 +200,12 @@ async function executeCodingTool(input: {
 
 function buildRoundSignature(
   toolCallList: readonly { readonly name: string; readonly args: unknown }[],
+  toolOutputList: readonly string[],
 ): string {
-  return JSON.stringify(toolCallList.map((toolCall) => [toolCall.name, toolCall.args]));
+  return JSON.stringify([
+    toolCallList.map((toolCall) => [toolCall.name, toolCall.args]),
+    toolOutputList,
+  ]);
 }
 
 const REPEATED_ROUND_WARNING =
@@ -273,15 +278,6 @@ export async function runCodingAgent(input: {
     }
 
     completedRoundCount = roundIndex + 1;
-    const roundSignature = buildRoundSignature(llmResult.toolCallList);
-    identicalRoundCount =
-      roundSignature === previousRoundSignature ? identicalRoundCount + 1 : 1;
-    previousRoundSignature = roundSignature;
-    // Broken out before the assistant message lands: an assistant tool call
-    // without its tool results would poison the wrap-up request below.
-    if (identicalRoundCount >= REPEATED_ROUND_STOP_COUNT) {
-      break;
-    }
 
     messageList.push({
       role: 'assistant',
@@ -296,6 +292,7 @@ export async function runCodingAgent(input: {
       })),
     });
 
+    const toolOutputList: string[] = [];
     for (const toolCall of llmResult.toolCallList) {
       transcript.push(summarizeToolCallForTranscript(toolCall.name, toolCall.args));
       let toolOutput: string;
@@ -309,6 +306,7 @@ export async function runCodingAgent(input: {
       } catch (error) {
         toolOutput = `Error: ${error instanceof Error ? error.message : String(error)}`;
       }
+      toolOutputList.push(toolOutput);
       messageList.push({
         role: 'tool',
         tool_call_id: toolCall.id,
@@ -316,6 +314,15 @@ export async function runCodingAgent(input: {
       });
     }
 
+    // A repeat only counts when the results came back identical too: the same
+    // command against changed sandbox state is progress, not a loop.
+    const roundSignature = buildRoundSignature(llmResult.toolCallList, toolOutputList);
+    identicalRoundCount =
+      roundSignature === previousRoundSignature ? identicalRoundCount + 1 : 1;
+    previousRoundSignature = roundSignature;
+    if (identicalRoundCount >= REPEATED_ROUND_STOP_COUNT) {
+      break;
+    }
     if (identicalRoundCount >= 2) {
       messageList.push({ role: 'user', content: REPEATED_ROUND_WARNING });
     }
