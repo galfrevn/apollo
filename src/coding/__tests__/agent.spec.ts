@@ -215,6 +215,40 @@ describe('runCodingAgent', () => {
     expect(wrapUpCall?.messageList.at(-1)?.content).toContain('Se terminaron las rondas');
   });
 
+  it('treats outputs differing only past the truncation cutoff as identical', async () => {
+    let execCallCount = 0;
+    const { sandbox } = createFakeSandbox();
+    const longPrefix = 'x'.repeat(5_000);
+    const tailChangingSandbox: CodingSandboxPort = {
+      ...sandbox,
+      exec: async () => {
+        execCallCount += 1;
+        return { stdout: `${longPrefix}${execCallCount}`, stderr: '', exitCode: 0 };
+      },
+    };
+    const callLlm: CodingLlmCaller = async ({ toolDefinitionList }) => {
+      if (toolDefinitionList.length === 0) {
+        return { text: 'No pude avanzar con eso.', toolCallList: [] };
+      }
+      return {
+        text: '',
+        toolCallList: [{ id: 'x', name: 'run_command', args: { command: 'cat log' } }],
+      };
+    };
+
+    const outcome = await runCodingAgent({
+      sandbox: tailChangingSandbox,
+      callLlm,
+      repositoryLabel: 'galfrevn/apollo',
+      taskText: 'dar vueltas para siempre',
+    });
+
+    // The tails differ, but the model only ever saw the truncated prefix:
+    // identical as far as it can tell, so the cutoff still fires.
+    expect(outcome.didReachRoundLimit).toBe(true);
+    expect(execCallCount).toBe(3);
+  });
+
   it('keeps looping when a repeated call returns different results', async () => {
     let execCallCount = 0;
     const { sandbox } = createFakeSandbox();
