@@ -133,13 +133,26 @@ describe('runCodingAgent', () => {
     expect(outcome.summary).toContain('No pude leer eso');
   });
 
-  it('gives up at the round limit instead of looping forever', async () => {
+  it('gives up at the round limit and still wraps up with a spoken summary', async () => {
     const { sandbox } = createFakeSandbox();
     const { callLlm } = createScriptedLlm([
       {
         text: '',
-        toolCallList: [{ id: 'x', name: 'list_files', args: { path: '.' } }],
+        toolCallList: [{ id: 'a', name: 'list_files', args: { path: 'src' } }],
       },
+      {
+        text: '',
+        toolCallList: [{ id: 'b', name: 'list_files', args: { path: 'firmware' } }],
+      },
+      {
+        text: '',
+        toolCallList: [{ id: 'c', name: 'list_files', args: { path: 'documentation' } }],
+      },
+      {
+        text: '',
+        toolCallList: [{ id: 'd', name: 'list_files', args: { path: 'coverage' } }],
+      },
+      { text: 'Revisé todo y no encontré nada para tocar.', toolCallList: [] },
     ]);
 
     const outcome = await runCodingAgent({
@@ -152,7 +165,133 @@ describe('runCodingAgent', () => {
 
     expect(outcome.didReachRoundLimit).toBe(true);
     expect(outcome.roundCount).toBe(4);
-    expect(outcome.summary).toBe('');
+    expect(outcome.summary).toBe('Revisé todo y no encontré nada para tocar.');
+  });
+
+  it('warns on a repeated round and stops after three identical ones', async () => {
+    const { sandbox, callList } = createFakeSandbox();
+    const capturedCallList: {
+      readonly messageList: readonly {
+        readonly role: string;
+        readonly content?: string | null;
+      }[];
+      readonly toolDefinitionCount: number;
+    }[] = [];
+    const callLlm: CodingLlmCaller = async ({ messageList, toolDefinitionList }) => {
+      capturedCallList.push({
+        messageList: [...messageList],
+        toolDefinitionCount: toolDefinitionList.length,
+      });
+      if (toolDefinitionList.length === 0) {
+        return { text: 'Di vueltas sin llegar a nada concreto.', toolCallList: [] };
+      }
+      return {
+        text: '',
+        toolCallList: [{ id: 'x', name: 'list_files', args: { path: '.' } }],
+      };
+    };
+
+    const outcome = await runCodingAgent({
+      sandbox,
+      callLlm,
+      repositoryLabel: 'galfrevn/apollo',
+      taskText: 'dar vueltas para siempre',
+    });
+
+    expect(outcome.didReachRoundLimit).toBe(true);
+    expect(outcome.roundCount).toBe(3);
+    expect(outcome.summary).toBe('Di vueltas sin llegar a nada concreto.');
+    // The third identical round still executes — its results are what prove
+    // the loop — but nothing runs after it.
+    expect(callList.filter((call) => call.kind === 'list')).toHaveLength(3);
+    const flattenedContentList = capturedCallList.flatMap((call) =>
+      call.messageList.map((message) => message.content ?? ''),
+    );
+    expect(flattenedContentList.some((content) => content.includes('repitiendo'))).toBe(
+      true,
+    );
+    const wrapUpCall = capturedCallList.at(-1);
+    expect(wrapUpCall?.toolDefinitionCount).toBe(0);
+    expect(wrapUpCall?.messageList.at(-1)?.content).toContain('Se terminaron las rondas');
+  });
+
+  it('treats outputs differing only past the truncation cutoff as identical', async () => {
+    let execCallCount = 0;
+    const { sandbox } = createFakeSandbox();
+    const longPrefix = 'x'.repeat(5_000);
+    const tailChangingSandbox: CodingSandboxPort = {
+      ...sandbox,
+      exec: async () => {
+        execCallCount += 1;
+        return { stdout: `${longPrefix}${execCallCount}`, stderr: '', exitCode: 0 };
+      },
+    };
+    let sawWrapUpRequest = false;
+    const callLlm: CodingLlmCaller = async ({ toolDefinitionList }) => {
+      if (toolDefinitionList.length === 0) {
+        sawWrapUpRequest = true;
+        return { text: 'No pude avanzar con eso.', toolCallList: [] };
+      }
+      return {
+        text: '',
+        toolCallList: [{ id: 'x', name: 'run_command', args: { command: 'cat log' } }],
+      };
+    };
+
+    const outcome = await runCodingAgent({
+      sandbox: tailChangingSandbox,
+      callLlm,
+      repositoryLabel: 'galfrevn/apollo',
+      taskText: 'dar vueltas para siempre',
+    });
+
+    // The tails differ, but the model only ever saw the truncated prefix:
+    // identical as far as it can tell, so the cutoff still fires.
+    expect(outcome.didReachRoundLimit).toBe(true);
+    expect(execCallCount).toBe(3);
+    expect(sawWrapUpRequest).toBe(true);
+  });
+
+  it('keeps looping when a repeated call returns different results', async () => {
+    let execCallCount = 0;
+    const { sandbox } = createFakeSandbox();
+    const changingSandbox: CodingSandboxPort = {
+      ...sandbox,
+      exec: async () => {
+        execCallCount += 1;
+        return { stdout: `intento ${execCallCount}`, stderr: '', exitCode: 0 };
+      },
+    };
+    let llmCallCount = 0;
+    const callLlm: CodingLlmCaller = async ({ toolDefinitionList }) => {
+      llmCallCount += 1;
+      if (toolDefinitionList.length > 0 && llmCallCount <= 5) {
+        return {
+          text: '',
+          toolCallList: [
+            {
+              id: `c${llmCallCount}`,
+              name: 'run_command',
+              args: { command: 'bun test' },
+            },
+          ],
+        };
+      }
+      return { text: 'Los tests quedaron en verde.', toolCallList: [] };
+    };
+
+    const outcome = await runCodingAgent({
+      sandbox: changingSandbox,
+      callLlm,
+      repositoryLabel: 'galfrevn/apollo',
+      taskText: 'arreglá los tests',
+    });
+
+    // Same command five times, but each run returned something new: that is
+    // progress, not a loop, so the run ends on the model's own reply.
+    expect(execCallCount).toBe(5);
+    expect(outcome.didReachRoundLimit).toBe(false);
+    expect(outcome.summary).toBe('Los tests quedaron en verde.');
   });
 
   it('runs commands at the repository root', async () => {

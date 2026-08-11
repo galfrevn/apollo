@@ -6,6 +6,7 @@ import { addMemoryRecord, type MemorySqlExecutor } from '@/memory/store';
 import { buildToolDefinitionMap } from '@/tools/router';
 import type { ToolDefinition } from '@/tools/types';
 import { runDeskTurn } from '@/turn/run';
+import type { OpenRouterChatMessage } from '@/voice/llm';
 
 function createInMemorySqlExecutor(): MemorySqlExecutor {
   const memoryRowList: Array<{
@@ -235,6 +236,64 @@ describe('runDeskTurn', () => {
 
     expect(output.pendingConfirmation).toBeTruthy();
     expect(output.uiEventList).toContain('NEED_CONFIRM');
+  });
+
+  it('replays an approved confirmation into the model conversation', async () => {
+    const unsafeTool: ToolDefinition = {
+      name: 'coding_task_test',
+      safety: 'unsafe',
+      description: 'programa',
+      parameters: { type: 'object', properties: {} },
+      buildConfirmSummary: () => 'Programar en apollo',
+      async handler() {
+        return { ok: true, summary: 'Arranco a programar en apollo.' };
+      },
+    };
+    let capturedMessageList: readonly OpenRouterChatMessage[] = [];
+
+    const output = await runDeskTurn({
+      text: 'confirmado',
+      confirmOk: true,
+      pendingConfirmation: {
+        id: 'confirm-1',
+        toolName: 'coding_task_test',
+        args: { repository: 'apollo' },
+        summary: 'Programar en apollo',
+        expiresAt: 1_000,
+      },
+      speechMode: 'default',
+      focusState: createInactiveDeskFocusState(),
+      sqlExecutor: createInMemorySqlExecutor(),
+      environment: fakeEnvironment,
+      toolDefinitionMap: buildToolDefinitionMap([unsafeTool]),
+      nowMilliseconds: 10,
+      adapters: {
+        stt: async () => '',
+        llm: async ({ messageList }) => {
+          capturedMessageList = messageList;
+          return { text: 'Listo, ya arranqué con apollo.', toolCallList: [] };
+        },
+        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
+      },
+    });
+
+    const assistantToolCallMessage = capturedMessageList.find(
+      (message) => message.role === 'assistant' && message.tool_calls !== undefined,
+    );
+    expect(assistantToolCallMessage).toBeTruthy();
+    if (assistantToolCallMessage?.role === 'assistant') {
+      expect(assistantToolCallMessage.tool_calls?.[0]?.function.name).toBe(
+        'coding_task_test',
+      );
+    }
+    const toolResultMessage = capturedMessageList.find(
+      (message) => message.role === 'tool',
+    );
+    expect(toolResultMessage).toBeTruthy();
+    if (toolResultMessage?.role === 'tool') {
+      expect(toolResultMessage.content).toContain('Arranco a programar en apollo.');
+    }
+    expect(output.spokenText).toBe('Listo, ya arranqué con apollo.');
   });
 
   it('emits thinking captions before tools', async () => {
