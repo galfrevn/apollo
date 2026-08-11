@@ -1,6 +1,7 @@
 # Deploys the worker on every push to main, after a fresh test run in this
 # job — hermetic on purpose, so the gate holds even if ci.yml changes.
-# Doc-only merges skip it. Requires two repository secrets:
+# Doc-only merges skip it. Requires a `production` environment limited to the
+# main branch, holding two secrets:
 #   CLOUDFLARE_API_TOKEN   Workers deploy rights on the account
 #   CLOUDFLARE_ACCOUNT_ID  the Cloudflare account id
 name: Deploy
@@ -26,11 +27,19 @@ concurrency:
 jobs:
   deploy:
     name: Deploy worker
+    # workflow_dispatch lets the caller pick any ref, so the job refuses
+    # everything but main. The real gate is the `production` environment: its
+    # branch rule rejects other refs and the credentials live only there, so a
+    # branch that edits this file out of the way still can't reach them.
+    if: github.ref == 'refs/heads/main'
+    environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Setup
         uses: ./.github/actions/setup
