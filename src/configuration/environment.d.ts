@@ -7,6 +7,8 @@ interface Env {
   GITHUB_APP_ID: string;
   GITHUB_APP_PRIVATE_KEY: string;
   MOCK_VOICE?: string;
+  CODING_PROXY_ORIGIN?: string;
+  CODING_ENGINE?: string;
 }
 
 declare namespace Cloudflare {
@@ -19,5 +21,7 @@ declare namespace Cloudflare {
     GITHUB_APP_ID: string;
     GITHUB_APP_PRIVATE_KEY: string;
     MOCK_VOICE?: string;
+    CODING_PROXY_ORIGIN?: string;
+    CODING_ENGINE?: string;
   }
 }
