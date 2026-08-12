@@ -22,6 +22,7 @@ None of these live in `wrangler.jsonc`; set each with `bunx wrangler secret put 
 | Secret | Used by |
 |--------|---------|
 | `DEVICE_SHARED_SECRET` | Device auth ([Auth](auth.md)) |
+| `DASHBOARD_SHARED_SECRET` | Browser auth and MCP management RPC ([Auth](auth.md)) |
 | `OPENROUTER_API_KEY` | STT, reasoning, embeddings, deep research |
 | `ELEVENLABS_API_KEY` | TTS |
 | `TAVILY_API_KEY` | Quick `web_search` |

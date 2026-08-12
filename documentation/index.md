@@ -33,18 +33,19 @@ This handbook is meant to be read in order. Later chapters assume the concepts i
 17. [Email](capabilities/email.md) — Reports and notes to the owner
 18. [Sandbox](capabilities/sandbox.md) — Isolated code execution
 19. [Coding](capabilities/coding.md) — Clone a repo, change it, open a pull request
+20. [MCP servers](capabilities/mcp.md) — Connect external tools at runtime
 
 ### Part IV — Operations
 
-20. [Setup](operations/setup.md) — Local development
-21. [Deploy](operations/deploy.md) — Workers, bindings, secrets, and vars
-22. [Auth](operations/auth.md) — Device shared secret
-23. [Testing](operations/testing.md) — How this repo verifies behavior
+21. [Setup](operations/setup.md) — Local development
+22. [Deploy](operations/deploy.md) — Workers, bindings, secrets, and vars
+23. [Auth](operations/auth.md) — Device and dashboard credentials
+24. [Testing](operations/testing.md) — How this repo verifies behavior
 
 ### Part V — Reference
 
-24. [Mapping](reference/mapping.md) — Handbook topics to `src/` folders
-25. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
+25. [Mapping](reference/mapping.md) — Handbook topics to `src/` folders
+26. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
 
 ## The firmware
 

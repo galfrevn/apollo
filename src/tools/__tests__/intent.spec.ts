@@ -74,6 +74,10 @@ function createRecordingEffects(): DeskToolEffects & {
       calls.push(`device:${deviceToolName}`);
       return { ok: true, summary: 'true' };
     },
+    callInstalledMcpTool: async ({ serverId, toolName }) => {
+      calls.push(`mcp:${serverId}:${toolName}`);
+      return { ok: true, summary: 'true' };
+    },
     scheduleReminder: async ({ delaySeconds, message }) => {
       calls.push(`remind:${delaySeconds}:${message}`);
     },

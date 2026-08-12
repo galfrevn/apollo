@@ -28,6 +28,17 @@ const apolloOperatingBasePrompt =
   'El bloque de hechos y preferencias es lo que aprendiste de tu dueño con el tiempo: si te preguntan qué sabés o qué aprendiste de él, contestá desde ahí en primera persona. ' +
   'No narres el uso de tools al pedo.';
 
+// The base prompt names every builtin in prose; installed tools would otherwise
+// reach the model through the function schema alone.
+export function buildInstalledToolPromptNote(
+  installedToolNameList: readonly string[],
+): string {
+  if (installedToolNameList.length === 0) {
+    return '';
+  }
+  return `\nTenés herramientas conectadas por el dueño: ${installedToolNameList.join(', ')}. Usalas solo cuando encajen con lo que te piden.`;
+}
+
 export function buildApolloSoulPrompt(speechModeId: string): string {
   const speechMode = resolveDeskSpeechMode(speechModeId);
   return [

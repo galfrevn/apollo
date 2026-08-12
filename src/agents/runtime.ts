@@ -3,17 +3,22 @@ import type { Session } from 'agents/experimental/memory/session';
 
 import type { ApolloState } from '@/agents/apollo';
 import { createInactiveDeskFocusState, tickDeskFocus } from '@/focus/logic';
+import { isNamespacedMcpToolName } from '@/mcp/naming';
 import { buildSessionSystemPrompt } from '@/memory/session';
 import type { MemorySqlExecutor } from '@/memory/store';
 import { recallSemanticMemoryContent } from '@/memory/vector';
 import { resolveDeskSpeechMode } from '@/persona/catalog';
 import { resolveDeskFaceEmotion } from '@/persona/face';
-import { APOLLO_TTS_VOICE } from '@/persona/soul';
+import { APOLLO_TTS_VOICE, buildInstalledToolPromptNote } from '@/persona/soul';
 import { encodeServerToDeviceMessage } from '@/protocol/schema';
 import type { DeskUiMachine } from '@/session/machine';
 import { buildTelemetryPromptNote, type DeskTelemetrySnapshot } from '@/telemetry/logic';
 import { createBuiltinToolDefinitionMap } from '@/tools/catalog';
-import type { DeskToolEffects, PendingToolConfirmation } from '@/tools/types';
+import type {
+  DeskToolEffects,
+  PendingToolConfirmation,
+  ToolDefinition,
+} from '@/tools/types';
 import { runDeskTurn, type VoiceAdapters } from '@/turn/run';
 import { TTS_PCM_CHANNEL_COUNT, TTS_PCM_SAMPLE_RATE_HZ } from '@/voice/elevenlabs';
 import { chatWithOpenRouter } from '@/voice/llm';
@@ -39,6 +44,7 @@ export type ApolloTurnRuntimeDependencies = {
   readonly session: Session;
   readonly deviceId: string;
   readonly effects: DeskToolEffects;
+  readonly toolDefinitionMap?: ReadonlyMap<string, ToolDefinition>;
   readonly isSpeechAborted?: () => boolean;
   readonly telemetrySnapshot?: DeskTelemetrySnapshot;
   readonly allocateTtsSequence?: () => number;
@@ -86,6 +92,11 @@ export async function executeApolloTurn(
     dependencies.telemetrySnapshot,
     nowMilliseconds,
   );
+  const toolDefinitionMap =
+    dependencies.toolDefinitionMap ?? createBuiltinToolDefinitionMap();
+  const installedToolNote = buildInstalledToolPromptNote(
+    [...toolDefinitionMap.keys()].filter((toolName) => isNamespacedMcpToolName(toolName)),
+  );
 
   const voiceAdapters: VoiceAdapters = isMockVoice
     ? {
@@ -130,12 +141,12 @@ export async function executeApolloTurn(
     focusState,
     sqlExecutor: dependencies.sqlExecutor,
     environment: dependencies.environment,
-    toolDefinitionMap: createBuiltinToolDefinitionMap(),
+    toolDefinitionMap,
     pendingConfirmation: turnPart.pendingConfirmation,
     confirmOk: turnPart.confirmOk,
     nowMilliseconds,
     deviceId: dependencies.deviceId,
-    systemPromptOverride: `${sessionSystemPrompt}${focusNote}${telemetryNote}`,
+    systemPromptOverride: `${sessionSystemPrompt}${focusNote}${telemetryNote}${installedToolNote}`,
     ...(isMockVoice ? {} : { recallSemanticMemoryContentList }),
     effects: dependencies.effects,
     onThinkingCaption: async (caption) => {

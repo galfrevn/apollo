@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { buildApolloSoulPrompt } from '@/persona/soul';
+import { buildApolloSoulPrompt, buildInstalledToolPromptNote } from '@/persona/soul';
 
 describe('apollo soul prompt', () => {
   it('always includes Apollo identity and shared tools base', () => {
@@ -28,5 +28,20 @@ describe('apollo soul prompt', () => {
 
   it('includes warm closeness guidance', () => {
     expect(buildApolloSoulPrompt('warm')).toContain('Modo warm');
+  });
+});
+
+describe('installed tool prompt note', () => {
+  it('says nothing when the owner has connected no tools', () => {
+    expect(buildInstalledToolPromptNote([])).toBe('');
+  });
+
+  it('names every connected tool so the model can find it', () => {
+    const promptNote = buildInstalledToolPromptNote([
+      'mcp_github_list_issues',
+      'mcp_linear_list_teams',
+    ]);
+    expect(promptNote).toContain('mcp_github_list_issues');
+    expect(promptNote).toContain('mcp_linear_list_teams');
   });
 });

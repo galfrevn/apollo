@@ -60,4 +60,4 @@ Create the App with **Contents: read & write**, **Pull requests: read & write**,
 
 ## Navigation
 
-Prev: [Sandbox](sandbox.md) · Next: [Setup](../operations/setup.md)
+Prev: [Sandbox](sandbox.md) · Next: [MCP servers](mcp.md)
