@@ -2,6 +2,7 @@ import { routeAgentRequest } from 'agents';
 import { Sandbox } from '@cloudflare/sandbox';
 
 import { authorizeApolloConnection, Apollo } from '@/agents/apollo';
+import { authorizeApolloHttpRequest } from '@/auth/http';
 import { CODING_PROXY_PATH_PREFIX, handleCodingLlmProxyRequest } from '@/coding/proxy';
 import { handleOtaRequest } from '@/ota/routes';
 import { consumeApolloQueueBatch } from '@/queues/consume';
@@ -10,16 +11,32 @@ import { ApolloCoding } from '@/workflows/coding';
 
 export { Apollo, ApolloBackground, ApolloCoding, Sandbox };
 
+// The console at console.apollodevice.com probes /health cross-origin before
+// opening the agent WebSocket; auth is the query token, never a cookie, so a
+// wildcard origin does not widen what the token already gates.
+const CONSOLE_CORS_HEADER_MAP = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, HEAD, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Max-Age': '86400',
+} as const;
+
 export default {
   async fetch(request: Request, environment: Env): Promise<Response> {
     const requestUrl = new URL(request.url);
 
     if (requestUrl.pathname === '/health') {
-      return Response.json({
-        ok: true,
-        name: 'apollo',
-        features: ['session', 'vectorize', 'r2', 'queues', 'workflows'],
-      });
+      if (request.method === 'OPTIONS') {
+        return new Response(null, { headers: CONSOLE_CORS_HEADER_MAP });
+      }
+      return Response.json(
+        {
+          ok: true,
+          name: 'apollo',
+          features: ['session', 'vectorize', 'r2', 'queues', 'workflows'],
+        },
+        { headers: CONSOLE_CORS_HEADER_MAP },
+      );
     }
 
     if (requestUrl.pathname.startsWith('/ota/')) {
@@ -31,8 +48,11 @@ export default {
     }
 
     const agentResponse = await routeAgentRequest(request, environment, {
+      cors: true,
       onBeforeConnect: async (connectRequest) =>
         authorizeApolloConnection(connectRequest, environment),
+      onBeforeRequest: async (httpRequest) =>
+        authorizeApolloHttpRequest(httpRequest, environment),
     });
 
     if (agentResponse !== undefined && agentResponse !== null) {

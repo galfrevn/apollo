@@ -1,0 +1,138 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('./fonts/jetbrainsmono.woff2') format('woff2');
+  font-weight: 100 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('./fonts/archivo.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@theme {
+  --color-*: initial;
+  --color-ground: #0b0b0d;
+  --color-panel: #111114;
+  --color-raised: #19191d;
+  --color-line: #26262c;
+  --color-linefaint: rgba(235, 235, 242, 0.05);
+  --color-ink: #ececf1;
+  --color-muted: #a3a3ad;
+  --color-faint: #8a8a96;
+  --color-amber: #f5a623;
+  --color-amberdim: rgba(245, 166, 35, 0.12);
+  --color-danger: #ec5a5f;
+  --color-dangerdim: rgba(229, 72, 77, 0.12);
+
+  --font-sans: 'Archivo', 'Helvetica Neue', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-ground);
+    background-image: radial-gradient(var(--color-linefaint) 1px, transparent 1px);
+    background-size: 26px 26px;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    caret-color: var(--color-amber);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: var(--color-amber);
+    color: var(--color-ground);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-amber);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-ground);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line);
+    border: 2px solid var(--color-ground);
+    border-radius: 5px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-faint);
+  }
+
+  input::placeholder {
+    color: var(--color-faint);
+  }
+
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@utility label-soft {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+@utility pixelfield {
+  background-image: radial-gradient(var(--color-linefaint) 1.5px, transparent 1.5px);
+  background-size: 10px 10px;
+}
+
+@keyframes signal {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility settle {
+  animation: settle 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

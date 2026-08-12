@@ -33,6 +33,16 @@ import {
 } from '@/auth/role';
 import { isDeviceSharedSecretValid } from '@/auth/token';
 import {
+  browseConsoleMemory as browseConsoleMemoryRecords,
+  type ConsoleMemoryBrowseResult,
+} from '@/console/memory';
+import {
+  consoleCancelReminderInputSchema,
+  consoleMemoryBrowseInputSchema,
+  consoleSecretInputSchema,
+} from '@/console/rpc';
+import { buildConsoleStatusSnapshot, type ConsoleStatusSnapshot } from '@/console/status';
+import {
   clearDeskFocus,
   createInactiveDeskFocusState,
   startDeskFocus,
@@ -50,6 +60,7 @@ import {
   type InitiativeDeliveryOutcome,
   type InitiativeUtteranceInput,
 } from '@/initiative/logic';
+import { listListItemRecords, type ListItemRecord } from '@/lists/store';
 import { resolveDiscoveredMcpToolSafety } from '@/mcp/adapter';
 import {
   buildDeviceToolCallPayload,
@@ -100,6 +111,7 @@ import {
   mapAgentScheduleListToReminderList,
   selectReminderRowsForCancel,
   type AgentScheduleLike,
+  type ScheduledReminderRow,
 } from '@/reminders/logic';
 import { createDeskUiMachine, type DeskUiMachine } from '@/session/machine';
 import {
@@ -583,6 +595,63 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
+  async getConsoleStatus(rawInput: unknown): Promise<ConsoleStatusSnapshot> {
+    const input = consoleSecretInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    await this.#ensureTelemetrySnapshotLoaded();
+    const reminderList = await this.#listConsoleReminderRowList();
+    return buildConsoleStatusSnapshot({
+      deviceConnectionCount: [...this.getConnections(DEVICE_CONNECTION_TAG)].length,
+      telemetrySnapshot: this.#lastTelemetrySnapshot,
+      pendingReminderCount: reminderList.length,
+      nowMilliseconds: Date.now(),
+    });
+  }
+
+  @callable()
+  async browseConsoleMemory(rawInput: unknown): Promise<ConsoleMemoryBrowseResult> {
+    const input = consoleMemoryBrowseInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    return browseConsoleMemoryRecords(this.#sqlExecutor(), {
+      query: input.query,
+      limit: input.limit,
+    });
+  }
+
+  @callable()
+  async listConsoleLists(rawInput: unknown): Promise<readonly ListItemRecord[]> {
+    const input = consoleSecretInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    return listListItemRecords(this.#sqlExecutor());
+  }
+
+  @callable()
+  async listConsoleReminders(
+    rawInput: unknown,
+  ): Promise<readonly ScheduledReminderRow[]> {
+    const input = consoleSecretInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    return this.#listConsoleReminderRowList();
+  }
+
+  @callable()
+  async cancelConsoleReminder(
+    rawInput: unknown,
+  ): Promise<readonly ScheduledReminderRow[]> {
+    const input = consoleCancelReminderInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    await this.cancelSchedule(input.reminderId);
+    await this.#broadcastSoonestRemainingTimerArc();
+    return this.#listConsoleReminderRowList();
+  }
+
+  async #listConsoleReminderRowList(): Promise<readonly ScheduledReminderRow[]> {
+    return mapAgentScheduleListToReminderList(
+      mapUnknownScheduleListToAgentScheduleLikeList(await this.listSchedules()),
+    );
+  }
+
+  @callable()
   async setSpeechMode(speechModeId: string): Promise<ApolloState> {
     const speechMode = resolveDeskSpeechMode(speechModeId);
     await setSessionPreference(this.#sqlExecutor(), 'speechMode', speechMode.id);
@@ -840,6 +909,19 @@ export class Apollo extends Agent<Env, ApolloState> {
       return createInactiveDeskFocusState();
     }
     return tickDeskFocus({ active: true, endsAt: this.state.focusEndsAt }, Date.now());
+  }
+
+  async #ensureTelemetrySnapshotLoaded(): Promise<void> {
+    if (this.#lastTelemetrySnapshot !== undefined) {
+      return;
+    }
+    const storedSnapshot = await getSessionPreference(
+      this.#sqlExecutor(),
+      TELEMETRY_SNAPSHOT_PREFERENCE_KEY,
+    );
+    if (storedSnapshot !== undefined && storedSnapshot !== null) {
+      this.#lastTelemetrySnapshot = parseStoredTelemetrySnapshot(storedSnapshot);
+    }
   }
 
   #sqlExecutor(): MemorySqlExecutor {
@@ -1280,15 +1362,7 @@ export class Apollo extends Agent<Env, ApolloState> {
   ): Promise<void> {
     const deviceId = this.name ?? 'default';
     this.#isSpeechAborted = false;
-    if (this.#lastTelemetrySnapshot === undefined) {
-      const storedSnapshot = await getSessionPreference(
-        this.#sqlExecutor(),
-        TELEMETRY_SNAPSHOT_PREFERENCE_KEY,
-      );
-      if (storedSnapshot !== undefined && storedSnapshot !== null) {
-        this.#lastTelemetrySnapshot = parseStoredTelemetrySnapshot(storedSnapshot);
-      }
-    }
+    await this.#ensureTelemetrySnapshotLoaded();
     const deskToolEffects = createDeskToolEffects({
       sqlExecutor: this.#sqlExecutor(),
       environment: this.env,
