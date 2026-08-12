@@ -27,6 +27,10 @@ import { chatWithOpenRouter } from '@/voice/llm';
 export const OWNER_MEMORY_STATE_PREFERENCE_KEY = 'ownerMemoryState';
 export const OWNER_MEMORY_INDEX_INTENT_PREFERENCE_KEY = 'ownerMemoryIndexIntents';
 
+// The intent list is a write-ahead log for the persist+index pair: an entry
+// is durable before the row insert, so a crash at any point replays here —
+// inserting the row if it never landed, then re-enqueueing its index job
+// (an upsert by id, so replays are idempotent).
 async function drainMemoryIndexIntents(
   dependencies: OwnerMemoryConsolidationDependencies,
 ): Promise<void> {
@@ -42,8 +46,20 @@ async function drainMemoryIndexIntents(
     return;
   }
   for (const intent of intentList) {
+    const existingMemoryId = await findMemoryRecordIdByContent(
+      dependencies.sqlExecutor,
+      intent.content,
+    );
+    if (existingMemoryId === undefined) {
+      await addMemoryRecord(
+        dependencies.sqlExecutor,
+        intent.content,
+        dependencies.nowMilliseconds,
+        () => intent.memoryId,
+      );
+    }
     await enqueueMemoryIndexJob(dependencies.environment, {
-      memoryId: intent.memoryId,
+      memoryId: existingMemoryId ?? intent.memoryId,
       content: intent.content,
       deviceId: dependencies.deviceId,
     });
@@ -161,18 +177,25 @@ export async function runOwnerMemoryConsolidation(
     if (existingMemoryId !== undefined) {
       continue;
     }
-    const memoryRecord = await addMemoryRecord(sqlExecutor, genuinelyNewFact.content);
-    // The intent is durable before the enqueue and cleared right after, so a
-    // crash in between re-enqueues exactly this row on the next run: indexing
-    // is at-least-once (Vectorize upserts by id) without ever re-enqueueing
-    // rows whose indexing already succeeded.
+    // Write-ahead ordering: the intent (with a pre-generated id) is durable
+    // before the insert, the insert before the enqueue, and the intent is
+    // cleared only once the enqueue succeeded. A crash in any window replays
+    // through the drain above — the fact is never persisted without its index
+    // job, and never re-enqueued once the pair completed.
+    const memoryId = dependencies.createIdentifier();
     await setSessionPreference(
       sqlExecutor,
       OWNER_MEMORY_INDEX_INTENT_PREFERENCE_KEY,
-      JSON.stringify([{ memoryId: memoryRecord.id, content: genuinelyNewFact.content }]),
+      JSON.stringify([{ memoryId, content: genuinelyNewFact.content }]),
+    );
+    await addMemoryRecord(
+      sqlExecutor,
+      genuinelyNewFact.content,
+      nowMilliseconds,
+      () => memoryId,
     );
     await enqueueMemoryIndexJob(dependencies.environment, {
-      memoryId: memoryRecord.id,
+      memoryId,
       content: genuinelyNewFact.content,
       deviceId: dependencies.deviceId,
     });
