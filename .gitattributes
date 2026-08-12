@@ -1,4 +1,2 @@
-# Skills are vendored copies from the open skills registry, pinned by skills-lock.json.
-# Without this they outweigh src/ and GitHub reports the repo as JavaScript.
 .agents/skills/** linguist-vendored
 .claude/skills/** linguist-vendored
