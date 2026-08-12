@@ -33,9 +33,8 @@ jobs:
               - '**'
               - '!**/*.md'
               - '!documentation/**'
-              - '!.cursor/**'
+              - '!.claude/**'
               - '!.vscode/**'
-              - '!.coderback/**'
               - '!**/.DS_Store'
 
   secrets:

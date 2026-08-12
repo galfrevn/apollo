@@ -40,3 +40,16 @@ Desktop.ini
 *.swo
 *~
 .idea/
+
+# claude code
+.claude/worktrees/
+.claude/checkpoints/
+.claude/mailbox/
+.claude/routines/.state/
+.claude/agent-memory-local/
+.claude/scheduled_tasks.json
+.claude/scheduled_tasks.lock
+.claude/agent-registry.json
+.claude/assistant-daemon-state.json
+.claude/first-run
+.claude/settings.local.json
