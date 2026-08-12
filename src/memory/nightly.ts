@@ -120,19 +120,19 @@ export async function runOwnerMemoryConsolidation(
   // Decayed facts stay in the memories table and Vectorize on purpose: that
   // layer is the provenance log recall_memory searches, while the consolidated
   // block only governs what occupies prompt budget. The existence check makes
-  // the inserts idempotent — a run that failed after some inserts reprocesses
-  // this window next night without duplicating rows or index entries.
+  // the insert idempotent, and the index job is enqueued even for an existing
+  // row — Vectorize upserts by memory id, so a run that died between insert
+  // and enqueue heals here instead of leaving the row unsearchable forever.
   for (const genuinelyNewFact of merge.genuinelyNewFactList) {
     const existingMemoryId = await findMemoryRecordIdByContent(
       sqlExecutor,
       genuinelyNewFact.content,
     );
-    if (existingMemoryId !== undefined) {
-      continue;
-    }
-    const memoryRecord = await addMemoryRecord(sqlExecutor, genuinelyNewFact.content);
+    const memoryId =
+      existingMemoryId ??
+      (await addMemoryRecord(sqlExecutor, genuinelyNewFact.content)).id;
     await enqueueMemoryIndexJob(dependencies.environment, {
-      memoryId: memoryRecord.id,
+      memoryId,
       content: genuinelyNewFact.content,
       deviceId: dependencies.deviceId,
     });
