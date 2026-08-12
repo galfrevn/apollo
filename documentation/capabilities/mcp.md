@@ -5,7 +5,7 @@ definition, opening a pull request, and deploying. Installed MCP servers are the
 door. The owner connects an external Model Context Protocol server at runtime and picks
 which of its tools Apollo may call — no deploy, no firmware flash.
 
-Code lives under `src/mcp/`. Note that folder holds **two opposite directions**, and they
+Code lives under `apps/agent/src/mcp/`. Note that folder holds **two opposite directions**, and they
 share nothing but a protocol name:
 
 - `bridge.ts` — inbound. Apollo calls tools **on the firmware** over the device WebSocket
@@ -25,7 +25,7 @@ policy. Installation goes through `@callable()` RPC on the Durable Object:
 | `enableMcpTool` / `disableMcpTool` | Per-tool opt-in, with an optional safety override |
 
 Server rows live in the SDK's own `cf_agents_mcp_servers` table. URLs must be absolute
-`https` (`src/mcp/servers.ts`) — a relative one would resolve against the worker itself,
+`https` (`apps/agent/src/mcp/servers.ts`) — a relative one would resolve against the worker itself,
 and plain `http` would carry the owner's token in clear.
 
 For a server behind OAuth, `installMcpServer` returns an `authUrl` instead of connecting.
@@ -47,7 +47,7 @@ picks worse than one choosing from thirty. On a device whose entire value is a f
 correct spoken answer, that trade is not worth making silently. Enable the four tools you
 actually want.
 
-Enabled tools live in the `mcp_tool_settings` table (`src/mcp/settings.ts`), one row per
+Enabled tools live in the `mcp_tool_settings` table (`apps/agent/src/mcp/settings.ts`), one row per
 tool, holding the enabled flag and the safety level. Disabled tools are filtered out when
 the turn's tool map is built, so they are neither advertised to the model nor callable.
 
@@ -55,7 +55,7 @@ the turn's tool map is built, so they are neither advertised to the model nor ca
 
 An installed tool reaches the model as `mcp_{serverId}_{toolName}_{hash}` — the OpenAI
 function schema only accepts `/^[A-Za-z0-9_]+$/` and caps names at 64 characters, so both
-segments are sanitized and the readable part is truncated to fit (`src/mcp/naming.ts`).
+segments are sanitized and the readable part is truncated to fit (`apps/agent/src/mcp/naming.ts`).
 
 That sanitizing is lossy: `read-only`, `read_only` and `read.only` all render alike. The
 suffix hashes the **raw** identity so distinct tools stay distinct, because a shared name
@@ -89,7 +89,7 @@ Two things installed tools do differently from built-ins, both on purpose:
   schema is its own; Apollo passes `inputSchema` through untouched and lets the server
   reject a bad call with `isError`.
 - **The handler catches everything.** `executeToolByName` does not wrap `safe` handlers
-  (`src/tools/router.ts`), so a thrown fetch error would fail the whole turn rather than
+  (`apps/agent/src/tools/router.ts`), so a thrown fetch error would fail the whole turn rather than
   the one call. A network failure has to come back as an ordinary tool error the model can
   narrate.
 
@@ -101,7 +101,7 @@ not cosmetic — an open browser tab counted as "the device is present" for the 
 engine, and a binary frame from any connection was appended to the microphone buffer.
 
 Connections are now tagged `device` or `dashboard` at connect time from the credential
-they presented (`src/auth/role.ts`), and every broadcast addresses `getConnections('device')`.
+they presented (`apps/agent/src/auth/role.ts`), and every broadcast addresses `getConnections('device')`.
 The device is also excluded from the SDK's own protocol frames — state sync, MCP server
 lists — which are not part of the Apollo protocol and which the firmware answers with an
 error. See [Auth](../operations/auth.md).

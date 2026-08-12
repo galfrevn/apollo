@@ -4,11 +4,11 @@ Apollo’s voice is shaped by a soul prompt plus a selectable speech mode.
 
 ## Soul
 
-`src/persona/soul.ts` builds the system prompt: identity, operating rules (which tools to prefer), and the active mode override. The spoken identity is Rioplatense Spanish in product behavior, even though this handbook is written in English for developers.
+`apps/agent/src/persona/soul.ts` builds the system prompt: identity, operating rules (which tools to prefer), and the active mode override. The spoken identity is Rioplatense Spanish in product behavior, even though this handbook is written in English for developers.
 
 ## Speech modes
 
-Modes are catalogued in `src/persona/catalog.ts`:
+Modes are catalogued in `apps/agent/src/persona/catalog.ts`:
 
 | Id | Intent |
 |----|--------|

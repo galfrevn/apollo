@@ -13,7 +13,7 @@ Apollo is a personal desk agent designed for an ESP32 device on your desk. The d
 
 - A general chat web app or dashboard product
 - A metrics / DORA analytics system
-- The firmware itself — that lives in `firmware/apollo-firmware`, a git submodule with its own handbook. This one covers the Workers side and the wire protocol the device speaks.
+- The firmware itself — that lives in `apps/firmware/apollo-firmware`, a git submodule with its own handbook. This one covers the Workers side and the wire protocol the device speaks.
 
 ## Why ESP32
 

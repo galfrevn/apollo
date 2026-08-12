@@ -4,11 +4,11 @@ Apollo can clone a GitHub repository, change it, run its tests, and open a pull 
 
 ## The shape of a run
 
-`start_coding_task` is `unsafe`, so one spoken confirmation authorizes the whole task; confirming every `git` and `npm` command by voice would be unusable. The handler only enqueues, so nothing starts before you approve. The job goes to the `apollo-coding` Workflow (`src/workflows/coding.ts`), which:
+`start_coding_task` is `unsafe`, so one spoken confirmation authorizes the whole task; confirming every `git` and `npm` command by voice would be unusable. The handler only enqueues, so nothing starts before you approve. The job goes to the `apollo-coding` Workflow (`apps/agent/src/workflows/coding.ts`), which:
 
 1. Mints a GitHub App installation token and reads the default branch.
 2. Clones fresh into `/workspace/repo` in the agent sandbox.
-3. Runs the agent loop (`src/coding/agent.ts`) with four tools: `list_files`, `read_file`, `write_file`, `run_command`.
+3. Runs the agent loop (`apps/agent/src/coding/agent.ts`) with four tools: `list_files`, `read_file`, `write_file`, `run_command`.
 4. Extracts the agent's changes as a binary patch — no token involved.
 5. In a second, fresh sandbox: clones again, cuts an `apollo/<slug>-<id>` branch, applies the patch, commits as the bot, pushes, and opens the pull request.
 6. Destroys both sandboxes.
@@ -19,14 +19,14 @@ The result comes back through the same path as deep research: a short spoken sum
 
 Nobody dictates `owner/repo` out loud, so the tool accepts the name however the
 user says it — "apollo", "apollo firmware" — and resolves it against the App's
-installation list (`resolveSpokenRepositoryReference`, `src/github/repository.ts`),
+installation list (`resolveSpokenRepositoryReference`, `apps/agent/src/github/repository.ts`),
 ignoring case and separators. An exact name wins over a containment; an ambiguous
 name comes back as a spoken question listing the candidates, and an unknown one
 lists what is available instead of asking for a URL. A reference that already
 parses as `owner/repo` or a GitHub URL skips the lookup entirely. The agent can
 also enumerate the options with `list_coding_repositories` — the same
 installation list that acts as the allowlist, read through the App credentials
-(`listGithubAppRepositoryFullNameList`, `src/github/app.ts`).
+(`listGithubAppRepositoryFullNameList`, `apps/agent/src/github/app.ts`).
 
 ## Why the sandbox is disposable
 

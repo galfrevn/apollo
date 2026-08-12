@@ -72,3 +72,5 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           threshold: '80'
+          lcov-path: apps/agent/coverage/lcov.info
+          path-prefix: apps/agent/

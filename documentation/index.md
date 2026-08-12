@@ -44,10 +44,10 @@ This handbook is meant to be read in order. Later chapters assume the concepts i
 
 ### Part V — Reference
 
-25. [Mapping](reference/mapping.md) — Handbook topics to `src/` folders
+25. [Mapping](reference/mapping.md) — Handbook topics to `apps/agent/src/` folders
 26. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
 
 ## The firmware
 
-The device side lives in `firmware/apollo-firmware`, a git submodule with its own
+The device side lives in `apps/firmware/apollo-firmware`, a git submodule with its own
 handbook. The contract between the two repos is [Protocol](runtime/protocol.md).

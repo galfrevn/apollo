@@ -1,6 +1,6 @@
 # Tools
 
-Tools are how Apollo takes action beyond talking. Definitions live under `src/tools/`; the built-in list is assembled in `src/tools/catalog.ts`.
+Tools are how Apollo takes action beyond talking. Definitions live under `apps/agent/src/tools/`; the built-in list is assembled in `apps/agent/src/tools/catalog.ts`.
 
 ## Built-in catalog
 
@@ -27,7 +27,7 @@ The router resolves tool names to definitions, validates inputs, and coordinates
 ## Confirmations
 
 A tool asks for confirmation when — and only when — its definition is `safety: 'unsafe'`
-(`src/tools/router.ts`). The router then returns `needs_confirm` instead of running the
+(`apps/agent/src/tools/router.ts`). The router then returns `needs_confirm` instead of running the
 handler, the agent emits `confirm_request`, and the side effect waits for the device's
 `confirm` (or the 30 s expiry). On firmware with the confirm screen, that message
 replaces the face with the summary plus Sí/No touch buttons. However the window ends —

@@ -14,7 +14,7 @@ worker-configuration.d.ts
 *.local
 
 # testing
-/coverage/
+coverage/
 
 # environment
 .env

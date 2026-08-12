@@ -15,7 +15,7 @@ inherits delivery, focus gating, and cancellation from [Reminders](reminders.md)
 
 `set_timer` schedules a reminder whose message is either "Timer de ⟨duración⟩ terminado."
 or "Timer terminado: ⟨label⟩." Durations are spoken back through
-`formatDurationForSpeech` (`src/tools/timer.ts`), which rounds to seconds, minutes, or
+`formatDurationForSpeech` (`apps/agent/src/tools/timer.ts`), which rounds to seconds, minutes, or
 "⟨n⟩ horas y ⟨m⟩ minutos" so the confirmation sounds natural rather than numeric.
 
 `start_pomodoro` does two things in one call: it applies focus for the requested minutes
@@ -31,7 +31,7 @@ Carrying duration/remaining on the wire so the device can draw a countdown arc i
 
 ## Code
 
-`src/tools/timer.ts`, riding the scheduler in `src/reminders/logic.ts`.
+`apps/agent/src/tools/timer.ts`, riding the scheduler in `apps/agent/src/reminders/logic.ts`.
 
 ## Navigation
 

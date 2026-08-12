@@ -7,7 +7,7 @@ instead of going through web search: the answer is instant and costs no Tavily q
 
 - `dollar_rate` — optional `type`; with no type it speaks a summary of the main rates
 
-Supported types (`DOLLAR_RATE_TYPE_LIST` in `src/rates/dollar.ts`): `oficial`, `blue`,
+Supported types (`DOLLAR_RATE_TYPE_LIST` in `apps/agent/src/rates/dollar.ts`): `oficial`, `blue`,
 `bolsa`, `contadoconliqui`, `tarjeta`, `cripto`.
 
 ## Source
@@ -22,7 +22,7 @@ side.
 `formatDollarRateForSpeech` produces "Dólar Blue a $1.480 para la venta y $1.450 para la
 compra", falling back to the sale price alone when there is no buy side. The no-argument
 summary reads only `blue`, `oficial`, and `tarjeta` (`SUMMARY_CASA_LIST` in
-`src/tools/dollar.ts`) rather than all six — six rates in a row is a wall of numbers.
+`apps/agent/src/tools/dollar.ts`) rather than all six — six rates in a row is a wall of numbers.
 
 ## Navigation
 

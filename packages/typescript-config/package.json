@@ -1,0 +1,7 @@
+{
+  "name": "@apollo/typescript-config",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "files": ["base.json"]
+}

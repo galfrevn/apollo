@@ -8,7 +8,7 @@ A desk interaction is a loop: connect, authorize, exchange control messages and 
 - Agent WebSocket/HTTP routes are handled via the Cloudflare Agents request router
 - Queue consumers process background jobs outside the interactive turn
 
-Primary wiring lives in `src/index.ts` and `src/agents/apollo.ts`.
+Primary wiring lives in `apps/agent/src/index.ts` and `apps/agent/src/agents/apollo.ts`.
 
 ## Happy path
 
@@ -31,12 +31,12 @@ A device `abort` cuts the reply short: the pacing loop checks the flag between c
 
 ## Dashboard refresh
 
-Apollo pushes a dashboard payload (clock + weather) on connect, on the tap that opens the dashboard, and then every 30 minutes — but the periodic refresh only fires while the UI is actually in `dashboard` state and someone is connected (`shouldPushDashboardOnWeatherRefresh` in `src/agents/dashboard.ts`). Idle receives no periodic push.
+Apollo pushes a dashboard payload (clock + weather) on connect, on the tap that opens the dashboard, and then every 30 minutes — but the periodic refresh only fires while the UI is actually in `dashboard` state and someone is connected (`shouldPushDashboardOnWeatherRefresh` in `apps/agent/src/agents/dashboard.ts`). Idle receives no periodic push.
 
 ## Guardrails
 
 - A turn needs at least 8000 bytes of audio (a quarter second at 16 kHz); below that the server answers "no llegué a escucharte" instead of sending an empty clip to the transcriber
-- A turn runs at most 3 tool rounds (`src/turn/run.ts`) before it has to answer with what it has
+- A turn runs at most 3 tool rounds (`apps/agent/src/turn/run.ts`) before it has to answer with what it has
 
 ## Navigation
 

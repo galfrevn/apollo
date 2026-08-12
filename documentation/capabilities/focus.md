@@ -9,7 +9,7 @@ Focus mode turns the desk into a timer-first companion: fewer announcements, sho
 
 ## Device surface
 
-While focus is active, `ui_state` can include `focusRemainingSec`. Gestures and the UI state `focus` keep the ESP32 aligned with the Durable Object timer logic in `src/focus/logic.ts`.
+While focus is active, `ui_state` can include `focusRemainingSec`. Gestures and the UI state `focus` keep the ESP32 aligned with the Durable Object timer logic in `apps/agent/src/focus/logic.ts`.
 
 ## Behavior contract
 
