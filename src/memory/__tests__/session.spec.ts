@@ -1,6 +1,55 @@
+import {
+  Session,
+  type RecentHistoryResult,
+  type SessionMessage,
+  type SessionProvider,
+  type StoredCompaction,
+} from 'agents/experimental/memory/session';
 import { describe, expect, it } from 'bun:test';
 
-import { mapRecentHistoryToChatMessageList } from '@/memory/session';
+import {
+  buildRecentTurnHistoryMessageList,
+  mapRecentHistoryToChatMessageList,
+} from '@/memory/session';
+
+function createFakeSessionProvider(recentHistoryResult: RecentHistoryResult): {
+  readonly provider: SessionProvider;
+  readonly getRecentHistoryCallArgList: readonly [
+    leafId: string | null | undefined,
+    maxContentBytes: number,
+    minRecentMessages: number | undefined,
+  ][];
+} {
+  const getRecentHistoryCallArgList: [
+    leafId: string | null | undefined,
+    maxContentBytes: number,
+    minRecentMessages: number | undefined,
+  ][] = [];
+  const provider: SessionProvider = {
+    getMessage: () => null,
+    getHistory: () => [],
+    getLatestLeaf: () => null,
+    getBranches: () => [],
+    getPathLength: () => 0,
+    getRecentHistory: (leafId, maxContentBytes, minRecentMessages) => {
+      getRecentHistoryCallArgList.push([leafId, maxContentBytes, minRecentMessages]);
+      return recentHistoryResult;
+    },
+    appendMessage: () => {},
+    updateMessage: () => {},
+    deleteMessages: () => {},
+    clearMessages: () => {},
+    addCompaction: (summary, fromMessageId, toMessageId): StoredCompaction => ({
+      id: 'compaction-1',
+      summary,
+      fromMessageId,
+      toMessageId,
+      createdAt: new Date(0).toISOString(),
+    }),
+    getCompactions: () => [],
+  };
+  return { provider, getRecentHistoryCallArgList };
+}
 
 describe('mapRecentHistoryToChatMessageList', () => {
   it('keeps user and assistant turns in chronological order', () => {
@@ -60,5 +109,35 @@ describe('mapRecentHistoryToChatMessageList', () => {
     expect(chatMessageList).toEqual([
       { role: 'assistant', content: 'Primera parte. Segunda parte.' },
     ]);
+  });
+});
+
+describe('buildRecentTurnHistoryMessageList', () => {
+  it('reads the session recency window and maps it to chat messages', async () => {
+    const storedMessageList: SessionMessage[] = [
+      {
+        id: '1',
+        role: 'user',
+        parts: [{ type: 'text', text: 'dame ideas para el finde' }],
+      },
+      { id: '2', role: 'assistant', parts: [{ type: 'text', text: 'andá a la costa' }] },
+    ];
+    const { provider, getRecentHistoryCallArgList } = createFakeSessionProvider({
+      messages: storedMessageList,
+      truncated: false,
+      totalContentBytes: 42,
+    });
+    const session = Session.create(provider).forSession('test-session');
+
+    const chatMessageList = await buildRecentTurnHistoryMessageList(session);
+
+    expect(chatMessageList).toEqual([
+      { role: 'user', content: 'dame ideas para el finde' },
+      { role: 'assistant', content: 'andá a la costa' },
+    ]);
+    expect(getRecentHistoryCallArgList).toHaveLength(1);
+    const [, maxContentBytes, minRecentMessages] = getRecentHistoryCallArgList[0];
+    expect(maxContentBytes).toBe(8_000);
+    expect(minRecentMessages).toBe(10);
   });
 });
