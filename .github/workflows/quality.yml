@@ -5,69 +5,42 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
-  lint:
-    name: Lint
+  quality:
+    name: Quality
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup
+        id: setup
         uses: ./.github/actions/setup
 
       - name: Run oxlint
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: bun run lint
 
-  format:
-    name: Format
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup
-        uses: ./.github/actions/setup
-
       - name: Check formatting
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: bun run format:check
 
-  types:
-    name: Types
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup
-        uses: ./.github/actions/setup
-
       - name: Typecheck
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: bun run typecheck
 
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup
-        uses: ./.github/actions/setup
-
       - name: Run tests with coverage
+        id: test
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: bun run test:coverage
 
       - name: Patch coverage
-        if: github.event_name == 'pull_request'
+        if: ${{ !cancelled() && steps.test.outcome == 'success' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/coverage
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}

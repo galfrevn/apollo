@@ -5,7 +5,6 @@ on:
     types:
       - opened
       - edited
-      - synchronize
       - reopened
 
 concurrency:
@@ -23,10 +22,12 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup
         uses: ./.github/actions/setup
+        with:
+          worker-types: 'false'
 
       - name: Validate pull request title
         env:

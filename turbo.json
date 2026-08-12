@@ -3,6 +3,7 @@
   "tasks": {
     "types": {
       "cache": true,
+      "inputs": ["wrangler.jsonc"],
       "outputs": ["worker-configuration.d.ts"]
     },
     "typecheck": {
