@@ -434,6 +434,11 @@ async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response
 
 ## Development & Testing
 
+> **Does not apply to this repo.** Apollo tests with `bun test`, not Vitest — tests live
+> beside the code as `__tests__/*.spec.ts` and favor focused unit tests over the Workers
+> pool. Do not add `@cloudflare/vitest-pool-workers` here. The rest of this section is
+> upstream background only; see `documentation/operations/testing.md`.
+
 ### Test with @cloudflare/vitest-pool-workers
 
 Runs tests inside the Workers runtime with real bindings. Catches issues that Node.js-based tests miss.

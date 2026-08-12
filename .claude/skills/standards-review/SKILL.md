@@ -1,5 +1,5 @@
 ---
-name: code-review
+name: standards-review
 description: Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes — Standards (does the code follow this repo's documented coding standards?) and Spec (does the code match what the originating issue/PRD asked for?). Runs both reviews in parallel sub-agents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to "review since X".
 ---
 
@@ -10,7 +10,12 @@ Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
 
 Both axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings.
 
-The issue tracker should have been provided to you — run `/setup-matt-pocock-skills` if `docs/agents/issue-tracker.md` is missing.
+> **Sub-agents are opt-in here.** This repo's standing instruction is not to spawn agents
+> unless asked. Invoking this skill *is* that request — the two sub-agents below are
+> authorized by running it. If the caller declines them, run both axes inline, one after
+> the other, and say so in the report.
+
+Issues live on GitHub; fetch them with the `gh` CLI (`gh issue view <number>`).
 
 ## Process
 
@@ -26,14 +31,14 @@ Before going further, confirm the fixed point resolves (`git rev-parse <fixed-po
 
 Look for the originating spec, in this order:
 
-1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`, etc.) — fetch via the workflow in `docs/agents/issue-tracker.md`.
+1. Issue references in the commit messages (`#123`, `Closes #45`) — fetch with `gh issue view <number>`. Pull requests carry the same context: `gh pr view <number>`.
 2. A path the user passed as an argument.
-3. A PRD/spec file under `docs/`, `specs/`, or `.scratch/` matching the branch name or feature.
+3. A spec under `documentation/` — `documentation/reference/roadmap.md` tracks confirmed work and proposals, and `documentation/reference/mapping.md` maps topics to `src/` folders.
 4. If nothing is found, ask the user where the spec is. If they say there isn't one, the **Spec** sub-agent will skip and report "no spec available".
 
 ### 3. Identify the standards sources
 
-Anything in the repo that documents how code should be written, such as `CODING_STANDARDS.md` or `CONTRIBUTING.md`.
+Anything in the repo that documents how code should be written. In this repo that is `CLAUDE.md` (naming, code quality, and import grouping); also check for `CODING_STANDARDS.md` or `CONTRIBUTING.md`.
 
 On top of whatever the repo documents, the Standards axis always carries the **smell baseline** below — a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules bind it:
 

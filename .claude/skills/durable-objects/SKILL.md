@@ -1,6 +1,6 @@
 ---
 name: durable-objects
-description: Create and review Cloudflare Durable Objects. Use when building stateful coordination (chat rooms, multiplayer games, booking systems), implementing RPC methods, SQLite storage, alarms, WebSockets, or reviewing DO code for best practices. Covers Workers integration, wrangler config, and testing with Vitest. Biases towards retrieval from Cloudflare docs over pre-trained knowledge.
+description: Create and review Cloudflare Durable Objects. Use when building stateful coordination (chat rooms, multiplayer games, booking systems), implementing RPC methods, SQLite storage, alarms, WebSockets, or reviewing DO code for best practices. Covers Workers integration, wrangler config, and testing. Biases towards retrieval from Cloudflare docs over pre-trained knowledge.
 ---
 
 # Durable Objects
@@ -26,7 +26,7 @@ Fetch the relevant doc page when implementing features.
 - Implementing RPC methods, alarms, or WebSocket handlers
 - Reviewing existing DO code for best practices
 - Configuring wrangler.jsonc/toml for DO bindings and migrations
-- Writing tests with `@cloudflare/vitest-pool-workers`
+- Writing tests for DO behavior (in this repo: `bun test`, see note below)
 - Designing sharding strategies and parent-child relationships
 
 ## Reference Documentation
@@ -34,6 +34,11 @@ Fetch the relevant doc page when implementing features.
 - `./references/rules.md` - Core rules, storage, concurrency, RPC, alarms
 - `./references/testing.md` - Vitest setup, unit/integration tests, alarm testing
 - `./references/workers.md` - Workers handlers, types, wrangler config, observability
+
+> **This repo tests with `bun test`, not Vitest.** Tests live beside the code as
+> `__tests__/*.spec.ts` and favor focused unit tests over the Workers pool. Treat
+> `references/testing.md` as upstream background only — do not add
+> `@cloudflare/vitest-pool-workers` here. See `documentation/operations/testing.md`.
 
 Search: `blockConcurrencyWhile`, `idFromName`, `getByName`, `setAlarm`, `sql.exec`
 
