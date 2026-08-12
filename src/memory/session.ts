@@ -2,10 +2,15 @@ import {
   AgentSearchProvider,
   R2SkillProvider,
   Session,
+  type SessionMessage,
 } from 'agents/experimental/memory/session';
 
 import type { Apollo } from '@/agents/apollo';
 import { buildApolloSoulPrompt } from '@/persona/soul';
+import type { OpenRouterChatMessage } from '@/voice/llm';
+
+const RECENT_TURN_HISTORY_BYTE_BUDGET = 8_000;
+const RECENT_TURN_HISTORY_MIN_MESSAGE_COUNT = 10;
 
 export function createApolloSession(agent: Apollo, mediaBucket: R2Bucket): Session {
   return Session.create(agent)
@@ -42,4 +47,41 @@ export async function rememberFactInSession(
 
 export async function buildSessionSystemPrompt(session: Session): Promise<string> {
   return session.freezeSystemPrompt();
+}
+
+function mapSessionMessageToChatMessage(
+  message: SessionMessage,
+): OpenRouterChatMessage | undefined {
+  if (message.role !== 'user' && message.role !== 'assistant') {
+    return undefined;
+  }
+  const messageText = message.parts
+    .filter((part) => part.type === 'text' && typeof part.text === 'string')
+    .map((part) => part.text)
+    .join(' ')
+    .trim();
+  if (messageText.length === 0) {
+    return undefined;
+  }
+  return message.role === 'user'
+    ? { role: 'user', content: messageText }
+    : { role: 'assistant', content: messageText };
+}
+
+export function mapRecentHistoryToChatMessageList(
+  messageList: readonly SessionMessage[],
+): readonly OpenRouterChatMessage[] {
+  return messageList
+    .map(mapSessionMessageToChatMessage)
+    .filter((message): message is OpenRouterChatMessage => message !== undefined);
+}
+
+export async function buildRecentTurnHistoryMessageList(
+  session: Session,
+): Promise<readonly OpenRouterChatMessage[]> {
+  const recentHistory = await session.getRecentHistory(
+    RECENT_TURN_HISTORY_BYTE_BUDGET,
+    RECENT_TURN_HISTORY_MIN_MESSAGE_COUNT,
+  );
+  return mapRecentHistoryToChatMessageList(recentHistory.messages);
 }
