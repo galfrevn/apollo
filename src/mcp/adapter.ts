@@ -123,18 +123,40 @@ function buildInstalledMcpToolDefinition(input: {
   };
 }
 
+// Two enabled tools rendering to one name would let the map's last writer answer
+// for both. Dropping every side of a collision fails closed; keeping one would
+// run it under a safety level the owner granted to a different tool.
+export function listNonCollidingMcpToolDefinitions(
+  toolDefinitionList: readonly ToolDefinition[],
+): readonly ToolDefinition[] {
+  const nameCountMap = new Map<string, number>();
+  for (const toolDefinition of toolDefinitionList) {
+    nameCountMap.set(
+      toolDefinition.name,
+      (nameCountMap.get(toolDefinition.name) ?? 0) + 1,
+    );
+  }
+  return toolDefinitionList.filter(
+    (toolDefinition) => nameCountMap.get(toolDefinition.name) === 1,
+  );
+}
+
 export function buildInstalledMcpToolDefinitionList(input: {
   readonly discoveredToolList: readonly DiscoveredMcpTool[];
   readonly settingList: readonly McpToolSettingRow[];
   readonly serverLabelMap: ReadonlyMap<string, string>;
   readonly callInstalledMcpTool: DeskToolEffects['callInstalledMcpTool'];
 }): readonly ToolDefinition[] {
-  return input.discoveredToolList.flatMap((discoveredTool) => {
+  const enabledToolDefinitionList = input.discoveredToolList.flatMap((discoveredTool) => {
     const namespacedName = buildNamespacedMcpToolName(
       discoveredTool.serverId,
       discoveredTool.name,
     );
-    const settingRow = findMcpToolSetting(input.settingList, namespacedName);
+    const settingRow = findMcpToolSetting(
+      input.settingList,
+      discoveredTool.serverId,
+      discoveredTool.name,
+    );
     if (settingRow === undefined || !settingRow.isEnabled) {
       return [];
     }
@@ -149,4 +171,5 @@ export function buildInstalledMcpToolDefinitionList(input: {
       }),
     ];
   });
+  return listNonCollidingMcpToolDefinitions(enabledToolDefinitionList);
 }

@@ -86,7 +86,11 @@ export function buildMcpServerSummaryList(input: {
       .filter((discoveredTool) => discoveredTool.serverId === serverId)
       .map((discoveredTool) => {
         const namespacedName = buildNamespacedMcpToolName(serverId, discoveredTool.name);
-        const settingRow = findMcpToolSetting(input.settingList, namespacedName);
+        const settingRow = findMcpToolSetting(
+          input.settingList,
+          serverId,
+          discoveredTool.name,
+        );
         return {
           namespacedName,
           toolName: discoveredTool.name,

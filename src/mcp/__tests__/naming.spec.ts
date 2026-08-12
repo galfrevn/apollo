@@ -8,15 +8,35 @@ import {
 
 describe('namespaced mcp tool name', () => {
   it('joins the server id and tool name under an mcp prefix', () => {
-    expect(buildNamespacedMcpToolName('github', 'create_pull_request')).toBe(
-      'mcp_github_create_pull_request',
+    expect(buildNamespacedMcpToolName('github', 'create_pull_request')).toStartWith(
+      'mcp_github_create_pull_request_',
     );
   });
 
   it('replaces every character the openai schema rejects', () => {
     const builtName = buildNamespacedMcpToolName('GitHub MCP!', 'repo/list-branches');
-    expect(builtName).toBe('mcp_GitHub_MCP_repo_list_branches');
+    expect(builtName).toStartWith('mcp_GitHub_MCP_repo_list_branches_');
     expect(builtName).toMatch(/^[A-Za-z0-9_]+$/);
+  });
+
+  it('keeps tool names distinct when sanitizing renders them alike', () => {
+    const separatorVariantList = ['read-only', 'read_only', 'read.only', 'read only'];
+    const builtNameList = separatorVariantList.map((toolName) =>
+      buildNamespacedMcpToolName('server', toolName),
+    );
+    expect(new Set(builtNameList).size).toBe(separatorVariantList.length);
+  });
+
+  it('keeps server ids distinct when sanitizing renders them alike', () => {
+    expect(buildNamespacedMcpToolName('my-server', 'tool')).not.toBe(
+      buildNamespacedMcpToolName('my_server', 'tool'),
+    );
+  });
+
+  it('does not let the identity boundary shift between server and tool', () => {
+    expect(buildNamespacedMcpToolName('a', 'b_c')).not.toBe(
+      buildNamespacedMcpToolName('a_b', 'c'),
+    );
   });
 
   it('is a pure function of its inputs', () => {

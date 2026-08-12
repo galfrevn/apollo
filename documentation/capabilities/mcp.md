@@ -53,17 +53,25 @@ the turn's tool map is built, so they are neither advertised to the model nor ca
 
 ## Naming
 
-An installed tool reaches the model as `mcp_{serverId}_{toolName}` — the OpenAI function
-schema only accepts `/^[A-Za-z0-9_]+$/` and caps names at 64 characters, so both segments
-are sanitized and long names are truncated with a deterministic hash suffix
-(`src/mcp/naming.ts`).
+An installed tool reaches the model as `mcp_{serverId}_{toolName}_{hash}` — the OpenAI
+function schema only accepts `/^[A-Za-z0-9_]+$/` and caps names at 64 characters, so both
+segments are sanitized and the readable part is truncated to fit (`src/mcp/naming.ts`).
 
-Nothing ever parses that name back apart. The handler closes over its `{serverId, toolName}`
-when the map is built. What matters is that the name is a **pure function of its inputs**:
-`pending_confirmations` stores it, and the confirm turn rebuilds the tool map from scratch
-and looks the tool up by it. A random suffix would make every confirmed MCP call fail.
+That sanitizing is lossy: `read-only`, `read_only` and `read.only` all render alike. The
+suffix hashes the **raw** identity so distinct tools stay distinct, because a shared name
+is not a cosmetic problem — it would hand one tool the enablement and safety level the
+owner approved for another.
 
-Built-in definitions are appended last, so an installed server can never capture a name the
+Nothing ever parses the name back apart. The handler closes over its `{serverId, toolName}`
+when the map is built, and settings are looked up by that raw pair rather than by name, so
+no policy decision depends on the lossy rendering. What the name must be is a **pure
+function of its inputs**: `pending_confirmations` stores it, and the confirm turn rebuilds
+the tool map from scratch and looks the tool up by it. A random suffix would make every
+confirmed MCP call fail.
+
+Two further guards, both fail-closed: if two enabled tools ever did render to one name,
+every side is dropped rather than letting the map's last writer answer for all of them; and
+built-in definitions are appended last, so an installed server can never capture a name the
 persona prompt promises.
 
 ## Safety

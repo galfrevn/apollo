@@ -27,8 +27,11 @@ const githubServerRecordMap: Record<string, unknown> = {
   },
 };
 
+const listIssuesToolName = buildNamespacedMcpToolName('github', 'list_issues');
+const createIssueToolName = buildNamespacedMcpToolName('github', 'create_issue');
+
 const enabledListIssuesSetting: McpToolSettingRow = {
-  namespacedName: 'mcp_github_list_issues',
+  namespacedName: listIssuesToolName,
   serverId: 'github',
   toolName: 'list_issues',
   isEnabled: true,
@@ -96,12 +99,10 @@ describe('turn tool definition map', () => {
       callInstalledMcpTool: stubMcpEffect,
     });
 
-    expect(toolDefinitionMap.has('mcp_github_list_issues')).toBe(true);
-    expect(toolDefinitionMap.has('mcp_github_create_issue')).toBe(false);
+    expect(toolDefinitionMap.has(listIssuesToolName)).toBe(true);
+    expect(toolDefinitionMap.has(createIssueToolName)).toBe(false);
     expect(toolDefinitionMap.has('web_search')).toBe(true);
-    expect(toolDefinitionMap.get('mcp_github_list_issues')?.description).toContain(
-      'GitHub',
-    );
+    expect(toolDefinitionMap.get(listIssuesToolName)?.description).toContain('GitHub');
   });
 
   it('keeps every builtin definition reachable under its own name', () => {

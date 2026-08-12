@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 
 import { createFakeApolloEnvironment } from '@/configuration/testing';
+import { buildNamespacedMcpToolName } from '@/mcp/naming';
 import {
   buildInstalledMcpToolDefinitionList,
+  listNonCollidingMcpToolDefinitions,
   MCP_TOOL_DESCRIPTION_MAX_LENGTH,
   parseDiscoveredMcpToolList,
   resolveDiscoveredMcpToolSafety,
@@ -107,6 +109,35 @@ describe('discovered mcp tool safety', () => {
   });
 });
 
+function buildNamedDefinition(name: string): ToolDefinition {
+  return {
+    name,
+    safety: 'safe',
+    description: name,
+    parameters: {},
+    handler: async () => ({ ok: true, summary: name }),
+  };
+}
+
+describe('mcp tool name collision guard', () => {
+  it('drops every side of a collision rather than letting the last one win', () => {
+    const survivingList = listNonCollidingMcpToolDefinitions([
+      buildNamedDefinition('mcp_shared'),
+      buildNamedDefinition('mcp_shared'),
+      buildNamedDefinition('mcp_unique'),
+    ]);
+    expect(survivingList.map((definition) => definition.name)).toEqual(['mcp_unique']);
+  });
+
+  it('keeps a list that has no collisions untouched', () => {
+    const definitionList = [
+      buildNamedDefinition('mcp_one'),
+      buildNamedDefinition('mcp_two'),
+    ];
+    expect(listNonCollidingMcpToolDefinitions(definitionList)).toEqual(definitionList);
+  });
+});
+
 describe('installed mcp tool definitions', () => {
   it('omits a tool with no setting row', () => {
     const { callInstalledMcpTool } = buildRecordingEffect();
@@ -138,7 +169,7 @@ describe('installed mcp tool definitions', () => {
       callInstalledMcpTool,
     });
     expect(definition?.parameters).toBe(githubIssueInputSchema);
-    expect(definition?.name).toBe('mcp_github_list_issues');
+    expect(definition?.name).toBe(buildNamespacedMcpToolName('github', 'list_issues'));
     expect(definition?.safety).toBe('safe');
   });
 
@@ -195,6 +226,31 @@ describe('installed mcp tool definitions', () => {
     );
     expect(result?.ok).toBe(false);
     expect(result?.summary).toContain('socket hang up');
+  });
+
+  it('never lends one tool the approval the owner granted to another', () => {
+    const { callInstalledMcpTool } = buildRecordingEffect();
+    const definitionList = buildDefinitionList({
+      discoveredToolList: [
+        buildDiscoveredTool({ name: 'read-only', annotations: { readOnlyHint: true } }),
+        buildDiscoveredTool({ name: 'read_only' }),
+      ],
+      settingList: [
+        buildSettingRow({
+          namespacedName: buildNamespacedMcpToolName('github', 'read-only'),
+          toolName: 'read-only',
+          isEnabled: true,
+          safety: 'safe',
+        }),
+      ],
+      callInstalledMcpTool,
+    });
+
+    expect(definitionList).toHaveLength(1);
+    expect(definitionList[0]?.safety).toBe('safe');
+    expect(definitionList[0]?.name).toBe(
+      buildNamespacedMcpToolName('github', 'read-only'),
+    );
   });
 
   it('builds a confirm summary that never throws on hostile arguments', () => {

@@ -77,9 +77,16 @@ describe('mcp tool settings', () => {
     expect(settingList[0]?.serverId).toBe('github');
   });
 
-  it('finds a row by its namespaced name', () => {
+  it('finds a row by its raw server and tool identity', () => {
     const settingList = [buildSettingRow()];
-    expect(findMcpToolSetting(settingList, 'mcp_github_list_issues')).toBeDefined();
-    expect(findMcpToolSetting(settingList, 'mcp_github_other')).toBeUndefined();
+    expect(findMcpToolSetting(settingList, 'github', 'list_issues')).toBeDefined();
+    expect(findMcpToolSetting(settingList, 'github', 'other')).toBeUndefined();
+    expect(findMcpToolSetting(settingList, 'linear', 'list_issues')).toBeUndefined();
+  });
+
+  it('does not match a tool whose name merely sanitizes alike', () => {
+    const settingList = [buildSettingRow({ toolName: 'read-only' })];
+    expect(findMcpToolSetting(settingList, 'github', 'read-only')).toBeDefined();
+    expect(findMcpToolSetting(settingList, 'github', 'read_only')).toBeUndefined();
   });
 });

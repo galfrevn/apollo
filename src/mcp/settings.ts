@@ -65,9 +65,15 @@ export async function deleteMcpToolSettingsForServer(
   sqlExecutor.execute('DELETE FROM mcp_tool_settings WHERE server_id = ?', serverId);
 }
 
+// Matched on the raw identity rather than the namespaced name: the name is a
+// lossy rendering of it, so looking up by name could hand one tool the row the
+// owner approved for another.
 export function findMcpToolSetting(
   settingList: readonly McpToolSettingRow[],
-  namespacedName: string,
+  serverId: string,
+  toolName: string,
 ): McpToolSettingRow | undefined {
-  return settingList.find((settingRow) => settingRow.namespacedName === namespacedName);
+  return settingList.find(
+    (settingRow) => settingRow.serverId === serverId && settingRow.toolName === toolName,
+  );
 }
