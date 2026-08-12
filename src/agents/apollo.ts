@@ -1,4 +1,10 @@
-import { Agent, callable, type Connection, type WSMessage } from 'agents';
+import {
+  Agent,
+  callable,
+  type Connection,
+  type ConnectionContext,
+  type WSMessage,
+} from 'agents';
 import type { Session } from 'agents/experimental/memory/session';
 
 import {
@@ -42,6 +48,17 @@ import {
   summarizeDeviceToolResult,
 } from '@/mcp/bridge';
 import { deletePendingDeviceMessage, listPendingDeviceMessages } from '@/memory/pending';
+import { readFirmwareManifest } from '@/ota/manifest';
+import {
+  buildFirmwareChangelogMessage,
+  detectFirmwareVersionChange,
+  evaluateFirmwarePush,
+  parseStoredFirmwareChangelogState,
+  parseStoredFirmwarePushState,
+  recordFirmwareManifestCheck,
+  recordFirmwarePushAttempt,
+  shouldCheckFirmwareManifest,
+} from '@/ota/push';
 import { createApolloSession } from '@/memory/session';
 import {
   getSessionPreference,
@@ -90,6 +107,9 @@ const MINIMUM_TURN_AUDIO_BYTE_LENGTH = 8000;
 const LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY = 'lowBatteryLastAnnounceAt';
 const TELEMETRY_SNAPSHOT_PREFERENCE_KEY = 'lastTelemetrySnapshot';
 const INITIATIVE_STATE_PREFERENCE_KEY = 'initiativeState';
+const FIRMWARE_PUSH_STATE_PREFERENCE_KEY = 'firmwarePushState';
+const FIRMWARE_CHANGELOG_STATE_PREFERENCE_KEY = 'firmwareChangelogState';
+const PUBLIC_ORIGIN_PREFERENCE_KEY = 'publicOrigin';
 
 function mapUnknownScheduleListToAgentScheduleLikeList(
   scheduleList: readonly {
@@ -255,8 +275,26 @@ export class Apollo extends Agent<Env, ApolloState> {
     }
   }
 
-  async onConnect(connection: Connection): Promise<void> {
+  async onConnect(
+    connection: Connection,
+    connectionContext: ConnectionContext,
+  ): Promise<void> {
     await this.#ensurePreferencesLoaded();
+    // The DO has no ambient request origin, and the OTA push must hand the
+    // device a URL it can reach — the connection that just arrived proves this
+    // origin works, so it is captured here instead of configured.
+    const publicOrigin = new URL(connectionContext.request.url).origin;
+    const storedPublicOrigin = await getSessionPreference(
+      this.#sqlExecutor(),
+      PUBLIC_ORIGIN_PREFERENCE_KEY,
+    );
+    if (storedPublicOrigin !== publicOrigin) {
+      await setSessionPreference(
+        this.#sqlExecutor(),
+        PUBLIC_ORIGIN_PREFERENCE_KEY,
+        publicOrigin,
+      );
+    }
     // A caption describes the turn that produced it, not the session. Left in
     // durable state, a failure message greets the user on every reconnect long
     // after the turn that failed.
@@ -738,6 +776,24 @@ export class Apollo extends Agent<Env, ApolloState> {
         : {}),
       receivedAtMs: Date.now(),
     };
+    // The previous snapshot is read before the overwrite because the firmware
+    // lifecycle diffs versions across it — and after a deploy or hibernation
+    // the in-memory copy is gone, which is exactly the post-OTA-reboot case,
+    // so the stored copy is the fallback.
+    let previousSnapshot = this.#lastTelemetrySnapshot;
+    if (previousSnapshot === undefined) {
+      const storedSnapshot = await getSessionPreference(
+        this.#sqlExecutor(),
+        TELEMETRY_SNAPSHOT_PREFERENCE_KEY,
+      );
+      if (storedSnapshot !== null) {
+        previousSnapshot = parseStoredTelemetrySnapshot(storedSnapshot);
+      }
+    }
+    const didChargingEdgeOccur =
+      previousSnapshot?.charging !== undefined &&
+      snapshot.charging !== undefined &&
+      previousSnapshot.charging !== snapshot.charging;
     this.#lastTelemetrySnapshot = snapshot;
     // A deploy or hibernation wipes the in-memory snapshot, and the next turn
     // may run before the device's next telemetry tick — the prompt would then
@@ -748,6 +804,26 @@ export class Apollo extends Agent<Env, ApolloState> {
       JSON.stringify(snapshot),
     );
 
+    await this.#handleLowBatteryAnnouncement(snapshot);
+    try {
+      await this.#handleFirmwareLifecycle({
+        previousFirmwareVersion: previousSnapshot?.firmwareVersion,
+        snapshot,
+        didChargingEdgeOccur,
+      });
+    } catch (error) {
+      // OTA plumbing must never take telemetry handling down with it.
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          message: 'firmware_lifecycle_failed',
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+  }
+
+  async #handleLowBatteryAnnouncement(snapshot: DeskTelemetrySnapshot): Promise<void> {
     const storedAnnounceAt = await getSessionPreference(
       this.#sqlExecutor(),
       LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY,
@@ -797,6 +873,180 @@ export class Apollo extends Agent<Env, ApolloState> {
     } finally {
       this.#isAnnouncingLowBattery = false;
     }
+  }
+
+  // Roadmap item 23: after a reboot the first telemetry reports the new
+  // version (the changelog edge), and every telemetry tick is a chance to
+  // push a pending update when the device is idle and powered.
+  async #handleFirmwareLifecycle(input: {
+    readonly previousFirmwareVersion: string | undefined;
+    readonly snapshot: DeskTelemetrySnapshot;
+    readonly didChargingEdgeOccur: boolean;
+  }): Promise<void> {
+    const nowMilliseconds = Date.now();
+    const sqlExecutor = this.#sqlExecutor();
+
+    const storedChangelogState = await getSessionPreference(
+      sqlExecutor,
+      FIRMWARE_CHANGELOG_STATE_PREFERENCE_KEY,
+    );
+    let changelogState =
+      storedChangelogState === null
+        ? undefined
+        : parseStoredFirmwareChangelogState(storedChangelogState);
+
+    const versionChange = detectFirmwareVersionChange({
+      previousFirmwareVersion: input.previousFirmwareVersion,
+      nextFirmwareVersion: input.snapshot.firmwareVersion,
+    });
+    if (versionChange !== undefined) {
+      changelogState = { ...changelogState, pendingVersion: versionChange.toVersion };
+      await setSessionPreference(
+        sqlExecutor,
+        FIRMWARE_CHANGELOG_STATE_PREFERENCE_KEY,
+        JSON.stringify(changelogState),
+      );
+      // The device came back on the new version: the attempt marker did its
+      // job and must not throttle the next release.
+      await setSessionPreference(
+        sqlExecutor,
+        FIRMWARE_PUSH_STATE_PREFERENCE_KEY,
+        JSON.stringify(recordFirmwareManifestCheck(undefined, nowMilliseconds)),
+      );
+      console.log(
+        JSON.stringify({
+          level: 'info',
+          message: 'firmware_changelog_pending',
+          fromVersion: versionChange.fromVersion,
+          toVersion: versionChange.toVersion,
+        }),
+      );
+    }
+
+    if (
+      changelogState?.pendingVersion !== undefined &&
+      changelogState.pendingVersion !== changelogState.announcedVersion
+    ) {
+      const manifest = await readFirmwareManifest(this.env.MEDIA);
+      const changelogText =
+        manifest !== undefined && manifest.version === changelogState.pendingVersion
+          ? manifest.changelog
+          : undefined;
+      const deliveryOutcome = await this.#deliverInitiativeUtterance({
+        source: 'firmware_changelog',
+        priority: 'normal',
+        message: buildFirmwareChangelogMessage({
+          toVersion: changelogState.pendingVersion,
+          ...(changelogText !== undefined ? { changelogText } : {}),
+        }),
+        earconName: 'chime',
+      });
+      // A deferred utterance carries its message in the schedule payload, so
+      // it counts as announced here — otherwise the next telemetry tick would
+      // schedule a duplicate. Only a suppression leaves it pending for retry.
+      if (deliveryOutcome !== 'suppressed') {
+        changelogState = { announcedVersion: changelogState.pendingVersion };
+        await setSessionPreference(
+          sqlExecutor,
+          FIRMWARE_CHANGELOG_STATE_PREFERENCE_KEY,
+          JSON.stringify(changelogState),
+        );
+      }
+    }
+
+    if (this.env.FIRMWARE_PUSH_DISABLED === '1') {
+      return;
+    }
+    const storedPushState = await getSessionPreference(
+      sqlExecutor,
+      FIRMWARE_PUSH_STATE_PREFERENCE_KEY,
+    );
+    const pushState =
+      storedPushState === null
+        ? undefined
+        : parseStoredFirmwarePushState(storedPushState);
+    if (
+      !shouldCheckFirmwareManifest({
+        pushState,
+        didChargingEdgeOccur: input.didChargingEdgeOccur,
+        nowMilliseconds,
+      })
+    ) {
+      return;
+    }
+    const manifest = await readFirmwareManifest(this.env.MEDIA);
+    const checkedPushState = recordFirmwareManifestCheck(pushState, nowMilliseconds);
+    await setSessionPreference(
+      sqlExecutor,
+      FIRMWARE_PUSH_STATE_PREFERENCE_KEY,
+      JSON.stringify(checkedPushState),
+    );
+    if (manifest === undefined) {
+      return;
+    }
+    const evaluation = evaluateFirmwarePush({
+      snapshot: input.snapshot,
+      manifestVersion: manifest.version,
+      uiState: this.state.uiState,
+      isFocusActive: this.#currentFocusState().active,
+      hasPendingConfirmation: this.state.pendingConfirmId !== null,
+      isAnnouncementInFlight:
+        this.#isAnnouncingLowBattery || this.#isDeliveringInitiative,
+      pushState: checkedPushState,
+      nowMilliseconds,
+    });
+    if (!evaluation.shouldPush) {
+      if (evaluation.reason !== 'already_current') {
+        console.log(
+          JSON.stringify({
+            level: 'info',
+            message: 'firmware_push_skipped',
+            reason: evaluation.reason,
+          }),
+        );
+      }
+      return;
+    }
+    const publicOrigin = await getSessionPreference(
+      sqlExecutor,
+      PUBLIC_ORIGIN_PREFERENCE_KEY,
+    );
+    if (publicOrigin === null) {
+      console.error(
+        JSON.stringify({ level: 'error', message: 'firmware_push_missing_origin' }),
+      );
+      return;
+    }
+    const firmwareBinaryUrl = new URL('/ota/firmware.bin', publicOrigin);
+    firmwareBinaryUrl.searchParams.set('token', this.env.DEVICE_SHARED_SECRET);
+    // Recorded before the call: a crash mid-push must read as an attempt, or
+    // the device could be flashed in a loop.
+    await setSessionPreference(
+      sqlExecutor,
+      FIRMWARE_PUSH_STATE_PREFERENCE_KEY,
+      JSON.stringify(
+        recordFirmwarePushAttempt(checkedPushState, manifest.version, nowMilliseconds),
+      ),
+    );
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        message: 'firmware_push_attempted',
+        manifestVersion: manifest.version,
+        deviceVersion: input.snapshot.firmwareVersion,
+      }),
+    );
+    const pushResult = await this.#callDeviceTool('self.upgrade_firmware', {
+      url: firmwareBinaryUrl.toString(),
+    });
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        message: 'firmware_push_result',
+        ok: pushResult.ok,
+        summary: pushResult.summary,
+      }),
+    );
   }
 
   async #callDeviceTool(

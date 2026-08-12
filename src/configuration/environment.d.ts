@@ -9,6 +9,7 @@ interface Env {
   MOCK_VOICE?: string;
   CODING_PROXY_ORIGIN?: string;
   CODING_ENGINE?: string;
+  FIRMWARE_PUSH_DISABLED?: string;
 }
 
 declare namespace Cloudflare {
@@ -23,5 +24,6 @@ declare namespace Cloudflare {
     MOCK_VOICE?: string;
     CODING_PROXY_ORIGIN?: string;
     CODING_ENGINE?: string;
+    FIRMWARE_PUSH_DISABLED?: string;
   }
 }
