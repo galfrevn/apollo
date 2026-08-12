@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { browseConsoleMemory } from '@/console/memory';
+import { browseConsoleMemory, deleteConsoleMemory } from '@/console/memory';
 import { addMemoryRecord, setSessionPreference } from '@/memory/store';
 import type { MemorySqlExecutor } from '@/memory/store';
 
@@ -18,6 +18,14 @@ function createInMemoryConsoleSqlExecutor(): MemorySqlExecutor {
           content: String(bindValues[1]),
           created_at: Number(bindValues[2]),
         });
+        return [];
+      }
+      if (query.startsWith('DELETE FROM memories')) {
+        const targetId = String(bindValues[0]);
+        const targetIndex = memoryRowList.findIndex((row) => row.id === targetId);
+        if (targetIndex >= 0) {
+          memoryRowList.splice(targetIndex, 1);
+        }
         return [];
       }
       if (query.startsWith('INSERT INTO session_prefs')) {
@@ -98,6 +106,22 @@ describe('console memory browse', () => {
     expect(browseResult.ownerFactList).toHaveLength(1);
     expect(browseResult.ownerFactList[0]?.content).toBe('lives in Buenos Aires');
     expect(browseResult.lastConsolidatedAtMilliseconds).toBe(99);
+  });
+
+  it('deletes a memory from sql and its vector together', async () => {
+    const sqlExecutor = createInMemoryConsoleSqlExecutor();
+    const addedRecord = await addMemoryRecord(sqlExecutor, 'fact to forget', 1);
+    const deletedVectorIdList: string[] = [];
+
+    await deleteConsoleMemory(
+      sqlExecutor,
+      { deleteByIds: async (idList) => deletedVectorIdList.push(...idList) },
+      addedRecord.id,
+    );
+
+    const browseResult = await browseConsoleMemory(sqlExecutor, {});
+    expect(browseResult.memoryList).toEqual([]);
+    expect(deletedVectorIdList).toEqual([addedRecord.id]);
   });
 
   it('treats a corrupt stored owner-memory state as absent', async () => {

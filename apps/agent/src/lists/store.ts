@@ -65,6 +65,13 @@ export async function listListItemRecords(
   return rowList.map(toListItemRecord);
 }
 
+export async function removeListItemRecordById(
+  sqlExecutor: MemorySqlExecutor,
+  itemId: string,
+): Promise<void> {
+  sqlExecutor.execute('DELETE FROM list_items WHERE id = ?', itemId);
+}
+
 export async function removeListItemRecords(
   sqlExecutor: MemorySqlExecutor,
   input: {

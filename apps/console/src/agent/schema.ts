@@ -114,3 +114,48 @@ export const mcpInstallResultSchema = z.object({
 });
 
 export type McpInstallResult = z.infer<typeof mcpInstallResultSchema>;
+
+export const deviceCommandResultSchema = z.object({
+  ok: z.boolean(),
+  summary: z.string(),
+  data: z.unknown().optional(),
+});
+
+export type DeviceCommandResult = z.infer<typeof deviceCommandResultSchema>;
+
+export const weatherLocationSchema = z.object({
+  locationLabel: z.string(),
+  latitude: z.number(),
+  longitude: z.number(),
+  timezone: z.string(),
+});
+
+export type WeatherLocation = z.infer<typeof weatherLocationSchema>;
+
+export const historyTurnSchema = z.object({
+  id: z.string(),
+  role: z.string(),
+  text: z.string(),
+});
+
+export const historyTurnListSchema = z.array(historyTurnSchema);
+
+export type HistoryTurn = z.infer<typeof historyTurnSchema>;
+
+export const jobDocumentSchema = z.object({
+  documentKey: z.string(),
+  kind: z.enum(['research', 'coding']),
+  uploadedAtIso: z.string(),
+  sizeBytes: z.number(),
+});
+
+export const jobDocumentListSchema = z.array(jobDocumentSchema);
+
+export type JobDocument = z.infer<typeof jobDocumentSchema>;
+
+export const jobDocumentContentSchema = z.object({
+  documentKey: z.string(),
+  content: z.string().nullable(),
+});
+
+export type JobDocumentContent = z.infer<typeof jobDocumentContentSchema>;

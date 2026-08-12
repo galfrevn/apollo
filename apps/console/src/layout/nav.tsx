@@ -7,6 +7,8 @@ const ROUTE_LABEL_MAP: Record<ConsoleRoute, string> = {
   mcp: 'MCP',
   memory: 'Memory',
   schedules: 'Schedules',
+  history: 'History',
+  jobs: 'Jobs',
 };
 
 export function Nav() {

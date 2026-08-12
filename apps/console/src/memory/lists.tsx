@@ -1,36 +1,129 @@
+import { useState } from 'react';
+import type { FormEvent } from 'react';
+
+import { XIcon } from 'lucide-react';
+
 import { Empty } from '@/blueprint/empty';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import type { ListItem } from '@/agent/schema';
 
-export function ListsBlock({ itemList }: { readonly itemList: readonly ListItem[] }) {
-  if (itemList.length === 0) {
-    return <Empty message="No lists yet — ask the desk to note something" />;
+function AddItemForm({
+  onAdd,
+}: {
+  readonly onAdd: (listName: string, content: string) => Promise<void>;
+}) {
+  const [listName, setListName] = useState('');
+  const [content, setContent] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (listName.trim().length === 0 || content.trim().length === 0) {
+      return;
+    }
+    setIsAdding(true);
+    try {
+      await onAdd(listName.trim(), content.trim());
+      setContent('');
+    } finally {
+      setIsAdding(false);
+    }
   }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-wrap gap-2 border-b border-line p-3"
+      aria-busy={isAdding}
+    >
+      <Input
+        value={listName}
+        onChange={(event) => setListName(event.target.value)}
+        placeholder="List (e.g. super)"
+        aria-label="List name"
+        className="h-8 w-36 text-xs"
+      />
+      <Input
+        value={content}
+        onChange={(event) => setContent(event.target.value)}
+        placeholder="New item…"
+        aria-label="Item content"
+        className="h-8 min-w-40 flex-1 text-xs"
+      />
+      <Button type="submit" variant="outline" size="sm" disabled={isAdding}>
+        Add
+      </Button>
+    </form>
+  );
+}
+
+export function ListsBlock({
+  itemList,
+  onAdd,
+  onRemove,
+}: {
+  readonly itemList: readonly ListItem[];
+  readonly onAdd: (listName: string, content: string) => Promise<void>;
+  readonly onRemove: (itemId: string) => Promise<void>;
+}) {
+  const [busyItemId, setBusyItemId] = useState<string | null>(null);
+
+  async function handleRemove(itemId: string) {
+    setBusyItemId(itemId);
+    try {
+      await onRemove(itemId);
+    } finally {
+      setBusyItemId(null);
+    }
+  }
+
   const groupedListMap = new Map<string, ListItem[]>();
   for (const item of itemList) {
-    const groupList = groupedListMap.get(item.listName) ?? [];
-    groupList.push(item);
-    groupedListMap.set(item.listName, groupList);
+    const listGroupItemList = groupedListMap.get(item.listName) ?? [];
+    listGroupItemList.push(item);
+    groupedListMap.set(item.listName, listGroupItemList);
   }
+
   return (
-    <div className="grid gap-px bg-line sm:grid-cols-2">
-      {[...groupedListMap.entries()].map(([listName, groupItemList]) => (
-        <section key={listName} className="bg-panel p-4">
-          <h3 className="label-soft flex items-baseline justify-between text-muted">
-            {listName}
-            <span className="text-faint">{groupItemList.length}</span>
-          </h3>
-          <ul className="mt-3 space-y-1.5">
-            {groupItemList.map((item) => (
-              <li key={item.id} className="flex gap-2 text-sm">
-                <span aria-hidden className="mt-[0.5em] size-1 shrink-0 bg-faint" />
-                {item.content}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
-      {groupedListMap.size % 2 === 1 && (
-        <div aria-hidden className="hidden bg-panel sm:block" />
+    <div>
+      <AddItemForm onAdd={onAdd} />
+      {itemList.length === 0 ? (
+        <Empty
+          message="No lists yet — add an item above or ask the desk"
+          className="m-3"
+        />
+      ) : (
+        <div className="grid gap-px bg-line sm:grid-cols-2">
+          {[...groupedListMap.entries()].map(([listName, listGroupItemList]) => (
+            <section key={listName} className="bg-panel p-4">
+              <h3 className="label-soft flex items-baseline justify-between text-muted">
+                {listName}
+                <span className="text-faint">{listGroupItemList.length}</span>
+              </h3>
+              <ul className="mt-3 space-y-1">
+                {listGroupItemList.map((item) => (
+                  <li key={item.id} className="group flex items-center gap-2 text-sm">
+                    <span aria-hidden className="size-1 shrink-0 bg-faint" />
+                    <span className="min-w-0 flex-1">{item.content}</span>
+                    <button
+                      type="button"
+                      onClick={() => void handleRemove(item.id)}
+                      disabled={busyItemId === item.id}
+                      aria-label={`Remove ${item.content}`}
+                      className="text-faint opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-danger focus-visible:opacity-100 disabled:opacity-40"
+                    >
+                      <XIcon className="size-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+          {groupedListMap.size % 2 === 1 && (
+            <div aria-hidden className="hidden bg-panel sm:block" />
+          )}
+        </div>
       )}
     </div>
   );

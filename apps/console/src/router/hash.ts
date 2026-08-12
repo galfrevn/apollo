@@ -1,12 +1,14 @@
 import { useSyncExternalStore } from 'react';
 
-export type ConsoleRoute = 'status' | 'mcp' | 'memory' | 'schedules';
+export type ConsoleRoute = 'status' | 'mcp' | 'memory' | 'schedules' | 'history' | 'jobs';
 
 export const CONSOLE_ROUTE_LIST: readonly ConsoleRoute[] = [
   'status',
   'mcp',
   'memory',
   'schedules',
+  'history',
+  'jobs',
 ];
 
 export function parseRouteFromHash(hash: string): ConsoleRoute {

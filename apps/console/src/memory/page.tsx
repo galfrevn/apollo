@@ -15,7 +15,42 @@ export function MemoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) 
   const [browseResult, setBrowseResult] = useState<MemoryBrowseResult | null>(null);
   const [itemList, setItemList] = useState<readonly ListItem[] | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [newMemoryContent, setNewMemoryContent] = useState('');
+  const [isAddingMemory, setIsAddingMemory] = useState(false);
+  const [busyMemoryId, setBusyMemoryId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  async function handleAddMemory(event: FormEvent) {
+    event.preventDefault();
+    const trimmedContent = newMemoryContent.trim();
+    if (trimmedContent.length === 0) {
+      return;
+    }
+    setIsAddingMemory(true);
+    setErrorMessage(null);
+    try {
+      setBrowseResult(await consoleRpc.addMemory(trimmedContent));
+      setNewMemoryContent('');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Could not add memory.');
+    } finally {
+      setIsAddingMemory(false);
+    }
+  }
+
+  async function handleDeleteMemory(memoryId: string) {
+    setBusyMemoryId(memoryId);
+    setErrorMessage(null);
+    try {
+      setBrowseResult(await consoleRpc.deleteMemory(memoryId));
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Could not delete memory.',
+      );
+    } finally {
+      setBusyMemoryId(null);
+    }
+  }
 
   const browseMemory = useCallback(
     async (query?: string) => {
@@ -86,6 +121,22 @@ export function MemoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) 
           </form>
         }
       >
+        <form
+          onSubmit={handleAddMemory}
+          className="flex gap-2 border-b border-line p-3"
+          aria-busy={isAddingMemory}
+        >
+          <Input
+            value={newMemoryContent}
+            onChange={(event) => setNewMemoryContent(event.target.value)}
+            placeholder="Remember that…"
+            aria-label="New memory"
+            className="h-8 flex-1 text-xs"
+          />
+          <Button type="submit" variant="outline" size="sm" disabled={isAddingMemory}>
+            {isAddingMemory ? 'Saving…' : 'Remember'}
+          </Button>
+        </form>
         {browseResult === null ? (
           <p className="p-4 text-sm text-muted">Loading…</p>
         ) : browseResult.memoryList.length === 0 ? (
@@ -95,12 +146,21 @@ export function MemoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) 
             {browseResult.memoryList.map((memoryRecord) => (
               <li
                 key={memoryRecord.id}
-                className="flex items-baseline gap-4 border-b border-line px-4 py-2.5 last:border-b-0"
+                className="group flex items-baseline gap-4 border-b border-line px-4 py-2.5 last:border-b-0"
               >
                 <span className="shrink-0 text-xs text-faint">
                   {new Date(memoryRecord.createdAt).toLocaleDateString()}
                 </span>
                 <p className="min-w-0 flex-1 text-sm">{memoryRecord.content}</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busyMemoryId === memoryRecord.id}
+                  onClick={() => void handleDeleteMemory(memoryRecord.id)}
+                  className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-danger"
+                >
+                  Forget
+                </Button>
               </li>
             ))}
           </ul>
@@ -111,9 +171,15 @@ export function MemoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) 
         {itemList === null ? (
           <p className="p-4 text-sm text-muted">Loading…</p>
         ) : (
-          <div className="p-px">
-            <ListsBlock itemList={itemList} />
-          </div>
+          <ListsBlock
+            itemList={itemList}
+            onAdd={async (listName, content) => {
+              setItemList(await consoleRpc.addListItem(listName, content));
+            }}
+            onRemove={async (itemId) => {
+              setItemList(await consoleRpc.removeListItem(itemId));
+            }}
+          />
         )}
       </Panel>
     </div>

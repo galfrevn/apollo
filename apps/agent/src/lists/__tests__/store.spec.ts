@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test';
 import {
   addListItemRecord,
   listListItemRecords,
+  removeListItemRecordById,
   removeListItemRecords,
 } from '@/lists/store';
 import type { MemorySqlExecutor } from '@/memory/store';
@@ -88,6 +89,25 @@ describe('list store', () => {
     });
     expect(clearRemoval.removedCount).toBe(1);
     expect(await listListItemRecords(sqlExecutor, 'super')).toEqual([]);
+  });
+
+  it('removes a single item by id', async () => {
+    const sqlExecutor = createInMemoryListSqlExecutor();
+    const keptItem = await addListItemRecord(
+      sqlExecutor,
+      { listName: 'super', content: 'yerba' },
+      1,
+    );
+    const removedItem = await addListItemRecord(
+      sqlExecutor,
+      { listName: 'super', content: 'pan' },
+      2,
+    );
+
+    await removeListItemRecordById(sqlExecutor, removedItem.id);
+
+    const remainingItemList = await listListItemRecords(sqlExecutor, 'super');
+    expect(remainingItemList.map((item) => item.id)).toEqual([keptItem.id]);
   });
 
   it('never wipes a list when the content query is blank and clearAll is off', async () => {
