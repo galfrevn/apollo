@@ -9,6 +9,8 @@ pre-commit:
         - '*.jsx'
         - '*.mjs'
         - '*.cjs'
+      exclude:
+        - '.agents/skills/**'
       run: bunx oxfmt --write {staged_files}
       stage_fixed: true
     - name: lint
@@ -19,6 +21,8 @@ pre-commit:
         - '*.jsx'
         - '*.mjs'
         - '*.cjs'
+      exclude:
+        - '.agents/skills/**'
       run: bunx oxlint --deny-warnings {staged_files}
 
 commit-msg:
