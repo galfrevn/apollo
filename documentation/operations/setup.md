@@ -33,6 +33,7 @@ From `package.json`:
 
 | Script | Purpose |
 |--------|---------|
+| `bun run check` | Full quality gate: lint, format, typecheck, test |
 | `bun run dev` | Local Worker via Wrangler |
 | `bun run deploy` | Deploy Worker to Cloudflare |
 | `bun run typecheck` | TypeScript `--noEmit` |

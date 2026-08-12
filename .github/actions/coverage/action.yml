@@ -14,7 +14,7 @@ inputs:
     required: false
     default: coverage/lcov.info
   path-prefix:
-    description: Prefix to prepend to lcov SF: paths so they match repo-root-relative PR file paths
+    description: 'Prefix to prepend to lcov SF: paths so they match repo-root-relative PR file paths'
     required: false
     default: ''
 

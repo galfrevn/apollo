@@ -7,13 +7,14 @@
   "scripts": {
     "dev": "turbo run dev --filter=@apollo/agent",
     "deploy": "turbo run deploy --filter=@apollo/agent",
-    "types": "turbo run types --filter=@apollo/agent",
-    "typecheck": "turbo run typecheck --filter=@apollo/agent",
+    "types": "turbo run types",
+    "typecheck": "turbo run typecheck",
     "lint": "oxlint --deny-warnings",
     "format": "oxfmt --write",
     "format:check": "oxfmt --check",
-    "test": "turbo run test --filter=@apollo/agent",
-    "test:coverage": "turbo run test:coverage --filter=@apollo/agent"
+    "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "check": "bun run lint && bun run format:check && turbo run typecheck test"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

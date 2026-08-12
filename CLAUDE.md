@@ -4,18 +4,19 @@ A personal desk agent for an ESP32 device: a Cloudflare Worker (`apps/agent/`) t
 
 ## Commands
 
-Root scripts proxy through turbo; target a single app directly with `turbo run <task> --filter=@apollo/agent`.
+Root scripts proxy through turbo across every workspace; target a single app with `turbo run <task> --filter=@apollo/agent`.
 
 ```bash
+bun run check        # the full quality gate, ~2s cold
 bun run dev          # turbo run dev --filter=@apollo/agent (wrangler dev, preview R2 bucket)
-bun run test         # turbo run test --filter=@apollo/agent
-bun run typecheck    # turbo run typecheck --filter=@apollo/agent
+bun run test         # turbo run test
+bun run typecheck    # turbo run typecheck
 bun run lint         # oxlint --deny-warnings (repo-wide)
 bun run format       # oxfmt --write (repo-wide)
-bun run types        # turbo run types --filter=@apollo/agent, regenerates worker-configuration.d.ts
+bun run types        # turbo run types, regenerates worker-configuration.d.ts
 ```
 
-**Quality gate — all three must pass before a change is done:** `bun run typecheck`, `bun run lint`, `bun run test`.
+**Quality gate — must pass before a change is done:** `bun run check`, which runs lint, format, typecheck, and test. The pre-push hook runs typecheck and test as a backstop.
 
 Formatting is oxfmt's job; never hand-format. Note that oxfmt does *not* sort or group imports — the Import Grouping rules below are enforced by review only.
 

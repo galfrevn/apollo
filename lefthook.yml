@@ -31,3 +31,8 @@ commit-msg:
   jobs:
     - name: commitlint
       run: bunx commitlint --edit {1}
+
+pre-push:
+  jobs:
+    - name: gate
+      run: bunx turbo run typecheck test

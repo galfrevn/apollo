@@ -17,7 +17,7 @@ bun run test:coverage
 
 ## Quality gates
 
-Before considering a change done: `bun run typecheck`, `bun run lint`, and `bun test` should pass.
+Before considering a change done, `bun run check` should pass — it runs lint, format, typecheck, and test in one go. The pre-push hook runs typecheck and test as a backstop.
 
 ## Navigation
 
