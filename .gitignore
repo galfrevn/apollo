@@ -53,3 +53,6 @@ Desktop.ini
 .claude/assistant-daemon-state.json
 .claude/first-run
 .claude/settings.local.json
+
+# skills
+.impeccable/
