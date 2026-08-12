@@ -79,7 +79,7 @@ Came for free through the MCP bridge, as predicted: `set_volume` is one of the t
 
 The full loop is live: the worker serves `/ota/check` and `/ota/firmware.bin` from the `MEDIA` bucket (`src/ota/`, token-authenticated, versions strictly `digits.and.dots`), every push to the firmware `main` builds and publishes to R2 (`publish.yml`, `PROJECT_VER` bump as the trigger), and the device checks off the boot path and self-updates through `esp_ota` with rollback protection. The 2.6.0 fleet arrived this way — cable flashing is over. Publishing steps live in [Deploy](../operations/deploy.md#publishing-firmware-ota).
 
-Still open: **push-style updates**. Telemetry reports `firmwareVersion`, but the server never compares it against the R2 manifest nor calls `self.upgrade_firmware` over the item-5 bridge — a device that never reboots never updates.
+Push-style updates closed 2026-08-11 through item 23: the server now compares telemetry's `firmwareVersion` against the R2 manifest and calls `self.upgrade_firmware` over the item-5 bridge when the device is idle and powered.
 
 ### 15. `tts_end` + playback acks — ✅ implemented 2026-08-11, ships with firmware 2.7.0
 
@@ -94,13 +94,13 @@ Beyond face + caption: a circular timer countdown (which merges with item 6), we
 
 Guiding principle: Apollo grows with its owner — it originates actions instead of only reacting, and it accumulates a model of the person it lives with. Every item in this section is **server-only**: the firmware already has all the vocabulary these need (notifications, telemetry, MCP, confirmations, session flow), so each one deploys on a push to `main`.
 
-### 17. Initiative engine
+### 17. Initiative engine — ✅ implemented 2026-08-11
 
-The substrate for everything below: a server-side policy that lets Apollo decide to speak unprompted. The delivery half already exists — `deliverDeskDeviceNotification` (`src/agents/notify.ts`) paces TTS, queues pending messages when nobody is connected, and stays quiet during focus. What is missing is origination: nothing in the worker ever *decides* Apollo has something worth saying. Needs a policy layer with hard bounds so it never becomes annoying — quiet hours, focus awareness (already respected downstream), and a daily budget of self-initiated utterances. Items 20–23 all deliver through this.
+The substrate for everything below: a server-side policy that lets Apollo decide to speak unprompted. `evaluateInitiativeCandidate` (`src/initiative/logic.ts`) decides deliver/defer/suppress per candidate: quiet hours (22:00–09:00 Buenos Aires) defer to morning via the DO scheduler, active focus defers past the window, a daily budget of 6 and a per-source hourly cooldown suppress, `critical` bypasses everything, and an offline device suppresses outright (a queued card is never spoken). Budget and cooldowns live in `session_prefs` (`initiativeState`), recorded only after delivery succeeds. Every source funnels through `#deliverInitiativeUtterance` (`src/agents/apollo.ts`); low battery was the first adopter (behavior unchanged), the item-23 changelog the second. Items 20–22 plug into the same seam.
 
-### 18. Long-term owner memory
+### 18. Long-term owner memory — ✅ implemented 2026-08-11
 
-A persistent store of facts and preferences about the owner, consolidated by a nightly job on the existing reminder cron and stamped into the system prompt while relevant — the same pattern telemetry established (snapshot in `session_prefs`, re-read at turn start, owned first-person by the persona). Extraction runs over recent transcripts; consolidation merges, decays, and drops stale facts. "¿Qué aprendiste de mí?" should get a real answer.
+Rather than a parallel store, the nightly job took ownership of the session's `memory` context block, which until now only grew by appends. `consolidateOwnerMemory` (cron `0 6 * * *` UTC = 03:00 local) reads a 48 KB tail of the transcript, extracts/reinforces/retires facts with a strict-JSON LLM call (`src/memory/consolidate.ts`, one corrective retry), merges with 60-day decay and a 50-fact cap, and rewrites the block grouped by category. The `memories` table + Vectorize stay as the append-only provenance log for `recall_memory`; genuinely new facts land in both. Idle days skip the LLM call. "¿Qué aprendiste de mí?" is answered from the block in first person — no new tool. See [Memory](../capabilities/memory.md#consolidación-nocturna-owner-memory).
 
 ### 19. Owner routine model
 
@@ -118,9 +118,9 @@ The reminder scheduler is user-only today — every entry comes from an explicit
 
 The coding engine already resolves the owner's repositories from the GitHub App installations (`list_coding_repositories`, `src/coding/`). Watch them: poll on a cron (or take webhooks into the worker), and when CI goes red or a review is requested, announce it through the initiative engine and offer to act — "se rompió el build de apollo, ¿lo miro?". Acceptance flows through the full-screen Sí/No confirmation, which already replays the approval into the next LLM turn, and launches the opencode engine (item under "Shipped": coding on opencode). Turns the coding stack from on-demand into a standing watch.
 
-### 23. Self-maintaining device
+### 23. Self-maintaining device — ✅ implemented 2026-08-11
 
-Close the open half of item 14 and give it personality. The server compares telemetry's `firmwareVersion` against the R2 manifest and, when the device is idle and preferably charging, calls `self.upgrade_firmware` over the item-5 MCP bridge — no more devices stranded on old firmware because they never reboot. Then the payoff: `publish.yml` stores a short changelog next to the manifest at build time, and when the post-reboot telemetry reports the new version, Apollo tells the owner what changed — "me actualicé anoche: ahora la cuenta regresiva se ve en el aro". Self-maintenance becomes a visible part of the relationship instead of silent plumbing.
+Closed the open half of item 14 and gave it personality. Every telemetry tick (manifest read throttled to 15 min, bypassed on a charging edge) compares the reported version against the R2 manifest with the device's own compare rules (`src/ota/push.ts`) and, in the safe window — idle or dashboard, no confirm pending, no announcement in flight, focus off, charging or ≥50% battery — calls `self.upgrade_firmware` with a URL built from the origin captured at connect time. Attempts are capped at 3 per manifest version, 6 h apart, recorded before the call, so a rolled-back device is never hammered. The post-reboot version edge queues the spoken changelog (`changelog/<version>.md` in the firmware repo, embedded into `latest.json` by `publish.yml`), delivered through item 17 — a 3 AM upgrade announces itself after 9. `FIRMWARE_PUSH_DISABLED=1` is the kill switch; publishing steps in [Deploy](../operations/deploy.md#publishing-firmware-ota).
 
 ## Under consideration (ideas, no commitment)
 

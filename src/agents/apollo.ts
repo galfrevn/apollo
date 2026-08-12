@@ -47,6 +47,20 @@ import {
   DEVICE_TOOL_CALL_TIMEOUT_MILLISECONDS,
   summarizeDeviceToolResult,
 } from '@/mcp/bridge';
+import {
+  buildExtractionRetryMessageList,
+  buildMemoryExtractionMessageList,
+  flattenRecentHistoryToTranscript,
+  mergeOwnerFacts,
+  OWNER_MEMORY_CONSOLIDATION_CRON,
+  OWNER_MEMORY_MIN_RUN_INTERVAL_MS,
+  OWNER_MEMORY_TRANSCRIPT_BYTE_BUDGET,
+  parseMemoryExtractionResult,
+  parseStoredOwnerMemoryState,
+  renderOwnerMemoryBlock,
+  seedOwnerFactsFromMemoryBlock,
+  type OwnerMemoryState,
+} from '@/memory/consolidate';
 import { deletePendingDeviceMessage, listPendingDeviceMessages } from '@/memory/pending';
 import { readFirmwareManifest } from '@/ota/manifest';
 import {
@@ -61,12 +75,14 @@ import {
 } from '@/ota/push';
 import { createApolloSession } from '@/memory/session';
 import {
+  addMemoryRecord,
   getSessionPreference,
   setSessionPreference,
   type MemorySqlExecutor,
 } from '@/memory/store';
 import { cycleDeskSpeechMode, resolveDeskSpeechMode } from '@/persona/catalog';
 import { resolveDeskFaceEmotion } from '@/persona/face';
+import { enqueueMemoryIndexJob } from '@/queues/consume';
 import { APOLLO_TTS_VOICE } from '@/persona/soul';
 import {
   encodeServerToDeviceMessage,
@@ -93,6 +109,7 @@ import {
   savePendingToolConfirmation,
 } from '@/tools/pending';
 import type { PendingToolConfirmation, ToolExecutionResult } from '@/tools/types';
+import { chatWithOpenRouter } from '@/voice/llm';
 import type { DeskWeatherSnapshot } from '@/weather/fetch';
 import {
   resolveDeskWeatherLocationFromPreferences,
@@ -110,6 +127,7 @@ const INITIATIVE_STATE_PREFERENCE_KEY = 'initiativeState';
 const FIRMWARE_PUSH_STATE_PREFERENCE_KEY = 'firmwarePushState';
 const FIRMWARE_CHANGELOG_STATE_PREFERENCE_KEY = 'firmwareChangelogState';
 const PUBLIC_ORIGIN_PREFERENCE_KEY = 'publicOrigin';
+const OWNER_MEMORY_STATE_PREFERENCE_KEY = 'ownerMemoryState';
 
 function mapUnknownScheduleListToAgentScheduleLikeList(
   scheduleList: readonly {
@@ -173,6 +191,7 @@ export class Apollo extends Agent<Env, ApolloState> {
   #lastTelemetrySnapshot: DeskTelemetrySnapshot | undefined;
   #isAnnouncingLowBattery = false;
   #isDeliveringInitiative = false;
+  #isConsolidatingMemory = false;
   #deviceMcpRequestRegistry = createDeviceMcpRequestRegistry();
   #ttsSequence = 0;
   #lastPlaybackAck: {
@@ -235,6 +254,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       DESK_DASHBOARD_REFRESH_INTERVAL_SECONDS,
       'refreshDashboardWeather',
     );
+    await this.schedule(OWNER_MEMORY_CONSOLIDATION_CRON, 'consolidateOwnerMemory');
   }
 
   async #resolveWeatherLocation() {
@@ -612,6 +632,135 @@ export class Apollo extends Agent<Env, ApolloState> {
         : {}),
       deferCount: parsedPayload.deferCount + 1,
     });
+  }
+
+  // Roadmap item 18: the nightly cron owns the previously append-only memory
+  // context block — it reads the recent transcript, asks the LLM to extract,
+  // reinforce, and retire owner facts, and rewrites the block consolidated.
+  async consolidateOwnerMemory(): Promise<void> {
+    // Mock mode has no LLM to call; a dev session must not burn tokens.
+    if (this.env.MOCK_VOICE === '1') {
+      return;
+    }
+    if (this.#isConsolidatingMemory) {
+      return;
+    }
+    const nowMilliseconds = Date.now();
+    const sqlExecutor = this.#sqlExecutor();
+    const storedState = await getSessionPreference(
+      sqlExecutor,
+      OWNER_MEMORY_STATE_PREFERENCE_KEY,
+    );
+    const state =
+      storedState === null ? undefined : parseStoredOwnerMemoryState(storedState);
+    if (
+      state !== undefined &&
+      nowMilliseconds - state.lastConsolidatedAtMilliseconds <
+        OWNER_MEMORY_MIN_RUN_INTERVAL_MS
+    ) {
+      return;
+    }
+    this.#isConsolidatingMemory = true;
+    try {
+      const latestLeaf = await this.session.getLatestLeaf();
+      if (latestLeaf === null || latestLeaf.id === state?.lastProcessedLeafId) {
+        // An idle day: nothing new happened, so the run costs zero LLM calls.
+        const idleState: OwnerMemoryState = {
+          factList: state?.factList ?? [],
+          lastConsolidatedAtMilliseconds: nowMilliseconds,
+          ...(state?.lastProcessedLeafId !== undefined
+            ? { lastProcessedLeafId: state.lastProcessedLeafId }
+            : {}),
+        };
+        await setSessionPreference(
+          sqlExecutor,
+          OWNER_MEMORY_STATE_PREFERENCE_KEY,
+          JSON.stringify(idleState),
+        );
+        return;
+      }
+      const recentHistory = await this.session.getRecentHistory(
+        OWNER_MEMORY_TRANSCRIPT_BYTE_BUDGET,
+      );
+      const seededFactList = seedOwnerFactsFromMemoryBlock({
+        blockContent: this.session.getContextBlock('memory')?.content ?? '',
+        knownFactList: state?.factList ?? [],
+        nowMilliseconds,
+        createIdentifier: () => crypto.randomUUID(),
+      });
+      const extractionMessageList = buildMemoryExtractionMessageList({
+        transcriptText: flattenRecentHistoryToTranscript(recentHistory.messages),
+        existingFactList: seededFactList,
+        nowIso: new Date(nowMilliseconds).toISOString(),
+      });
+      const firstChatResult = await chatWithOpenRouter({
+        openRouterApiKey: this.env.OPENROUTER_API_KEY,
+        modelId: this.env.OPENROUTER_MODEL,
+        messageList: extractionMessageList,
+      });
+      let extraction = parseMemoryExtractionResult(firstChatResult.text);
+      if (extraction === undefined) {
+        const retryChatResult = await chatWithOpenRouter({
+          openRouterApiKey: this.env.OPENROUTER_API_KEY,
+          modelId: this.env.OPENROUTER_MODEL,
+          messageList: buildExtractionRetryMessageList(
+            extractionMessageList,
+            firstChatResult.text,
+          ),
+        });
+        extraction = parseMemoryExtractionResult(retryChatResult.text);
+      }
+      if (extraction === undefined) {
+        // State stays untouched so the next night retries over the same window.
+        console.error(
+          JSON.stringify({ level: 'error', message: 'owner_memory_extraction_invalid' }),
+        );
+        return;
+      }
+      const merge = mergeOwnerFacts({
+        existingFactList: seededFactList,
+        extraction,
+        nowMilliseconds,
+        createIdentifier: () => crypto.randomUUID(),
+      });
+      const nextState: OwnerMemoryState = {
+        factList: merge.nextFactList,
+        lastConsolidatedAtMilliseconds: nowMilliseconds,
+        lastProcessedLeafId: latestLeaf.id,
+      };
+      await setSessionPreference(
+        sqlExecutor,
+        OWNER_MEMORY_STATE_PREFERENCE_KEY,
+        JSON.stringify(nextState),
+      );
+      await this.session.replaceContextBlock(
+        'memory',
+        renderOwnerMemoryBlock(merge.nextFactList),
+      );
+      await this.session.refreshSystemPrompt();
+      // Decayed facts stay in the memories table and Vectorize on purpose:
+      // that layer is the provenance log recall_memory searches, while the
+      // consolidated block only governs what occupies prompt budget.
+      for (const genuinelyNewFact of merge.genuinelyNewFactList) {
+        const memoryRecord = await addMemoryRecord(sqlExecutor, genuinelyNewFact.content);
+        await enqueueMemoryIndexJob(this.env, {
+          memoryId: memoryRecord.id,
+          content: genuinelyNewFact.content,
+          deviceId: this.name ?? 'default',
+        });
+      }
+      console.log(
+        JSON.stringify({
+          level: 'info',
+          message: 'owner_memory_consolidated',
+          factCount: merge.nextFactList.length,
+          newFactCount: merge.genuinelyNewFactList.length,
+          transcriptTruncated: recentHistory.truncated,
+        }),
+      );
+    } finally {
+      this.#isConsolidatingMemory = false;
+    }
   }
 
   #currentFocusState(): DeskFocusState {
