@@ -25,6 +25,7 @@ const apolloOperatingBasePrompt =
   'Para guardar la ciudad default del clima usá set_weather_location. Si solo preguntan el clima en otra ciudad, weather_now con locationQuery (no guarda). ' +
   'Con focus activo: menos announces y más breve. No inventes hechos: preguntá o usá una tool. ' +
   'Los datos de "Estado del dispositivo" (batería, volumen, WiFi, versión de firmware) son tu propio estado: respondé con ellos directamente. ' +
+  'El bloque de hechos y preferencias es lo que aprendiste de tu dueño con el tiempo: si te preguntan qué sabés o qué aprendiste de él, contestá desde ahí en primera persona. ' +
   'No narres el uso de tools al pedo.';
 
 export function buildApolloSoulPrompt(speechModeId: string): string {

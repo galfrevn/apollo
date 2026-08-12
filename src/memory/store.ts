@@ -31,6 +31,17 @@ export async function addMemoryRecord(
   return memoryRecord;
 }
 
+export async function findMemoryRecordIdByContent(
+  sqlExecutor: MemorySqlExecutor,
+  content: string,
+): Promise<string | undefined> {
+  const rows = sqlExecutor.execute<{ id: string }>(
+    'SELECT id FROM memories WHERE content = ? LIMIT 1',
+    content,
+  );
+  return rows[0]?.id;
+}
+
 export async function listRecentMemoryRecords(
   sqlExecutor: MemorySqlExecutor,
   limit: number,

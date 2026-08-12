@@ -1,4 +1,10 @@
-import { Agent, callable, type Connection, type WSMessage } from 'agents';
+import {
+  Agent,
+  callable,
+  type Connection,
+  type ConnectionContext,
+  type WSMessage,
+} from 'agents';
 import type { Session } from 'agents/experimental/memory/session';
 
 import {
@@ -17,6 +23,7 @@ import {
   deliverReminderPayloadSchema,
   expireConfirmPayloadSchema,
   notifyBackgroundResultInputSchema,
+  retryInitiativeUtterancePayloadSchema,
 } from '@/agents/rpc';
 import { concatenateArrayBufferList, executeApolloTurn } from '@/agents/runtime';
 import { isDeviceSharedSecretValid, readDeviceTokenFromRequestUrl } from '@/auth/token';
@@ -28,11 +35,24 @@ import {
   type DeskFocusState,
 } from '@/focus/logic';
 import {
+  buildInitiativeDeliveryMarkerKey,
+  evaluateInitiativeCandidate,
+  hasScheduledInitiativeRetryForSource,
+  INITIATIVE_MAX_RETRY_ATTEMPTS,
+  INITIATIVE_SUPPRESSED_RETRY_DELAY_SECONDS,
+  parseStoredInitiativeState,
+  recordInitiativeDelivery,
+  type InitiativeDeliveryOutcome,
+  type InitiativeUtteranceInput,
+} from '@/initiative/logic';
+import {
   buildDeviceToolCallPayload,
   createDeviceMcpRequestRegistry,
   DEVICE_TOOL_CALL_TIMEOUT_MILLISECONDS,
   summarizeDeviceToolResult,
 } from '@/mcp/bridge';
+import { OWNER_MEMORY_CONSOLIDATION_CRON } from '@/memory/consolidate';
+import { runOwnerMemoryConsolidation } from '@/memory/nightly';
 import { deletePendingDeviceMessage, listPendingDeviceMessages } from '@/memory/pending';
 import { createApolloSession } from '@/memory/session';
 import {
@@ -40,6 +60,7 @@ import {
   setSessionPreference,
   type MemorySqlExecutor,
 } from '@/memory/store';
+import { PUBLIC_ORIGIN_PREFERENCE_KEY, runFirmwareLifecycle } from '@/ota/lifecycle';
 import { cycleDeskSpeechMode, resolveDeskSpeechMode } from '@/persona/catalog';
 import { resolveDeskFaceEmotion } from '@/persona/face';
 import { APOLLO_TTS_VOICE } from '@/persona/soul';
@@ -81,6 +102,7 @@ const MINIMUM_TURN_AUDIO_BYTE_LENGTH = 8000;
 
 const LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY = 'lowBatteryLastAnnounceAt';
 const TELEMETRY_SNAPSHOT_PREFERENCE_KEY = 'lastTelemetrySnapshot';
+const INITIATIVE_STATE_PREFERENCE_KEY = 'initiativeState';
 
 function mapUnknownScheduleListToAgentScheduleLikeList(
   scheduleList: readonly {
@@ -143,6 +165,8 @@ export class Apollo extends Agent<Env, ApolloState> {
   #lastKnownWeatherSnapshot: DeskWeatherSnapshot | undefined;
   #lastTelemetrySnapshot: DeskTelemetrySnapshot | undefined;
   #isAnnouncingLowBattery = false;
+  #isDeliveringInitiative = false;
+  #isConsolidatingMemory = false;
   #deviceMcpRequestRegistry = createDeviceMcpRequestRegistry();
   #ttsSequence = 0;
   #lastPlaybackAck: {
@@ -205,6 +229,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       DESK_DASHBOARD_REFRESH_INTERVAL_SECONDS,
       'refreshDashboardWeather',
     );
+    await this.schedule(OWNER_MEMORY_CONSOLIDATION_CRON, 'consolidateOwnerMemory');
   }
 
   async #resolveWeatherLocation() {
@@ -245,8 +270,26 @@ export class Apollo extends Agent<Env, ApolloState> {
     }
   }
 
-  async onConnect(connection: Connection): Promise<void> {
+  async onConnect(
+    connection: Connection,
+    connectionContext: ConnectionContext,
+  ): Promise<void> {
     await this.#ensurePreferencesLoaded();
+    // The DO has no ambient request origin, and the OTA push must hand the
+    // device a URL it can reach — the connection that just arrived proves this
+    // origin works, so it is captured here instead of configured.
+    const publicOrigin = new URL(connectionContext.request.url).origin;
+    const storedPublicOrigin = await getSessionPreference(
+      this.#sqlExecutor(),
+      PUBLIC_ORIGIN_PREFERENCE_KEY,
+    );
+    if (storedPublicOrigin !== publicOrigin) {
+      await setSessionPreference(
+        this.#sqlExecutor(),
+        PUBLIC_ORIGIN_PREFERENCE_KEY,
+        publicOrigin,
+      );
+    }
     // A caption describes the turn that produced it, not the session. Left in
     // durable state, a failure message greets the user on every reconnect long
     // after the turn that failed.
@@ -462,6 +505,158 @@ export class Apollo extends Agent<Env, ApolloState> {
     });
   }
 
+  // The single chokepoint for self-initiated speech (roadmap item 17): every
+  // source of proactive utterances goes through the initiative policy so quiet
+  // hours, focus, and the daily budget are enforced in exactly one place.
+  async #deliverInitiativeUtterance(
+    input: InitiativeUtteranceInput,
+  ): Promise<InitiativeDeliveryOutcome> {
+    const nowMilliseconds = Date.now();
+    const storedInitiativeState = await getSessionPreference(
+      this.#sqlExecutor(),
+      INITIATIVE_STATE_PREFERENCE_KEY,
+    );
+    const initiativeState =
+      storedInitiativeState === null
+        ? undefined
+        : parseStoredInitiativeState(storedInitiativeState);
+    const deferCount = input.deferCount ?? 0;
+    const decision = evaluateInitiativeCandidate({
+      source: input.source,
+      priority: input.priority,
+      state: initiativeState,
+      nowMilliseconds,
+      focusEndsAtMilliseconds: this.state.focusEndsAt,
+      connectionCount: [...this.getConnections()].length,
+      deferCount,
+    });
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        message: 'initiative_decision',
+        source: input.source,
+        action: decision.action,
+        ...(decision.action !== 'deliver' ? { reason: decision.reason } : {}),
+      }),
+    );
+    if (decision.action === 'defer') {
+      const retryDelaySeconds = Math.max(
+        60,
+        Math.ceil((decision.retryAtMilliseconds - nowMilliseconds) / 1000),
+      );
+      await this.schedule(retryDelaySeconds, 'retryInitiativeUtterance', {
+        source: input.source,
+        priority: input.priority,
+        message: input.message,
+        ...(input.earconName !== undefined ? { earconName: input.earconName } : {}),
+        ...(input.utteranceKey !== undefined ? { utteranceKey: input.utteranceKey } : {}),
+        deferCount,
+      });
+      return 'deferred';
+    }
+    if (decision.action === 'suppress' || this.#isDeliveringInitiative) {
+      return 'suppressed';
+    }
+    this.#isDeliveringInitiative = true;
+    try {
+      if (input.earconName !== undefined) {
+        this.#broadcastPlayEffect(input.earconName);
+      }
+      await deliverDeskDeviceNotification({
+        notification: { type: 'reminder', message: input.message },
+        connectionList: [...this.getConnections()],
+        sqlExecutor: this.#sqlExecutor(),
+        focusState: this.#currentFocusState(),
+        environment: this.env,
+        deviceId: this.name ?? 'default',
+        ttsVoiceId: APOLLO_TTS_VOICE,
+        isMockVoice: this.env.MOCK_VOICE === '1',
+        ...(input.priority === 'critical' ? { announceKind: 'critical' as const } : {}),
+      });
+      // Recorded only after delivery succeeds, so a failed delivery neither
+      // consumes budget nor starts the source cooldown.
+      await setSessionPreference(
+        this.#sqlExecutor(),
+        INITIATIVE_STATE_PREFERENCE_KEY,
+        JSON.stringify(
+          recordInitiativeDelivery(
+            initiativeState,
+            input.source,
+            input.priority,
+            nowMilliseconds,
+          ),
+        ),
+      );
+      if (input.utteranceKey !== undefined) {
+        await setSessionPreference(
+          this.#sqlExecutor(),
+          buildInitiativeDeliveryMarkerKey(input.utteranceKey),
+          String(nowMilliseconds),
+        );
+      }
+    } finally {
+      this.#isDeliveringInitiative = false;
+    }
+    return 'delivered';
+  }
+
+  async retryInitiativeUtterance(payload: unknown): Promise<void> {
+    const parsedPayload = retryInitiativeUtterancePayloadSchema.parse(payload);
+    const nextDeferCount = parsedPayload.deferCount + 1;
+    const retryPayload = {
+      source: parsedPayload.source,
+      priority: parsedPayload.priority,
+      message: parsedPayload.message,
+      ...(parsedPayload.earconName !== undefined
+        ? { earconName: parsedPayload.earconName }
+        : {}),
+      ...(parsedPayload.utteranceKey !== undefined
+        ? { utteranceKey: parsedPayload.utteranceKey }
+        : {}),
+    };
+    const deliveryOutcome = await this.#deliverInitiativeUtterance({
+      ...retryPayload,
+      deferCount: nextDeferCount,
+    });
+    // A deferred utterance already survived one policy window; letting its
+    // retry vanish on a transient suppression (device offline at 09:00, budget
+    // spent) would lose it for good — so it re-schedules itself, bounded by
+    // the attempt cap.
+    if (
+      deliveryOutcome === 'suppressed' &&
+      nextDeferCount < INITIATIVE_MAX_RETRY_ATTEMPTS
+    ) {
+      await this.schedule(
+        INITIATIVE_SUPPRESSED_RETRY_DELAY_SECONDS,
+        'retryInitiativeUtterance',
+        { ...retryPayload, deferCount: nextDeferCount },
+      );
+    }
+  }
+
+  async consolidateOwnerMemory(): Promise<void> {
+    // Mock mode has no LLM to call; a dev session must not burn tokens.
+    if (this.env.MOCK_VOICE === '1') {
+      return;
+    }
+    if (this.#isConsolidatingMemory) {
+      return;
+    }
+    this.#isConsolidatingMemory = true;
+    try {
+      await runOwnerMemoryConsolidation({
+        sqlExecutor: this.#sqlExecutor(),
+        session: this.session,
+        environment: this.env,
+        deviceId: this.name ?? 'default',
+        nowMilliseconds: Date.now(),
+        createIdentifier: () => crypto.randomUUID(),
+      });
+    } finally {
+      this.#isConsolidatingMemory = false;
+    }
+  }
+
   #currentFocusState(): DeskFocusState {
     if (this.state.focusEndsAt === null) {
       return createInactiveDeskFocusState();
@@ -624,6 +819,24 @@ export class Apollo extends Agent<Env, ApolloState> {
         : {}),
       receivedAtMs: Date.now(),
     };
+    // The previous snapshot is read before the overwrite because the firmware
+    // lifecycle diffs versions across it — and after a deploy or hibernation
+    // the in-memory copy is gone, which is exactly the post-OTA-reboot case,
+    // so the stored copy is the fallback.
+    let previousSnapshot = this.#lastTelemetrySnapshot;
+    if (previousSnapshot === undefined) {
+      const storedSnapshot = await getSessionPreference(
+        this.#sqlExecutor(),
+        TELEMETRY_SNAPSHOT_PREFERENCE_KEY,
+      );
+      if (storedSnapshot !== null) {
+        previousSnapshot = parseStoredTelemetrySnapshot(storedSnapshot);
+      }
+    }
+    const didChargingEdgeOccur =
+      previousSnapshot?.charging !== undefined &&
+      snapshot.charging !== undefined &&
+      previousSnapshot.charging !== snapshot.charging;
     this.#lastTelemetrySnapshot = snapshot;
     // A deploy or hibernation wipes the in-memory snapshot, and the next turn
     // may run before the device's next telemetry tick — the prompt would then
@@ -634,6 +847,46 @@ export class Apollo extends Agent<Env, ApolloState> {
       JSON.stringify(snapshot),
     );
 
+    await this.#handleLowBatteryAnnouncement(snapshot);
+    try {
+      await runFirmwareLifecycle(
+        {
+          previousFirmwareVersion: previousSnapshot?.firmwareVersion,
+          snapshot,
+          didChargingEdgeOccur,
+        },
+        {
+          sqlExecutor: this.#sqlExecutor(),
+          mediaBucket: this.env.MEDIA,
+          deviceSharedSecret: this.env.DEVICE_SHARED_SECRET,
+          isPushDisabled: this.env.FIRMWARE_PUSH_DISABLED === '1',
+          uiState: this.state.uiState,
+          isFocusActive: this.#currentFocusState().active,
+          hasPendingConfirmation: this.state.pendingConfirmId !== null,
+          isAnnouncementInFlight:
+            this.#isAnnouncingLowBattery || this.#isDeliveringInitiative,
+          nowMilliseconds: Date.now(),
+          deliverInitiativeUtterance: (utterance) =>
+            this.#deliverInitiativeUtterance(utterance),
+          hasScheduledInitiativeRetry: async (source) =>
+            hasScheduledInitiativeRetryForSource(await this.listSchedules(), source),
+          callDeviceTool: (deviceToolName, argumentRecord) =>
+            this.#callDeviceTool(deviceToolName, argumentRecord),
+        },
+      );
+    } catch (error) {
+      // OTA plumbing must never take telemetry handling down with it.
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          message: 'firmware_lifecycle_failed',
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+  }
+
+  async #handleLowBatteryAnnouncement(snapshot: DeskTelemetrySnapshot): Promise<void> {
     const storedAnnounceAt = await getSessionPreference(
       this.#sqlExecutor(),
       LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY,
@@ -667,23 +920,19 @@ export class Apollo extends Agent<Env, ApolloState> {
     }
     this.#isAnnouncingLowBattery = true;
     try {
-      this.#broadcastPlayEffect('low_battery');
-      await deliverDeskDeviceNotification({
-        notification: { type: 'reminder', message: evaluation.message },
-        connectionList: [...this.getConnections()],
-        sqlExecutor: this.#sqlExecutor(),
-        focusState: this.#currentFocusState(),
-        environment: this.env,
-        deviceId: this.name ?? 'default',
-        ttsVoiceId: APOLLO_TTS_VOICE,
-        isMockVoice: this.env.MOCK_VOICE === '1',
-        announceKind: 'critical',
+      const deliveryOutcome = await this.#deliverInitiativeUtterance({
+        source: 'low_battery',
+        priority: 'critical',
+        message: evaluation.message,
+        earconName: 'low_battery',
       });
-      await setSessionPreference(
-        this.#sqlExecutor(),
-        LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY,
-        String(Date.now()),
-      );
+      if (deliveryOutcome === 'delivered') {
+        await setSessionPreference(
+          this.#sqlExecutor(),
+          LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY,
+          String(Date.now()),
+        );
+      }
     } finally {
       this.#isAnnouncingLowBattery = false;
     }

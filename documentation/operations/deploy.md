@@ -53,7 +53,8 @@ The `Sandbox` container image is built by the Docker CLI as part of every deploy
 
 The device self-updates from the `MEDIA` bucket (see [Protocol](../runtime/protocol.md#ota-endpoints)). Layout:
 
-- `firmware/latest.json` — `{ "version": "2.5.0", "key": "firmware/apollo-2.5.0.bin" }`
+- `firmware/latest.json` — `{ "version": "2.5.0", "key": "firmware/apollo-2.5.0.bin" }`, plus an
+  optional `"changelog"` field (≤500 chars)
 - `firmware/apollo-<version>.bin` — the app image
 
 Rules that keep devices alive:
@@ -74,8 +75,18 @@ bunx wrangler r2 object put apollo-media/firmware/latest.json \
   --file latest.json --content-type application/json --remote
 ```
 
-The device checks at boot only, so a running device picks the update up on its next
-power cycle. Smoke-test after publishing:
+The device checks at boot, and the worker also **pushes** updates: when telemetry reports
+a version older than the manifest and the device is idle and powered (charging or ≥50%
+battery), the server calls `self.upgrade_firmware` over the MCP bridge (`src/ota/push.ts`,
+capped at 3 attempts per version, 6 h apart — a device that rolls back stops being
+retried until the next release). After the reboot, Apollo announces the update out loud.
+
+**Changelog authoring**: when bumping `PROJECT_VER`, also write `changelog/<version>.md`
+in the firmware repo — one short Spanish sentence, spoken verbatim by Apollo after the
+update ("ahora la cuenta regresiva se ve en el aro"). `publish.yml` embeds it into
+`latest.json`; without the file, Apollo falls back to a generic announcement.
+
+Smoke-test after publishing:
 `curl -s "https://<worker>/ota/check?token=$TOKEN"` should answer with the new version,
 and `curl -sI "https://<worker>/ota/firmware.bin?token=$TOKEN"` with a 200 and the
 binary's exact `Content-Length`.

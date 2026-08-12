@@ -9,6 +9,9 @@ const firmwareVersionPattern = /^\d+(\.\d+)*$/;
 export const firmwareManifestSchema = z.object({
   version: z.string().regex(firmwareVersionPattern),
   key: z.string().min(1),
+  // Optional so every manifest published before the field existed keeps
+  // parsing; the whole manifest degrades to "no update" on a schema miss.
+  changelog: z.string().min(1).max(500).optional(),
 });
 
 export type FirmwareManifest = z.infer<typeof firmwareManifestSchema>;
