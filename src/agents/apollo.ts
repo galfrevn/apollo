@@ -17,6 +17,7 @@ import {
   deliverReminderPayloadSchema,
   expireConfirmPayloadSchema,
   notifyBackgroundResultInputSchema,
+  retryInitiativeUtterancePayloadSchema,
 } from '@/agents/rpc';
 import { concatenateArrayBufferList, executeApolloTurn } from '@/agents/runtime';
 import { isDeviceSharedSecretValid, readDeviceTokenFromRequestUrl } from '@/auth/token';
@@ -27,6 +28,13 @@ import {
   tickDeskFocus,
   type DeskFocusState,
 } from '@/focus/logic';
+import {
+  evaluateInitiativeCandidate,
+  parseStoredInitiativeState,
+  recordInitiativeDelivery,
+  type InitiativePriority,
+  type InitiativeSource,
+} from '@/initiative/logic';
 import {
   buildDeviceToolCallPayload,
   createDeviceMcpRequestRegistry,
@@ -81,6 +89,7 @@ const MINIMUM_TURN_AUDIO_BYTE_LENGTH = 8000;
 
 const LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY = 'lowBatteryLastAnnounceAt';
 const TELEMETRY_SNAPSHOT_PREFERENCE_KEY = 'lastTelemetrySnapshot';
+const INITIATIVE_STATE_PREFERENCE_KEY = 'initiativeState';
 
 function mapUnknownScheduleListToAgentScheduleLikeList(
   scheduleList: readonly {
@@ -143,6 +152,7 @@ export class Apollo extends Agent<Env, ApolloState> {
   #lastKnownWeatherSnapshot: DeskWeatherSnapshot | undefined;
   #lastTelemetrySnapshot: DeskTelemetrySnapshot | undefined;
   #isAnnouncingLowBattery = false;
+  #isDeliveringInitiative = false;
   #deviceMcpRequestRegistry = createDeviceMcpRequestRegistry();
   #ttsSequence = 0;
   #lastPlaybackAck: {
@@ -462,6 +472,110 @@ export class Apollo extends Agent<Env, ApolloState> {
     });
   }
 
+  // The single chokepoint for self-initiated speech (roadmap item 17): every
+  // source of proactive utterances goes through the initiative policy so quiet
+  // hours, focus, and the daily budget are enforced in exactly one place.
+  async #deliverInitiativeUtterance(input: {
+    readonly source: InitiativeSource;
+    readonly priority: InitiativePriority;
+    readonly message: string;
+    readonly earconName?: DeskSoundEffectName;
+    readonly deferCount?: number;
+  }): Promise<'delivered' | 'suppressed' | 'deferred'> {
+    const nowMilliseconds = Date.now();
+    const storedInitiativeState = await getSessionPreference(
+      this.#sqlExecutor(),
+      INITIATIVE_STATE_PREFERENCE_KEY,
+    );
+    const initiativeState =
+      storedInitiativeState === null
+        ? undefined
+        : parseStoredInitiativeState(storedInitiativeState);
+    const deferCount = input.deferCount ?? 0;
+    const decision = evaluateInitiativeCandidate({
+      source: input.source,
+      priority: input.priority,
+      state: initiativeState,
+      nowMilliseconds,
+      focusEndsAtMilliseconds: this.state.focusEndsAt,
+      connectionCount: [...this.getConnections()].length,
+      deferCount,
+    });
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        message: 'initiative_decision',
+        source: input.source,
+        action: decision.action,
+        ...(decision.action !== 'deliver' ? { reason: decision.reason } : {}),
+      }),
+    );
+    if (decision.action === 'defer') {
+      const retryDelaySeconds = Math.max(
+        60,
+        Math.ceil((decision.retryAtMilliseconds - nowMilliseconds) / 1000),
+      );
+      await this.schedule(retryDelaySeconds, 'retryInitiativeUtterance', {
+        source: input.source,
+        priority: input.priority,
+        message: input.message,
+        ...(input.earconName !== undefined ? { earconName: input.earconName } : {}),
+        deferCount,
+      });
+      return 'deferred';
+    }
+    if (decision.action === 'suppress' || this.#isDeliveringInitiative) {
+      return 'suppressed';
+    }
+    this.#isDeliveringInitiative = true;
+    try {
+      if (input.earconName !== undefined) {
+        this.#broadcastPlayEffect(input.earconName);
+      }
+      await deliverDeskDeviceNotification({
+        notification: { type: 'reminder', message: input.message },
+        connectionList: [...this.getConnections()],
+        sqlExecutor: this.#sqlExecutor(),
+        focusState: this.#currentFocusState(),
+        environment: this.env,
+        deviceId: this.name ?? 'default',
+        ttsVoiceId: APOLLO_TTS_VOICE,
+        isMockVoice: this.env.MOCK_VOICE === '1',
+        ...(input.priority === 'critical' ? { announceKind: 'critical' as const } : {}),
+      });
+      // Recorded only after delivery succeeds, so a failed delivery neither
+      // consumes budget nor starts the source cooldown.
+      await setSessionPreference(
+        this.#sqlExecutor(),
+        INITIATIVE_STATE_PREFERENCE_KEY,
+        JSON.stringify(
+          recordInitiativeDelivery(
+            initiativeState,
+            input.source,
+            input.priority,
+            nowMilliseconds,
+          ),
+        ),
+      );
+    } finally {
+      this.#isDeliveringInitiative = false;
+    }
+    return 'delivered';
+  }
+
+  async retryInitiativeUtterance(payload: unknown): Promise<void> {
+    const parsedPayload = retryInitiativeUtterancePayloadSchema.parse(payload);
+    await this.#deliverInitiativeUtterance({
+      source: parsedPayload.source,
+      priority: parsedPayload.priority,
+      message: parsedPayload.message,
+      ...(parsedPayload.earconName !== undefined
+        ? { earconName: parsedPayload.earconName }
+        : {}),
+      deferCount: parsedPayload.deferCount + 1,
+    });
+  }
+
   #currentFocusState(): DeskFocusState {
     if (this.state.focusEndsAt === null) {
       return createInactiveDeskFocusState();
@@ -667,23 +781,19 @@ export class Apollo extends Agent<Env, ApolloState> {
     }
     this.#isAnnouncingLowBattery = true;
     try {
-      this.#broadcastPlayEffect('low_battery');
-      await deliverDeskDeviceNotification({
-        notification: { type: 'reminder', message: evaluation.message },
-        connectionList: [...this.getConnections()],
-        sqlExecutor: this.#sqlExecutor(),
-        focusState: this.#currentFocusState(),
-        environment: this.env,
-        deviceId: this.name ?? 'default',
-        ttsVoiceId: APOLLO_TTS_VOICE,
-        isMockVoice: this.env.MOCK_VOICE === '1',
-        announceKind: 'critical',
+      const deliveryOutcome = await this.#deliverInitiativeUtterance({
+        source: 'low_battery',
+        priority: 'critical',
+        message: evaluation.message,
+        earconName: 'low_battery',
       });
-      await setSessionPreference(
-        this.#sqlExecutor(),
-        LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY,
-        String(Date.now()),
-      );
+      if (deliveryOutcome === 'delivered') {
+        await setSessionPreference(
+          this.#sqlExecutor(),
+          LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY,
+          String(Date.now()),
+        );
+      }
     } finally {
       this.#isAnnouncingLowBattery = false;
     }
