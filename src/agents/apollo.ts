@@ -373,12 +373,17 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   async onMessage(connection: Connection, message: WSMessage): Promise<void> {
+    // Everything below this line is the device protocol: mic audio, the listen
+    // state machine, telemetry that steers OTA, MCP replies that resolve a
+    // pending device tool call, and confirm answers to a prompt on the device's
+    // own screen. None of it means anything from a browser, and honoring it
+    // would let one desynchronize the desk. The SDK dispatches @callable RPC
+    // and state sync before this runs, so the dashboard keeps both.
+    if (!hasDeviceConnectionTag(connection.tags)) {
+      return;
+    }
+
     if (typeof message !== 'string') {
-      // A binary frame is mic audio by definition; one from anywhere else would
-      // be transcribed into the owner's next sentence.
-      if (!hasDeviceConnectionTag(connection.tags)) {
-        return;
-      }
       this.#audioChunkList.push(message as ArrayBuffer);
       return;
     }

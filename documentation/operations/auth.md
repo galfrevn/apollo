@@ -45,6 +45,13 @@ offline — sent to a browser that cannot speak it, and deleted from the table b
 device ever reconnected. It would also stamp the browser's own origin over the one the OTA
 push hands the device as a firmware URL.
 
+`onMessage` is device-only in the other direction. Every inbound type is device vocabulary:
+mic audio, the listen state machine, telemetry that steers the OTA push and the low-battery
+announcement, `mcp` replies that resolve a pending device tool call, and `confirm` answers
+to a prompt on the device's own screen. Honouring any of it from a browser would let a tab
+desynchronize the desk. The dashboard loses nothing by it — the SDK dispatches `@callable`
+RPC and state sync before `onMessage` runs, so both still reach it.
+
 The device is also excluded from the SDK's own protocol frames — agent state sync, MCP
 server lists — which are not part of the [Protocol](../runtime/protocol.md) and which the
 firmware answers with an error.
