@@ -15,6 +15,7 @@ import {
 } from '@/memory/consolidate';
 import {
   addMemoryRecord,
+  findMemoryRecordIdByContent,
   getSessionPreference,
   setSessionPreference,
   type MemorySqlExecutor,
@@ -118,8 +119,17 @@ export async function runOwnerMemoryConsolidation(
   await session.refreshSystemPrompt();
   // Decayed facts stay in the memories table and Vectorize on purpose: that
   // layer is the provenance log recall_memory searches, while the consolidated
-  // block only governs what occupies prompt budget.
+  // block only governs what occupies prompt budget. The existence check makes
+  // the inserts idempotent — a run that failed after some inserts reprocesses
+  // this window next night without duplicating rows or index entries.
   for (const genuinelyNewFact of merge.genuinelyNewFactList) {
+    const existingMemoryId = await findMemoryRecordIdByContent(
+      sqlExecutor,
+      genuinelyNewFact.content,
+    );
+    if (existingMemoryId !== undefined) {
+      continue;
+    }
     const memoryRecord = await addMemoryRecord(sqlExecutor, genuinelyNewFact.content);
     await enqueueMemoryIndexJob(dependencies.environment, {
       memoryId: memoryRecord.id,

@@ -23,4 +23,5 @@ export const retryInitiativeUtterancePayloadSchema = z.object({
   message: z.string().min(1),
   earconName: deskSoundEffectSchema.optional(),
   deferCount: z.number().int().min(0).max(5),
+  utteranceKey: z.string().min(1).optional(),
 });

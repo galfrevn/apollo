@@ -35,7 +35,9 @@ import {
   type DeskFocusState,
 } from '@/focus/logic';
 import {
+  buildInitiativeDeliveryMarkerKey,
   evaluateInitiativeCandidate,
+  hasScheduledInitiativeRetryForSource,
   INITIATIVE_MAX_RETRY_ATTEMPTS,
   INITIATIVE_SUPPRESSED_RETRY_DELAY_SECONDS,
   parseStoredInitiativeState,
@@ -547,6 +549,7 @@ export class Apollo extends Agent<Env, ApolloState> {
         priority: input.priority,
         message: input.message,
         ...(input.earconName !== undefined ? { earconName: input.earconName } : {}),
+        ...(input.utteranceKey !== undefined ? { utteranceKey: input.utteranceKey } : {}),
         deferCount,
       });
       return 'deferred';
@@ -584,6 +587,13 @@ export class Apollo extends Agent<Env, ApolloState> {
           ),
         ),
       );
+      if (input.utteranceKey !== undefined) {
+        await setSessionPreference(
+          this.#sqlExecutor(),
+          buildInitiativeDeliveryMarkerKey(input.utteranceKey),
+          String(nowMilliseconds),
+        );
+      }
     } finally {
       this.#isDeliveringInitiative = false;
     }
@@ -599,6 +609,9 @@ export class Apollo extends Agent<Env, ApolloState> {
       message: parsedPayload.message,
       ...(parsedPayload.earconName !== undefined
         ? { earconName: parsedPayload.earconName }
+        : {}),
+      ...(parsedPayload.utteranceKey !== undefined
+        ? { utteranceKey: parsedPayload.utteranceKey }
         : {}),
     };
     const deliveryOutcome = await this.#deliverInitiativeUtterance({
@@ -855,6 +868,8 @@ export class Apollo extends Agent<Env, ApolloState> {
           nowMilliseconds: Date.now(),
           deliverInitiativeUtterance: (utterance) =>
             this.#deliverInitiativeUtterance(utterance),
+          hasScheduledInitiativeRetry: async (source) =>
+            hasScheduledInitiativeRetryForSource(await this.listSchedules(), source),
           callDeviceTool: (deviceToolName, argumentRecord) =>
             this.#callDeviceTool(deviceToolName, argumentRecord),
         },

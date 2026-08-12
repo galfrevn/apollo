@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
+  buildInitiativeDeliveryMarkerKey,
   computeQuietHoursEndMilliseconds,
   evaluateInitiativeCandidate,
+  hasScheduledInitiativeRetryForSource,
   INITIATIVE_DAILY_UTTERANCE_BUDGET,
   INITIATIVE_FOCUS_DEFER_GRACE_MS,
   INITIATIVE_MAX_DEFER_COUNT,
@@ -308,6 +310,55 @@ describe('recordInitiativeDelivery', () => {
     expect(nextState.lastUtteranceAtBySource).toEqual({
       low_battery: DAYTIME_MILLISECONDS,
     });
+  });
+});
+
+describe('buildInitiativeDeliveryMarkerKey', () => {
+  it('namespaces the utterance key', () => {
+    expect(buildInitiativeDeliveryMarkerKey('firmware-changelog-2.7.0')).toBe(
+      'initiativeDeliveredAt:firmware-changelog-2.7.0',
+    );
+  });
+});
+
+describe('hasScheduledInitiativeRetryForSource', () => {
+  it('finds a scheduled retry for the source', () => {
+    expect(
+      hasScheduledInitiativeRetryForSource(
+        [
+          { callback: 'deliverReminder', payload: { message: 'Timer' } },
+          {
+            callback: 'retryInitiativeUtterance',
+            payload: { source: 'firmware_changelog', message: 'hola' },
+          },
+        ],
+        'firmware_changelog',
+      ),
+    ).toBe(true);
+  });
+
+  it('ignores retries for other sources and other callbacks', () => {
+    expect(
+      hasScheduledInitiativeRetryForSource(
+        [
+          {
+            callback: 'retryInitiativeUtterance',
+            payload: { source: 'curiosity', message: 'hola' },
+          },
+          { callback: 'deliverReminder', payload: { source: 'firmware_changelog' } },
+        ],
+        'firmware_changelog',
+      ),
+    ).toBe(false);
+  });
+
+  it('tolerates malformed payloads', () => {
+    expect(
+      hasScheduledInitiativeRetryForSource(
+        [{ callback: 'retryInitiativeUtterance', payload: 'garbage' }],
+        'firmware_changelog',
+      ),
+    ).toBe(false);
   });
 });
 

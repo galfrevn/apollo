@@ -37,7 +37,28 @@ export type InitiativeUtteranceInput = {
   readonly message: string;
   readonly earconName?: DeskSoundEffectName;
   readonly deferCount?: number;
+  // When set, a successful delivery writes a durable marker under this key,
+  // so an at-most-once caller can requeue lost utterances without ever
+  // double-speaking one that a deferred retry already delivered.
+  readonly utteranceKey?: string;
 };
+
+export function buildInitiativeDeliveryMarkerKey(utteranceKey: string): string {
+  return `initiativeDeliveredAt:${utteranceKey}`;
+}
+
+export function hasScheduledInitiativeRetryForSource(
+  scheduleList: readonly { readonly callback: string; readonly payload: unknown }[],
+  source: InitiativeSource,
+): boolean {
+  return scheduleList.some((schedule) => {
+    if (schedule.callback !== 'retryInitiativeUtterance') {
+      return false;
+    }
+    const parsedPayload = z.object({ source: z.string() }).safeParse(schedule.payload);
+    return parsedPayload.success && parsedPayload.data.source === source;
+  });
+}
 
 export type InitiativeDecision =
   | { readonly action: 'deliver' }

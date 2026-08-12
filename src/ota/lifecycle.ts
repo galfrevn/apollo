@@ -1,6 +1,8 @@
-import type {
-  InitiativeDeliveryOutcome,
-  InitiativeUtteranceInput,
+import {
+  buildInitiativeDeliveryMarkerKey,
+  type InitiativeDeliveryOutcome,
+  type InitiativeSource,
+  type InitiativeUtteranceInput,
 } from '@/initiative/logic';
 import {
   getSessionPreference,
@@ -38,6 +40,7 @@ export type FirmwareLifecycleDependencies = {
   readonly deliverInitiativeUtterance: (
     utterance: InitiativeUtteranceInput,
   ) => Promise<InitiativeDeliveryOutcome>;
+  readonly hasScheduledInitiativeRetry: (source: InitiativeSource) => Promise<boolean>;
   readonly callDeviceTool: (
     deviceToolName: string,
     argumentRecord: Record<string, unknown>,
@@ -98,31 +101,47 @@ export async function runFirmwareLifecycle(
     changelogState?.pendingVersion !== undefined &&
     changelogState.pendingVersion !== changelogState.announcedVersion
   ) {
-    const manifest = await readFirmwareManifest(dependencies.mediaBucket);
-    const changelogText =
-      manifest !== undefined && manifest.version === changelogState.pendingVersion
-        ? manifest.changelog
-        : undefined;
-    const deliveryOutcome = await dependencies.deliverInitiativeUtterance({
-      source: 'firmware_changelog',
-      priority: 'normal',
-      message: buildFirmwareChangelogMessage({
-        toVersion: changelogState.pendingVersion,
-        ...(changelogText !== undefined ? { changelogText } : {}),
-      }),
-      earconName: 'chime',
-    });
-    // A deferred utterance carries its message in the schedule payload and its
-    // retry re-schedules itself on transient suppressions, so it counts as
-    // announced here — otherwise the next telemetry tick would schedule a
-    // duplicate. Only an immediate suppression leaves it pending for retry.
-    if (deliveryOutcome !== 'suppressed') {
-      changelogState = { announcedVersion: changelogState.pendingVersion };
+    const pendingVersion = changelogState.pendingVersion;
+    // The version is only marked announced once it was actually spoken: the
+    // delivery marker survives a deferred retry chain, the in-flight check
+    // prevents duplicate scheduling while one is pending, and if the whole
+    // retry chain dies suppressed, the still-pending version re-queues here
+    // on a later telemetry tick — the changelog can be late, never lost.
+    const deliveryMarkerKey = buildInitiativeDeliveryMarkerKey(
+      `firmware-changelog-${pendingVersion}`,
+    );
+    const deliveredAt = await getSessionPreference(sqlExecutor, deliveryMarkerKey);
+    if (deliveredAt !== null) {
+      changelogState = { announcedVersion: pendingVersion };
       await setSessionPreference(
         sqlExecutor,
         FIRMWARE_CHANGELOG_STATE_PREFERENCE_KEY,
         JSON.stringify(changelogState),
       );
+    } else if (!(await dependencies.hasScheduledInitiativeRetry('firmware_changelog'))) {
+      const manifest = await readFirmwareManifest(dependencies.mediaBucket);
+      const changelogText =
+        manifest !== undefined && manifest.version === pendingVersion
+          ? manifest.changelog
+          : undefined;
+      const deliveryOutcome = await dependencies.deliverInitiativeUtterance({
+        source: 'firmware_changelog',
+        priority: 'normal',
+        message: buildFirmwareChangelogMessage({
+          toVersion: pendingVersion,
+          ...(changelogText !== undefined ? { changelogText } : {}),
+        }),
+        earconName: 'chime',
+        utteranceKey: `firmware-changelog-${pendingVersion}`,
+      });
+      if (deliveryOutcome === 'delivered') {
+        changelogState = { announcedVersion: pendingVersion };
+        await setSessionPreference(
+          sqlExecutor,
+          FIRMWARE_CHANGELOG_STATE_PREFERENCE_KEY,
+          JSON.stringify(changelogState),
+        );
+      }
     }
   }
 
