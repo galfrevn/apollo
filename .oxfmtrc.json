@@ -3,5 +3,14 @@
   "printWidth": 90,
   "singleQuote": true,
   "endOfLine": "lf",
-  "ignorePatterns": ["*.md", "*.yml", "*.yaml", "*.toml", "*.json", "firmware/**"]
+  "ignorePatterns": [
+    "*.md",
+    "*.yml",
+    "*.yaml",
+    "*.toml",
+    "*.json",
+    "firmware/**",
+    ".agents/skills/**",
+    ".claude/skills/**"
+  ]
 }

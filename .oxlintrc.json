@@ -20,5 +20,5 @@
   "env": {
     "builtin": true
   },
-  "ignorePatterns": []
+  "ignorePatterns": [".agents/skills/**", ".claude/skills/**"]
 }
