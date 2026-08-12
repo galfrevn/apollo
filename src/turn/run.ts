@@ -61,6 +61,7 @@ export type TurnInput = {
   readonly nowMilliseconds: number;
   readonly deviceId?: string;
   readonly systemPromptOverride?: string;
+  readonly recentHistoryMessageList?: readonly OpenRouterChatMessage[];
   readonly recallSemanticMemoryContentList?: (
     queryText: string,
   ) => Promise<readonly string[]>;
@@ -226,11 +227,9 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
 
   const messageList: OpenRouterChatMessage[] = [
     { role: 'system', content: systemPrompt },
+    ...(input.recentHistoryMessageList ?? []),
     { role: 'user', content: userText },
   ];
-  // Each turn builds the LLM conversation from scratch, so an approved
-  // confirmation has to be replayed into it: without the tool call and its
-  // result the model only sees "confirmado" and asks what was approved.
   if (resolvedConfirmation !== undefined && resolvedConfirmationResult !== undefined) {
     messageList.push(
       buildAssistantToolCallMessage('', [

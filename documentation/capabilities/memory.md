@@ -15,6 +15,8 @@ Apollo keeps both conversational session memory and longer-lived facts.
 
 Both layers key off the **transcript**, not the raw input: a hold-to-talk turn arrives as audio and only becomes text after STT runs inside `src/turn/run.ts`, which returns it as `TurnOutput.transcript`. `src/agents/runtime.ts` appends that transcript (and the reply) to the session, and runs semantic recall with it. Gating either on the caller's `text` instead would skip every spoken turn.
 
+Each turn also reads a small recency window back out: `buildRecentTurnHistoryMessageList` (`src/memory/session.ts`) calls `session.getRecentHistory` with an 8 KB budget and a 10-message floor, and `src/turn/run.ts` splices those prior user/assistant turns into the LLM message list ahead of the current utterance. This is what lets a follow-up said moments after a reply — including one after a fresh wake-word activation — reference what was just discussed; a new wake word does not reset the session or its history.
+
 ## Tools
 
 - `remember_fact` stores something worth recalling later

@@ -4,7 +4,10 @@ import type { Session } from 'agents/experimental/memory/session';
 import type { ApolloState } from '@/agents/apollo';
 import { createInactiveDeskFocusState, tickDeskFocus } from '@/focus/logic';
 import { isNamespacedMcpToolName } from '@/mcp/naming';
-import { buildSessionSystemPrompt } from '@/memory/session';
+import {
+  buildRecentTurnHistoryMessageList,
+  buildSessionSystemPrompt,
+} from '@/memory/session';
 import type { MemorySqlExecutor } from '@/memory/store';
 import { recallSemanticMemoryContent } from '@/memory/vector';
 import { resolveDeskSpeechMode } from '@/persona/catalog';
@@ -74,6 +77,9 @@ export async function executeApolloTurn(
 
   const isMockVoice = dependencies.environment.MOCK_VOICE === '1';
   const sessionSystemPrompt = await buildSessionSystemPrompt(dependencies.session);
+  const recentHistoryMessageList = await buildRecentTurnHistoryMessageList(
+    dependencies.session,
+  );
   const recallSemanticMemoryContentList = async (
     queryText: string,
   ): Promise<readonly string[]> =>
@@ -102,7 +108,7 @@ export async function executeApolloTurn(
     ? {
         stt: async () => turnPart.text ?? 'hola',
         llm: async ({ messageList }) => {
-          const userMessage = messageList.find((message) => message.role === 'user');
+          const userMessage = messageList.findLast((message) => message.role === 'user');
           const userText = userMessage?.role === 'user' ? userMessage.content : '';
           return {
             text: `Mock: ${userText}`,
@@ -147,6 +153,7 @@ export async function executeApolloTurn(
     nowMilliseconds,
     deviceId: dependencies.deviceId,
     systemPromptOverride: `${sessionSystemPrompt}${focusNote}${telemetryNote}${installedToolNote}`,
+    recentHistoryMessageList,
     ...(isMockVoice ? {} : { recallSemanticMemoryContentList }),
     effects: dependencies.effects,
     onThinkingCaption: async (caption) => {
