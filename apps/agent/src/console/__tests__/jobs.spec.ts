@@ -9,17 +9,25 @@ import type { ConsoleDocumentBucket } from '@/console/jobs';
 
 function createFakeDocumentBucket(
   objectMap: Record<string, { uploaded: Date; content: string }>,
+  pageSize?: number,
 ): ConsoleDocumentBucket {
   return {
-    async list({ prefix }) {
+    async list({ prefix, cursor }) {
+      const matchingObjectList = Object.entries(objectMap)
+        .filter(([key]) => key.startsWith(prefix))
+        .map(([key, value]) => ({
+          key,
+          uploaded: value.uploaded,
+          size: value.content.length,
+        }));
+      const startIndex = cursor === undefined ? 0 : Number(cursor);
+      const endIndex =
+        pageSize === undefined ? matchingObjectList.length : startIndex + pageSize;
+      const isTruncated = endIndex < matchingObjectList.length;
       return {
-        objects: Object.entries(objectMap)
-          .filter(([key]) => key.startsWith(prefix))
-          .map(([key, value]) => ({
-            key,
-            uploaded: value.uploaded,
-            size: value.content.length,
-          })),
+        objects: matchingObjectList.slice(startIndex, endIndex),
+        truncated: isTruncated,
+        ...(isTruncated ? { cursor: String(endIndex) } : {}),
       };
     },
     async get(key) {
@@ -59,6 +67,22 @@ describe('console job documents', () => {
     await expect(
       readConsoleJobDocument(bucket, 'desk', 'firmware/latest.json'),
     ).resolves.toBeNull();
+  });
+
+  it('follows the listing cursor across pages', async () => {
+    const paginatedBucket = createFakeDocumentBucket(
+      {
+        'research/desk/a.md': { uploaded: new Date('2026-08-01'), content: 'a' },
+        'research/desk/b.md': { uploaded: new Date('2026-08-02'), content: 'b' },
+        'research/desk/c.md': { uploaded: new Date('2026-08-03'), content: 'c' },
+      },
+      1,
+    );
+
+    const documentList = await listConsoleJobDocuments(paginatedBucket, 'desk');
+
+    expect(documentList).toHaveLength(3);
+    expect(documentList[0]?.documentKey).toBe('research/desk/c.md');
   });
 
   it('guards key prefixes strictly', () => {

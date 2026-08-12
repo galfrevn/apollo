@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Empty } from '@/blueprint/empty';
 import { Heading } from '@/blueprint/heading';
@@ -20,6 +20,7 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
   const [openDocumentKey, setOpenDocumentKey] = useState<string | null>(null);
   const [openDocumentContent, setOpenDocumentContent] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const openDocumentKeyRef = useRef<string | null>(null);
 
   const refreshDocumentList = useCallback(async () => {
     setErrorMessage(null);
@@ -36,17 +37,23 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
 
   async function handleOpenDocument(documentKey: string) {
     if (openDocumentKey === documentKey) {
+      openDocumentKeyRef.current = null;
       setOpenDocumentKey(null);
       setOpenDocumentContent(null);
       return;
     }
+    openDocumentKeyRef.current = documentKey;
     setOpenDocumentKey(documentKey);
     setOpenDocumentContent(null);
+    let loadedContent: string;
     try {
       const documentResult = await consoleRpc.getDocument(documentKey);
-      setOpenDocumentContent(documentResult.content ?? 'Document not found.');
+      loadedContent = documentResult.content ?? 'Document not found.';
     } catch {
-      setOpenDocumentContent('Could not load the document.');
+      loadedContent = 'Could not load the document.';
+    }
+    if (openDocumentKeyRef.current === documentKey) {
+      setOpenDocumentContent(loadedContent);
     }
   }
 
