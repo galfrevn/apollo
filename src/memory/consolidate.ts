@@ -304,6 +304,29 @@ export function renderOwnerMemoryBlock(factList: readonly OwnerFact[]): string {
   return keptLineList.join('\n');
 }
 
+const memoryIndexIntentListSchema = z.array(
+  z.object({
+    memoryId: z.string().min(1),
+    content: z.string().min(1),
+  }),
+);
+
+export type MemoryIndexIntent = {
+  readonly memoryId: string;
+  readonly content: string;
+};
+
+export function parseStoredMemoryIndexIntentList(
+  storedValue: string,
+): readonly MemoryIndexIntent[] | undefined {
+  try {
+    const parsedList = memoryIndexIntentListSchema.safeParse(JSON.parse(storedValue));
+    return parsedList.success ? parsedList.data : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function parseStoredOwnerMemoryState(
   storedValue: string,
 ): OwnerMemoryState | undefined {

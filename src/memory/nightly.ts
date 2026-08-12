@@ -8,6 +8,7 @@ import {
   OWNER_MEMORY_MIN_RUN_INTERVAL_MS,
   OWNER_MEMORY_TRANSCRIPT_BYTE_BUDGET,
   parseMemoryExtractionResult,
+  parseStoredMemoryIndexIntentList,
   parseStoredOwnerMemoryState,
   renderOwnerMemoryBlock,
   seedOwnerFactsFromMemoryBlock,
@@ -24,6 +25,35 @@ import { enqueueMemoryIndexJob } from '@/queues/consume';
 import { chatWithOpenRouter } from '@/voice/llm';
 
 export const OWNER_MEMORY_STATE_PREFERENCE_KEY = 'ownerMemoryState';
+export const OWNER_MEMORY_INDEX_INTENT_PREFERENCE_KEY = 'ownerMemoryIndexIntents';
+
+async function drainMemoryIndexIntents(
+  dependencies: OwnerMemoryConsolidationDependencies,
+): Promise<void> {
+  const storedIntentList = await getSessionPreference(
+    dependencies.sqlExecutor,
+    OWNER_MEMORY_INDEX_INTENT_PREFERENCE_KEY,
+  );
+  const intentList =
+    storedIntentList === null
+      ? undefined
+      : parseStoredMemoryIndexIntentList(storedIntentList);
+  if (intentList === undefined || intentList.length === 0) {
+    return;
+  }
+  for (const intent of intentList) {
+    await enqueueMemoryIndexJob(dependencies.environment, {
+      memoryId: intent.memoryId,
+      content: intent.content,
+      deviceId: dependencies.deviceId,
+    });
+  }
+  await setSessionPreference(
+    dependencies.sqlExecutor,
+    OWNER_MEMORY_INDEX_INTENT_PREFERENCE_KEY,
+    '[]',
+  );
+}
 
 export type OwnerMemoryConsolidationDependencies = {
   readonly sqlExecutor: MemorySqlExecutor;
@@ -47,6 +77,7 @@ export async function runOwnerMemoryConsolidation(
   );
   const state =
     storedState === null ? undefined : parseStoredOwnerMemoryState(storedState);
+  await drainMemoryIndexIntents(dependencies);
   if (
     state !== undefined &&
     nowMilliseconds - state.lastConsolidatedAtMilliseconds <
@@ -120,22 +151,36 @@ export async function runOwnerMemoryConsolidation(
   // Decayed facts stay in the memories table and Vectorize on purpose: that
   // layer is the provenance log recall_memory searches, while the consolidated
   // block only governs what occupies prompt budget. The existence check makes
-  // the insert idempotent, and the index job is enqueued even for an existing
-  // row — Vectorize upserts by memory id, so a run that died between insert
-  // and enqueue heals here instead of leaving the row unsearchable forever.
+  // the insert idempotent; already-present rows are skipped outright because
+  // any enqueue they might have missed was healed by the intent drain above.
   for (const genuinelyNewFact of merge.genuinelyNewFactList) {
     const existingMemoryId = await findMemoryRecordIdByContent(
       sqlExecutor,
       genuinelyNewFact.content,
     );
-    const memoryId =
-      existingMemoryId ??
-      (await addMemoryRecord(sqlExecutor, genuinelyNewFact.content)).id;
+    if (existingMemoryId !== undefined) {
+      continue;
+    }
+    const memoryRecord = await addMemoryRecord(sqlExecutor, genuinelyNewFact.content);
+    // The intent is durable before the enqueue and cleared right after, so a
+    // crash in between re-enqueues exactly this row on the next run: indexing
+    // is at-least-once (Vectorize upserts by id) without ever re-enqueueing
+    // rows whose indexing already succeeded.
+    await setSessionPreference(
+      sqlExecutor,
+      OWNER_MEMORY_INDEX_INTENT_PREFERENCE_KEY,
+      JSON.stringify([{ memoryId: memoryRecord.id, content: genuinelyNewFact.content }]),
+    );
     await enqueueMemoryIndexJob(dependencies.environment, {
-      memoryId,
+      memoryId: memoryRecord.id,
       content: genuinelyNewFact.content,
       deviceId: dependencies.deviceId,
     });
+    await setSessionPreference(
+      sqlExecutor,
+      OWNER_MEMORY_INDEX_INTENT_PREFERENCE_KEY,
+      '[]',
+    );
   }
   // The checkpoint is written only after every durable output above succeeded:
   // a failure mid-run leaves lastProcessedLeafId untouched, so the next night

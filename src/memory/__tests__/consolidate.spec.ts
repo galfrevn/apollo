@@ -9,6 +9,7 @@ import {
   OWNER_MEMORY_MAX_FACT_COUNT,
   OWNER_MEMORY_STALE_FACT_WINDOW_MS,
   parseMemoryExtractionResult,
+  parseStoredMemoryIndexIntentList,
   parseStoredOwnerMemoryState,
   renderOwnerMemoryBlock,
   seedOwnerFactsFromMemoryBlock,
@@ -317,6 +318,22 @@ describe('renderOwnerMemoryBlock', () => {
           renderedLine === '',
       ).toBe(true);
     }
+  });
+});
+
+describe('parseStoredMemoryIndexIntentList', () => {
+  it('round-trips an intent list', () => {
+    const intentList = [{ memoryId: 'memory-1', content: 'Toma mate amargo' }];
+    expect(parseStoredMemoryIndexIntentList(JSON.stringify(intentList))).toEqual(
+      intentList,
+    );
+    expect(parseStoredMemoryIndexIntentList('[]')).toEqual([]);
+  });
+
+  it('rejects garbage', () => {
+    expect(parseStoredMemoryIndexIntentList('[{"memoryId":')).toBeUndefined();
+    expect(parseStoredMemoryIndexIntentList('[{"memoryId":"x"}]')).toBeUndefined();
+    expect(parseStoredMemoryIndexIntentList('null')).toBeUndefined();
   });
 });
 
