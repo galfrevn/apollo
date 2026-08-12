@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { APOLLO_TIME_ZONE } from '@/persona/clock';
+import type { DeskSoundEffectName } from '@/protocol/schema';
 
 export const initiativeSourceSchema = z.enum([
   'firmware_changelog',
@@ -28,6 +29,16 @@ export type InitiativeState = {
   readonly lastUtteranceAtBySource: Readonly<Record<string, number>>;
 };
 
+export type InitiativeDeliveryOutcome = 'delivered' | 'suppressed' | 'deferred';
+
+export type InitiativeUtteranceInput = {
+  readonly source: InitiativeSource;
+  readonly priority: InitiativePriority;
+  readonly message: string;
+  readonly earconName?: DeskSoundEffectName;
+  readonly deferCount?: number;
+};
+
 export type InitiativeDecision =
   | { readonly action: 'deliver' }
   | {
@@ -50,6 +61,11 @@ export const INITIATIVE_DAILY_UTTERANCE_BUDGET = 6;
 export const INITIATIVE_SOURCE_COOLDOWN_MS = 60 * 60_000;
 export const INITIATIVE_MAX_DEFER_COUNT = 2;
 export const INITIATIVE_FOCUS_DEFER_GRACE_MS = 60_000;
+// A deferred utterance whose retry lands in a suppressing moment (device
+// offline at 09:00, budget spent) re-schedules itself instead of vanishing;
+// this bounds that loop.
+export const INITIATIVE_MAX_RETRY_ATTEMPTS = 5;
+export const INITIATIVE_SUPPRESSED_RETRY_DELAY_SECONDS = 30 * 60;
 
 type LocalTimeParts = {
   readonly calendarDate: string;
@@ -120,14 +136,16 @@ export function evaluateInitiativeCandidate(
   input: InitiativeCandidateEvaluationInput,
 ): InitiativeDecision {
   const { state, nowMilliseconds } = input;
-  if (input.priority === 'critical') {
-    return { action: 'deliver' };
-  }
   // With nobody connected the notify layer would enqueue a card that is
   // replayed silently on reconnect — self-initiated speech arriving as a stale
-  // mute card is worse than not speaking, and shouldn't burn budget.
+  // mute card is worse than not speaking, and shouldn't burn budget. This
+  // outranks critical: suppressing keeps the caller's cooldown unwritten, so
+  // the utterance retries promptly once the device reconnects.
   if (input.connectionCount === 0) {
     return { action: 'suppress', reason: 'device_offline' };
+  }
+  if (input.priority === 'critical') {
+    return { action: 'deliver' };
   }
   if (isWithinQuietHours(nowMilliseconds)) {
     if (input.deferCount >= INITIATIVE_MAX_DEFER_COUNT) {

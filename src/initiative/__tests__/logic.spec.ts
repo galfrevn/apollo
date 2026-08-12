@@ -118,14 +118,17 @@ describe('evaluateInitiativeCandidate', () => {
     });
   });
 
-  it('always delivers critical candidates, even offline inside quiet hours', () => {
+  it('delivers critical candidates through quiet hours, budget, and cooldown', () => {
+    const nightMilliseconds = buildBuenosAiresEpochMilliseconds(2026, 7, 12, 3, 0);
     const decision = evaluateInitiativeCandidate(
       createEvaluationInput({
         priority: 'critical',
-        connectionCount: 0,
-        nowMilliseconds: buildBuenosAiresEpochMilliseconds(2026, 7, 12, 3, 0),
+        source: 'low_battery',
+        nowMilliseconds: nightMilliseconds,
         state: createState({
+          budgetDate: resolveLocalCalendarDate(nightMilliseconds),
           utterancesUsed: INITIATIVE_DAILY_UTTERANCE_BUDGET,
+          lastUtteranceAtBySource: { low_battery: nightMilliseconds - 1 },
         }),
       }),
     );
@@ -135,6 +138,13 @@ describe('evaluateInitiativeCandidate', () => {
   it('suppresses when the device is offline', () => {
     const decision = evaluateInitiativeCandidate(
       createEvaluationInput({ connectionCount: 0 }),
+    );
+    expect(decision).toEqual({ action: 'suppress', reason: 'device_offline' });
+  });
+
+  it('suppresses even critical candidates while offline, so cooldowns stay unwritten', () => {
+    const decision = evaluateInitiativeCandidate(
+      createEvaluationInput({ priority: 'critical', connectionCount: 0 }),
     );
     expect(decision).toEqual({ action: 'suppress', reason: 'device_offline' });
   });

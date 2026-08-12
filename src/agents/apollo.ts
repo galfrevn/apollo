@@ -36,10 +36,12 @@ import {
 } from '@/focus/logic';
 import {
   evaluateInitiativeCandidate,
+  INITIATIVE_MAX_RETRY_ATTEMPTS,
+  INITIATIVE_SUPPRESSED_RETRY_DELAY_SECONDS,
   parseStoredInitiativeState,
   recordInitiativeDelivery,
-  type InitiativePriority,
-  type InitiativeSource,
+  type InitiativeDeliveryOutcome,
+  type InitiativeUtteranceInput,
 } from '@/initiative/logic';
 import {
   buildDeviceToolCallPayload,
@@ -47,42 +49,18 @@ import {
   DEVICE_TOOL_CALL_TIMEOUT_MILLISECONDS,
   summarizeDeviceToolResult,
 } from '@/mcp/bridge';
-import {
-  buildExtractionRetryMessageList,
-  buildMemoryExtractionMessageList,
-  flattenRecentHistoryToTranscript,
-  mergeOwnerFacts,
-  OWNER_MEMORY_CONSOLIDATION_CRON,
-  OWNER_MEMORY_MIN_RUN_INTERVAL_MS,
-  OWNER_MEMORY_TRANSCRIPT_BYTE_BUDGET,
-  parseMemoryExtractionResult,
-  parseStoredOwnerMemoryState,
-  renderOwnerMemoryBlock,
-  seedOwnerFactsFromMemoryBlock,
-  type OwnerMemoryState,
-} from '@/memory/consolidate';
+import { OWNER_MEMORY_CONSOLIDATION_CRON } from '@/memory/consolidate';
+import { runOwnerMemoryConsolidation } from '@/memory/nightly';
 import { deletePendingDeviceMessage, listPendingDeviceMessages } from '@/memory/pending';
-import { readFirmwareManifest } from '@/ota/manifest';
-import {
-  buildFirmwareChangelogMessage,
-  detectFirmwareVersionChange,
-  evaluateFirmwarePush,
-  parseStoredFirmwareChangelogState,
-  parseStoredFirmwarePushState,
-  recordFirmwareManifestCheck,
-  recordFirmwarePushAttempt,
-  shouldCheckFirmwareManifest,
-} from '@/ota/push';
 import { createApolloSession } from '@/memory/session';
 import {
-  addMemoryRecord,
   getSessionPreference,
   setSessionPreference,
   type MemorySqlExecutor,
 } from '@/memory/store';
+import { PUBLIC_ORIGIN_PREFERENCE_KEY, runFirmwareLifecycle } from '@/ota/lifecycle';
 import { cycleDeskSpeechMode, resolveDeskSpeechMode } from '@/persona/catalog';
 import { resolveDeskFaceEmotion } from '@/persona/face';
-import { enqueueMemoryIndexJob } from '@/queues/consume';
 import { APOLLO_TTS_VOICE } from '@/persona/soul';
 import {
   encodeServerToDeviceMessage,
@@ -109,7 +87,6 @@ import {
   savePendingToolConfirmation,
 } from '@/tools/pending';
 import type { PendingToolConfirmation, ToolExecutionResult } from '@/tools/types';
-import { chatWithOpenRouter } from '@/voice/llm';
 import type { DeskWeatherSnapshot } from '@/weather/fetch';
 import {
   resolveDeskWeatherLocationFromPreferences,
@@ -124,10 +101,6 @@ const MINIMUM_TURN_AUDIO_BYTE_LENGTH = 8000;
 const LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY = 'lowBatteryLastAnnounceAt';
 const TELEMETRY_SNAPSHOT_PREFERENCE_KEY = 'lastTelemetrySnapshot';
 const INITIATIVE_STATE_PREFERENCE_KEY = 'initiativeState';
-const FIRMWARE_PUSH_STATE_PREFERENCE_KEY = 'firmwarePushState';
-const FIRMWARE_CHANGELOG_STATE_PREFERENCE_KEY = 'firmwareChangelogState';
-const PUBLIC_ORIGIN_PREFERENCE_KEY = 'publicOrigin';
-const OWNER_MEMORY_STATE_PREFERENCE_KEY = 'ownerMemoryState';
 
 function mapUnknownScheduleListToAgentScheduleLikeList(
   scheduleList: readonly {
@@ -533,13 +506,9 @@ export class Apollo extends Agent<Env, ApolloState> {
   // The single chokepoint for self-initiated speech (roadmap item 17): every
   // source of proactive utterances goes through the initiative policy so quiet
   // hours, focus, and the daily budget are enforced in exactly one place.
-  async #deliverInitiativeUtterance(input: {
-    readonly source: InitiativeSource;
-    readonly priority: InitiativePriority;
-    readonly message: string;
-    readonly earconName?: DeskSoundEffectName;
-    readonly deferCount?: number;
-  }): Promise<'delivered' | 'suppressed' | 'deferred'> {
+  async #deliverInitiativeUtterance(
+    input: InitiativeUtteranceInput,
+  ): Promise<InitiativeDeliveryOutcome> {
     const nowMilliseconds = Date.now();
     const storedInitiativeState = await getSessionPreference(
       this.#sqlExecutor(),
@@ -623,20 +592,35 @@ export class Apollo extends Agent<Env, ApolloState> {
 
   async retryInitiativeUtterance(payload: unknown): Promise<void> {
     const parsedPayload = retryInitiativeUtterancePayloadSchema.parse(payload);
-    await this.#deliverInitiativeUtterance({
+    const nextDeferCount = parsedPayload.deferCount + 1;
+    const retryPayload = {
       source: parsedPayload.source,
       priority: parsedPayload.priority,
       message: parsedPayload.message,
       ...(parsedPayload.earconName !== undefined
         ? { earconName: parsedPayload.earconName }
         : {}),
-      deferCount: parsedPayload.deferCount + 1,
+    };
+    const deliveryOutcome = await this.#deliverInitiativeUtterance({
+      ...retryPayload,
+      deferCount: nextDeferCount,
     });
+    // A deferred utterance already survived one policy window; letting its
+    // retry vanish on a transient suppression (device offline at 09:00, budget
+    // spent) would lose it for good — so it re-schedules itself, bounded by
+    // the attempt cap.
+    if (
+      deliveryOutcome === 'suppressed' &&
+      nextDeferCount < INITIATIVE_MAX_RETRY_ATTEMPTS
+    ) {
+      await this.schedule(
+        INITIATIVE_SUPPRESSED_RETRY_DELAY_SECONDS,
+        'retryInitiativeUtterance',
+        { ...retryPayload, deferCount: nextDeferCount },
+      );
+    }
   }
 
-  // Roadmap item 18: the nightly cron owns the previously append-only memory
-  // context block — it reads the recent transcript, asks the LLM to extract,
-  // reinforce, and retire owner facts, and rewrites the block consolidated.
   async consolidateOwnerMemory(): Promise<void> {
     // Mock mode has no LLM to call; a dev session must not burn tokens.
     if (this.env.MOCK_VOICE === '1') {
@@ -645,119 +629,16 @@ export class Apollo extends Agent<Env, ApolloState> {
     if (this.#isConsolidatingMemory) {
       return;
     }
-    const nowMilliseconds = Date.now();
-    const sqlExecutor = this.#sqlExecutor();
-    const storedState = await getSessionPreference(
-      sqlExecutor,
-      OWNER_MEMORY_STATE_PREFERENCE_KEY,
-    );
-    const state =
-      storedState === null ? undefined : parseStoredOwnerMemoryState(storedState);
-    if (
-      state !== undefined &&
-      nowMilliseconds - state.lastConsolidatedAtMilliseconds <
-        OWNER_MEMORY_MIN_RUN_INTERVAL_MS
-    ) {
-      return;
-    }
     this.#isConsolidatingMemory = true;
     try {
-      const latestLeaf = await this.session.getLatestLeaf();
-      if (latestLeaf === null || latestLeaf.id === state?.lastProcessedLeafId) {
-        // An idle day: nothing new happened, so the run costs zero LLM calls.
-        const idleState: OwnerMemoryState = {
-          factList: state?.factList ?? [],
-          lastConsolidatedAtMilliseconds: nowMilliseconds,
-          ...(state?.lastProcessedLeafId !== undefined
-            ? { lastProcessedLeafId: state.lastProcessedLeafId }
-            : {}),
-        };
-        await setSessionPreference(
-          sqlExecutor,
-          OWNER_MEMORY_STATE_PREFERENCE_KEY,
-          JSON.stringify(idleState),
-        );
-        return;
-      }
-      const recentHistory = await this.session.getRecentHistory(
-        OWNER_MEMORY_TRANSCRIPT_BYTE_BUDGET,
-      );
-      const seededFactList = seedOwnerFactsFromMemoryBlock({
-        blockContent: this.session.getContextBlock('memory')?.content ?? '',
-        knownFactList: state?.factList ?? [],
-        nowMilliseconds,
+      await runOwnerMemoryConsolidation({
+        sqlExecutor: this.#sqlExecutor(),
+        session: this.session,
+        environment: this.env,
+        deviceId: this.name ?? 'default',
+        nowMilliseconds: Date.now(),
         createIdentifier: () => crypto.randomUUID(),
       });
-      const extractionMessageList = buildMemoryExtractionMessageList({
-        transcriptText: flattenRecentHistoryToTranscript(recentHistory.messages),
-        existingFactList: seededFactList,
-        nowIso: new Date(nowMilliseconds).toISOString(),
-      });
-      const firstChatResult = await chatWithOpenRouter({
-        openRouterApiKey: this.env.OPENROUTER_API_KEY,
-        modelId: this.env.OPENROUTER_MODEL,
-        messageList: extractionMessageList,
-      });
-      let extraction = parseMemoryExtractionResult(firstChatResult.text);
-      if (extraction === undefined) {
-        const retryChatResult = await chatWithOpenRouter({
-          openRouterApiKey: this.env.OPENROUTER_API_KEY,
-          modelId: this.env.OPENROUTER_MODEL,
-          messageList: buildExtractionRetryMessageList(
-            extractionMessageList,
-            firstChatResult.text,
-          ),
-        });
-        extraction = parseMemoryExtractionResult(retryChatResult.text);
-      }
-      if (extraction === undefined) {
-        // State stays untouched so the next night retries over the same window.
-        console.error(
-          JSON.stringify({ level: 'error', message: 'owner_memory_extraction_invalid' }),
-        );
-        return;
-      }
-      const merge = mergeOwnerFacts({
-        existingFactList: seededFactList,
-        extraction,
-        nowMilliseconds,
-        createIdentifier: () => crypto.randomUUID(),
-      });
-      const nextState: OwnerMemoryState = {
-        factList: merge.nextFactList,
-        lastConsolidatedAtMilliseconds: nowMilliseconds,
-        lastProcessedLeafId: latestLeaf.id,
-      };
-      await setSessionPreference(
-        sqlExecutor,
-        OWNER_MEMORY_STATE_PREFERENCE_KEY,
-        JSON.stringify(nextState),
-      );
-      await this.session.replaceContextBlock(
-        'memory',
-        renderOwnerMemoryBlock(merge.nextFactList),
-      );
-      await this.session.refreshSystemPrompt();
-      // Decayed facts stay in the memories table and Vectorize on purpose:
-      // that layer is the provenance log recall_memory searches, while the
-      // consolidated block only governs what occupies prompt budget.
-      for (const genuinelyNewFact of merge.genuinelyNewFactList) {
-        const memoryRecord = await addMemoryRecord(sqlExecutor, genuinelyNewFact.content);
-        await enqueueMemoryIndexJob(this.env, {
-          memoryId: memoryRecord.id,
-          content: genuinelyNewFact.content,
-          deviceId: this.name ?? 'default',
-        });
-      }
-      console.log(
-        JSON.stringify({
-          level: 'info',
-          message: 'owner_memory_consolidated',
-          factCount: merge.nextFactList.length,
-          newFactCount: merge.genuinelyNewFactList.length,
-          transcriptTruncated: recentHistory.truncated,
-        }),
-      );
     } finally {
       this.#isConsolidatingMemory = false;
     }
@@ -955,11 +836,29 @@ export class Apollo extends Agent<Env, ApolloState> {
 
     await this.#handleLowBatteryAnnouncement(snapshot);
     try {
-      await this.#handleFirmwareLifecycle({
-        previousFirmwareVersion: previousSnapshot?.firmwareVersion,
-        snapshot,
-        didChargingEdgeOccur,
-      });
+      await runFirmwareLifecycle(
+        {
+          previousFirmwareVersion: previousSnapshot?.firmwareVersion,
+          snapshot,
+          didChargingEdgeOccur,
+        },
+        {
+          sqlExecutor: this.#sqlExecutor(),
+          mediaBucket: this.env.MEDIA,
+          deviceSharedSecret: this.env.DEVICE_SHARED_SECRET,
+          isPushDisabled: this.env.FIRMWARE_PUSH_DISABLED === '1',
+          uiState: this.state.uiState,
+          isFocusActive: this.#currentFocusState().active,
+          hasPendingConfirmation: this.state.pendingConfirmId !== null,
+          isAnnouncementInFlight:
+            this.#isAnnouncingLowBattery || this.#isDeliveringInitiative,
+          nowMilliseconds: Date.now(),
+          deliverInitiativeUtterance: (utterance) =>
+            this.#deliverInitiativeUtterance(utterance),
+          callDeviceTool: (deviceToolName, argumentRecord) =>
+            this.#callDeviceTool(deviceToolName, argumentRecord),
+        },
+      );
     } catch (error) {
       // OTA plumbing must never take telemetry handling down with it.
       console.error(
@@ -1022,180 +921,6 @@ export class Apollo extends Agent<Env, ApolloState> {
     } finally {
       this.#isAnnouncingLowBattery = false;
     }
-  }
-
-  // Roadmap item 23: after a reboot the first telemetry reports the new
-  // version (the changelog edge), and every telemetry tick is a chance to
-  // push a pending update when the device is idle and powered.
-  async #handleFirmwareLifecycle(input: {
-    readonly previousFirmwareVersion: string | undefined;
-    readonly snapshot: DeskTelemetrySnapshot;
-    readonly didChargingEdgeOccur: boolean;
-  }): Promise<void> {
-    const nowMilliseconds = Date.now();
-    const sqlExecutor = this.#sqlExecutor();
-
-    const storedChangelogState = await getSessionPreference(
-      sqlExecutor,
-      FIRMWARE_CHANGELOG_STATE_PREFERENCE_KEY,
-    );
-    let changelogState =
-      storedChangelogState === null
-        ? undefined
-        : parseStoredFirmwareChangelogState(storedChangelogState);
-
-    const versionChange = detectFirmwareVersionChange({
-      previousFirmwareVersion: input.previousFirmwareVersion,
-      nextFirmwareVersion: input.snapshot.firmwareVersion,
-    });
-    if (versionChange !== undefined) {
-      changelogState = { ...changelogState, pendingVersion: versionChange.toVersion };
-      await setSessionPreference(
-        sqlExecutor,
-        FIRMWARE_CHANGELOG_STATE_PREFERENCE_KEY,
-        JSON.stringify(changelogState),
-      );
-      // The device came back on the new version: the attempt marker did its
-      // job and must not throttle the next release.
-      await setSessionPreference(
-        sqlExecutor,
-        FIRMWARE_PUSH_STATE_PREFERENCE_KEY,
-        JSON.stringify(recordFirmwareManifestCheck(undefined, nowMilliseconds)),
-      );
-      console.log(
-        JSON.stringify({
-          level: 'info',
-          message: 'firmware_changelog_pending',
-          fromVersion: versionChange.fromVersion,
-          toVersion: versionChange.toVersion,
-        }),
-      );
-    }
-
-    if (
-      changelogState?.pendingVersion !== undefined &&
-      changelogState.pendingVersion !== changelogState.announcedVersion
-    ) {
-      const manifest = await readFirmwareManifest(this.env.MEDIA);
-      const changelogText =
-        manifest !== undefined && manifest.version === changelogState.pendingVersion
-          ? manifest.changelog
-          : undefined;
-      const deliveryOutcome = await this.#deliverInitiativeUtterance({
-        source: 'firmware_changelog',
-        priority: 'normal',
-        message: buildFirmwareChangelogMessage({
-          toVersion: changelogState.pendingVersion,
-          ...(changelogText !== undefined ? { changelogText } : {}),
-        }),
-        earconName: 'chime',
-      });
-      // A deferred utterance carries its message in the schedule payload, so
-      // it counts as announced here — otherwise the next telemetry tick would
-      // schedule a duplicate. Only a suppression leaves it pending for retry.
-      if (deliveryOutcome !== 'suppressed') {
-        changelogState = { announcedVersion: changelogState.pendingVersion };
-        await setSessionPreference(
-          sqlExecutor,
-          FIRMWARE_CHANGELOG_STATE_PREFERENCE_KEY,
-          JSON.stringify(changelogState),
-        );
-      }
-    }
-
-    if (this.env.FIRMWARE_PUSH_DISABLED === '1') {
-      return;
-    }
-    const storedPushState = await getSessionPreference(
-      sqlExecutor,
-      FIRMWARE_PUSH_STATE_PREFERENCE_KEY,
-    );
-    const pushState =
-      storedPushState === null
-        ? undefined
-        : parseStoredFirmwarePushState(storedPushState);
-    if (
-      !shouldCheckFirmwareManifest({
-        pushState,
-        didChargingEdgeOccur: input.didChargingEdgeOccur,
-        nowMilliseconds,
-      })
-    ) {
-      return;
-    }
-    const manifest = await readFirmwareManifest(this.env.MEDIA);
-    const checkedPushState = recordFirmwareManifestCheck(pushState, nowMilliseconds);
-    await setSessionPreference(
-      sqlExecutor,
-      FIRMWARE_PUSH_STATE_PREFERENCE_KEY,
-      JSON.stringify(checkedPushState),
-    );
-    if (manifest === undefined) {
-      return;
-    }
-    const evaluation = evaluateFirmwarePush({
-      snapshot: input.snapshot,
-      manifestVersion: manifest.version,
-      uiState: this.state.uiState,
-      isFocusActive: this.#currentFocusState().active,
-      hasPendingConfirmation: this.state.pendingConfirmId !== null,
-      isAnnouncementInFlight:
-        this.#isAnnouncingLowBattery || this.#isDeliveringInitiative,
-      pushState: checkedPushState,
-      nowMilliseconds,
-    });
-    if (!evaluation.shouldPush) {
-      if (evaluation.reason !== 'already_current') {
-        console.log(
-          JSON.stringify({
-            level: 'info',
-            message: 'firmware_push_skipped',
-            reason: evaluation.reason,
-          }),
-        );
-      }
-      return;
-    }
-    const publicOrigin = await getSessionPreference(
-      sqlExecutor,
-      PUBLIC_ORIGIN_PREFERENCE_KEY,
-    );
-    if (publicOrigin === null) {
-      console.error(
-        JSON.stringify({ level: 'error', message: 'firmware_push_missing_origin' }),
-      );
-      return;
-    }
-    const firmwareBinaryUrl = new URL('/ota/firmware.bin', publicOrigin);
-    firmwareBinaryUrl.searchParams.set('token', this.env.DEVICE_SHARED_SECRET);
-    // Recorded before the call: a crash mid-push must read as an attempt, or
-    // the device could be flashed in a loop.
-    await setSessionPreference(
-      sqlExecutor,
-      FIRMWARE_PUSH_STATE_PREFERENCE_KEY,
-      JSON.stringify(
-        recordFirmwarePushAttempt(checkedPushState, manifest.version, nowMilliseconds),
-      ),
-    );
-    console.log(
-      JSON.stringify({
-        level: 'info',
-        message: 'firmware_push_attempted',
-        manifestVersion: manifest.version,
-        deviceVersion: input.snapshot.firmwareVersion,
-      }),
-    );
-    const pushResult = await this.#callDeviceTool('self.upgrade_firmware', {
-      url: firmwareBinaryUrl.toString(),
-    });
-    console.log(
-      JSON.stringify({
-        level: 'info',
-        message: 'firmware_push_result',
-        ok: pushResult.ok,
-        summary: pushResult.summary,
-      }),
-    );
   }
 
   async #callDeviceTool(
