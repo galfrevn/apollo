@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 
-import { resolveApolloConnectionRole } from '@/auth/role';
+import {
+  DEVICE_CONNECTION_TAG,
+  hasDeviceConnectionTag,
+  resolveApolloConnectionRole,
+} from '@/auth/role';
 import { createFakeApolloEnvironment } from '@/configuration/testing';
 
 function buildConnectionUrl(token?: string): URL {
@@ -36,6 +40,12 @@ describe('apollo connection role', () => {
     await expect(
       resolveApolloConnectionRole(buildConnectionUrl(''), environment),
     ).resolves.toBeNull();
+  });
+
+  it('admits only the device to device-only session replay', () => {
+    expect(hasDeviceConnectionTag([DEVICE_CONNECTION_TAG])).toBe(true);
+    expect(hasDeviceConnectionTag(['dashboard'])).toBe(false);
+    expect(hasDeviceConnectionTag([])).toBe(false);
   });
 
   it('rejects every token when the matching secret is unset', async () => {

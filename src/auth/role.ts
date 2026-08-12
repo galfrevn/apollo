@@ -2,6 +2,12 @@ import { isDeviceSharedSecretValid, readDeviceTokenFromRequestUrl } from '@/auth
 
 export type ApolloConnectionRole = 'device' | 'dashboard';
 
+export const DEVICE_CONNECTION_TAG: ApolloConnectionRole = 'device';
+
+export function hasDeviceConnectionTag(connectionTagList: readonly string[]): boolean {
+  return connectionTagList.includes(DEVICE_CONNECTION_TAG);
+}
+
 export async function resolveApolloConnectionRole(
   requestUrl: URL,
   environment: Env,

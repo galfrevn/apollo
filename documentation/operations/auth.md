@@ -32,11 +32,18 @@ against the connection's own request. There is no channel to spoof.
 
 ## What the tag decides
 
-Every server-to-device broadcast addresses `getConnections('device')`: TTS audio,
-`ui_state`, earcons, MCP JSON-RPC to the firmware, and the connection count the initiative
-engine reads to decide whether anyone is at the desk. Binary frames are only accepted from
-the device, because a binary frame is microphone audio by definition and one from anywhere
-else would be transcribed into the owner's next sentence.
+Every server-to-device broadcast addresses `getConnections(DEVICE_CONNECTION_TAG)`: TTS
+audio, `ui_state`, earcons, MCP JSON-RPC to the firmware, and the connection count the
+initiative engine reads to decide whether anyone is at the desk. Binary frames are only
+accepted from the device, because a binary frame is microphone audio by definition and one
+from anywhere else would be transcribed into the owner's next sentence.
+
+`onConnect` is device-only for the same reason, and one sharper one: it replays desk
+session state to the arriving client, and the pending-message flush **consumes** what it
+sends. A dashboard taking that path would swallow a reminder queued while the device was
+offline — sent to a browser that cannot speak it, and deleted from the table before the
+device ever reconnected. It would also stamp the browser's own origin over the one the OTA
+push hands the device as a firmware URL.
 
 The device is also excluded from the SDK's own protocol frames — agent state sync, MCP
 server lists — which are not part of the [Protocol](../runtime/protocol.md) and which the

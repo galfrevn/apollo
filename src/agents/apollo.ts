@@ -26,7 +26,11 @@ import {
   retryInitiativeUtterancePayloadSchema,
 } from '@/agents/rpc';
 import { concatenateArrayBufferList, executeApolloTurn } from '@/agents/runtime';
-import { resolveApolloConnectionRole } from '@/auth/role';
+import {
+  DEVICE_CONNECTION_TAG,
+  hasDeviceConnectionTag,
+  resolveApolloConnectionRole,
+} from '@/auth/role';
 import { isDeviceSharedSecretValid } from '@/auth/token';
 import {
   clearDeskFocus,
@@ -287,7 +291,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       this.#lastKnownWeatherSnapshot = weatherSnapshot;
     }
 
-    const connectionList = [...this.getConnections('device')];
+    const connectionList = [...this.getConnections(DEVICE_CONNECTION_TAG)];
     if (
       !shouldPushDashboardOnWeatherRefresh({
         uiState: this.state.uiState,
@@ -327,7 +331,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     connection: Connection,
     _connectionContext: ConnectionContext,
   ): boolean {
-    return !connection.tags.includes('device');
+    return !hasDeviceConnectionTag(connection.tags);
   }
 
   async onConnect(
@@ -335,6 +339,13 @@ export class Apollo extends Agent<Env, ApolloState> {
     connectionContext: ConnectionContext,
   ): Promise<void> {
     await this.#ensurePreferencesLoaded();
+    // Everything below replays desk session state to the arriving client, and
+    // the pending-message flush *consumes* what it sends. A dashboard taking
+    // this path swallows a queued reminder the device never gets to announce,
+    // and stamps its own browser origin over the one OTA hands the device.
+    if (!hasDeviceConnectionTag(connection.tags)) {
+      return;
+    }
     // The DO has no ambient request origin, and the OTA push must hand the
     // device a URL it can reach — the connection that just arrived proves this
     // origin works, so it is captured here instead of configured.
@@ -365,7 +376,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     if (typeof message !== 'string') {
       // A binary frame is mic audio by definition; one from anywhere else would
       // be transcribed into the owner's next sentence.
-      if (!connection.tags.includes('device')) {
+      if (!hasDeviceConnectionTag(connection.tags)) {
         return;
       }
       this.#audioChunkList.push(message as ArrayBuffer);
@@ -461,7 +472,7 @@ export class Apollo extends Agent<Env, ApolloState> {
 
   @callable()
   async confirmAction(isApproved: boolean): Promise<ApolloState> {
-    const connection = [...this.getConnections('device')][0];
+    const connection = [...this.getConnections(DEVICE_CONNECTION_TAG)][0];
     if (connection === undefined) {
       return this.state;
     }
@@ -623,7 +634,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       caption,
       uiState: this.#uiMachine.state,
     });
-    for (const connection of this.getConnections('device')) {
+    for (const connection of this.getConnections(DEVICE_CONNECTION_TAG)) {
       this.#pushUiState(connection);
     }
   }
@@ -635,7 +646,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     this.#broadcastPlayEffect('ding');
     await deliverDeskDeviceNotification({
       notification: { type: 'reminder', message: parsedPayload.message },
-      connectionList: [...this.getConnections('device')],
+      connectionList: [...this.getConnections(DEVICE_CONNECTION_TAG)],
       sqlExecutor: this.#sqlExecutor(),
       focusState: this.#currentFocusState(),
       environment: this.env,
@@ -657,7 +668,7 @@ export class Apollo extends Agent<Env, ApolloState> {
           ? { documentKey: parsedInput.documentKey }
           : {}),
       },
-      connectionList: [...this.getConnections('device')],
+      connectionList: [...this.getConnections(DEVICE_CONNECTION_TAG)],
       sqlExecutor: this.#sqlExecutor(),
       focusState: this.#currentFocusState(),
       environment: this.env,
@@ -689,7 +700,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       state: initiativeState,
       nowMilliseconds,
       focusEndsAtMilliseconds: this.state.focusEndsAt,
-      connectionCount: [...this.getConnections('device')].length,
+      connectionCount: [...this.getConnections(DEVICE_CONNECTION_TAG)].length,
       deferCount,
     });
     console.log(
@@ -726,7 +737,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       }
       await deliverDeskDeviceNotification({
         notification: { type: 'reminder', message: input.message },
-        connectionList: [...this.getConnections('device')],
+        connectionList: [...this.getConnections(DEVICE_CONNECTION_TAG)],
         sqlExecutor: this.#sqlExecutor(),
         focusState: this.#currentFocusState(),
         environment: this.env,
@@ -1119,7 +1130,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     deviceToolName: string,
     argumentRecord: Record<string, unknown>,
   ): Promise<ToolExecutionResult> {
-    const connectionList = [...this.getConnections('device')];
+    const connectionList = [...this.getConnections(DEVICE_CONNECTION_TAG)];
     if (connectionList.length === 0) {
       return { ok: false, summary: 'El dispositivo no está conectado.' };
     }
@@ -1142,7 +1153,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       type: 'play_effect',
       name: effectName,
     });
-    for (const connection of this.getConnections('device')) {
+    for (const connection of this.getConnections(DEVICE_CONNECTION_TAG)) {
       connection.send(encodedMessage);
     }
   }
@@ -1153,7 +1164,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       id: confirmId,
       reason,
     });
-    for (const connection of this.getConnections('device')) {
+    for (const connection of this.getConnections(DEVICE_CONNECTION_TAG)) {
       connection.send(encodedMessage);
     }
   }
@@ -1172,7 +1183,7 @@ export class Apollo extends Agent<Env, ApolloState> {
             durationSeconds: arc.durationSeconds,
           },
     );
-    for (const connection of this.getConnections('device')) {
+    for (const connection of this.getConnections(DEVICE_CONNECTION_TAG)) {
       connection.send(encodedMessage);
     }
   }
