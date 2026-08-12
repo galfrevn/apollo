@@ -90,6 +90,38 @@ Still open: **push-style updates**. Telemetry reports `firmwareVersion`, but the
 
 Beyond face + caption: a circular timer countdown (which merges with item 6), weather with an icon, the dollar rate, the grocery list while it is being read out. Typed and bounded — timer, weather, list, rate, QR (the QR is already in item 2) — with no arbitrary layouts. The firmware still discards the dashboard state on purpose ("dashboard has no UI yet", `apollo_protocol.cc`), while the server keeps pushing clock + weather on tap and refreshing it every 30 minutes; that dashboard would come back in through here.
 
+## Proposed 2026-08-11: independence and proactivity
+
+Guiding principle: Apollo grows with its owner — it originates actions instead of only reacting, and it accumulates a model of the person it lives with. Every item in this section is **server-only**: the firmware already has all the vocabulary these need (notifications, telemetry, MCP, confirmations, session flow), so each one deploys on a push to `main`.
+
+### 17. Initiative engine
+
+The substrate for everything below: a server-side policy that lets Apollo decide to speak unprompted. The delivery half already exists — `deliverDeskDeviceNotification` (`src/agents/notify.ts`) paces TTS, queues pending messages when nobody is connected, and stays quiet during focus. What is missing is origination: nothing in the worker ever *decides* Apollo has something worth saying. Needs a policy layer with hard bounds so it never becomes annoying — quiet hours, focus awareness (already respected downstream), and a daily budget of self-initiated utterances. Items 20–23 all deliver through this.
+
+### 18. Long-term owner memory
+
+A persistent store of facts and preferences about the owner, consolidated by a nightly job on the existing reminder cron and stamped into the system prompt while relevant — the same pattern telemetry established (snapshot in `session_prefs`, re-read at turn start, owned first-person by the persona). Extraction runs over recent transcripts; consolidation merges, decays, and drops stale facts. "¿Qué aprendiste de mí?" should get a real answer.
+
+### 19. Owner routine model
+
+Learn the owner's daily rhythm from data already arriving: interaction timestamps, channel open/close, telemetry cadence. Aggregate into a profile — when they are at the desk, when they focus, when they disappear — and let it drive timing decisions that are hard-coded or missing today: the initiative engine's quiet hours become learned instead of configured, background moods (item 10) get "sleepier at night" grounded in *this* owner's night, and a future morning briefing fires at the hour the owner actually shows up.
+
+### 20. Curiosity loop
+
+Apollo occasionally asks a question of its own — "¿cómo salió la reunión?", "¿en qué andás hoy?" — to fill gaps in its owner model (item 18). The mechanics are already built: session flow (item 8) keeps the mic open when a turn ends with a question, and `turn_end { expectsReply }` steers it. What is missing is the impulse: a policy that, in a conversational lull or at a natural turn boundary, decides a question is worth the interruption. Strictly budgeted through the initiative engine; answers feed back into the memory store.
+
+### 21. Self-scheduled follow-ups
+
+The reminder scheduler is user-only today — every entry comes from an explicit spoken request. Give the *agent* a tool to create its own one-shot follow-ups: "te aviso en una hora si no llegó la respuesta", checking back on a long-running coding task, re-raising something the owner deferred. Delivery rides the existing reminder → notification path unchanged; the only new surface is the tool and a marker distinguishing agent-originated entries so they can be listed and cancelled separately.
+
+### 22. Repo/CI sentinel
+
+The coding engine already resolves the owner's repositories from the GitHub App installations (`list_coding_repositories`, `src/coding/`). Watch them: poll on a cron (or take webhooks into the worker), and when CI goes red or a review is requested, announce it through the initiative engine and offer to act — "se rompió el build de apollo, ¿lo miro?". Acceptance flows through the full-screen Sí/No confirmation, which already replays the approval into the next LLM turn, and launches the opencode engine (item under "Shipped": coding on opencode). Turns the coding stack from on-demand into a standing watch.
+
+### 23. Self-maintaining device
+
+Close the open half of item 14 and give it personality. The server compares telemetry's `firmwareVersion` against the R2 manifest and, when the device is idle and preferably charging, calls `self.upgrade_firmware` over the item-5 MCP bridge — no more devices stranded on old firmware because they never reboot. Then the payoff: `publish.yml` stores a short changelog next to the manifest at build time, and when the post-reboot telemetry reports the new version, Apollo tells the owner what changed — "me actualicé anoche: ahora la cuenta regresiva se ve en el aro". Self-maintenance becomes a visible part of the relationship instead of silent plumbing.
+
 ## Under consideration (ideas, no commitment)
 
 - **Voice barge-in**: interrupting the assistant by *talking* over it. Untested; the raw mic path has no AEC (see the wake word notes). Touch barge-in already works (item 11), so this is only about the hands-free case. The 2.6.0 VAD watchdog gives session flow an endpointer, but nothing listens during playback.
