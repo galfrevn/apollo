@@ -6,7 +6,9 @@
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev": "turbo run dev --filter=@apollo/agent",
-    "deploy": "turbo run deploy --filter=@apollo/agent",
+    "dev:console": "turbo run dev --filter=@apollo/console",
+    "build": "turbo run build",
+    "deploy": "turbo run deploy",
     "types": "turbo run types",
     "typecheck": "turbo run typecheck",
     "lint": "oxlint --deny-warnings",

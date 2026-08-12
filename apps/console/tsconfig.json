@@ -1,0 +1,10 @@
+{
+  "extends": "@apollo/typescript-config/react.json",
+  "compilerOptions": {
+    "types": ["vite/client", "bun"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*", "vite.config.ts"]
+}

@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "unicorn", "oxc", "import", "node", "promise"],
+  "plugins": ["typescript", "unicorn", "oxc", "import", "node", "promise", "react"],
   "categories": {
     "correctness": "error",
     "suspicious": "error"
@@ -13,6 +13,7 @@
         "allowStaticOnly": true
       }
     ],
+    "react/react-in-jsx-scope": "off",
     "unicorn/require-module-specifiers": "off",
     "import/no-unassigned-import": "off",
     "promise/valid-params": "off"
@@ -20,5 +21,9 @@
   "env": {
     "builtin": true
   },
-  "ignorePatterns": [".agents/skills/**", ".claude/skills/**"]
+  "ignorePatterns": [
+    ".agents/skills/**",
+    ".claude/skills/**",
+    "apps/console/src/components/ui/**"
+  ]
 }
