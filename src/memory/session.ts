@@ -68,6 +68,14 @@ function mapSessionMessageToChatMessage(
     : { role: 'assistant', content: messageText };
 }
 
+export function mapRecentHistoryToChatMessageList(
+  messageList: readonly SessionMessage[],
+): readonly OpenRouterChatMessage[] {
+  return messageList
+    .map(mapSessionMessageToChatMessage)
+    .filter((message): message is OpenRouterChatMessage => message !== undefined);
+}
+
 export async function buildRecentTurnHistoryMessageList(
   session: Session,
 ): Promise<readonly OpenRouterChatMessage[]> {
@@ -75,7 +83,5 @@ export async function buildRecentTurnHistoryMessageList(
     RECENT_TURN_HISTORY_BYTE_BUDGET,
     RECENT_TURN_HISTORY_MIN_MESSAGE_COUNT,
   );
-  return recentHistory.messages
-    .map(mapSessionMessageToChatMessage)
-    .filter((message): message is OpenRouterChatMessage => message !== undefined);
+  return mapRecentHistoryToChatMessageList(recentHistory.messages);
 }

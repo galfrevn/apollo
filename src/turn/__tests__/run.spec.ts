@@ -118,6 +118,51 @@ describe('runDeskTurn', () => {
     expect(capturedSystemPrompt).toContain('café cargado');
   });
 
+  it('places recent turn history between the system prompt and the current utterance', async () => {
+    let capturedMessageList: readonly OpenRouterChatMessage[] = [];
+
+    await runDeskTurn({
+      text: 'mandámelas por mail',
+      speechMode: 'default',
+      focusState: createInactiveDeskFocusState(),
+      sqlExecutor: createInMemorySqlExecutor(),
+      environment: fakeEnvironment,
+      toolDefinitionMap: buildToolDefinitionMap([]),
+      nowMilliseconds: 10,
+      recentHistoryMessageList: [
+        { role: 'user', content: 'dame ideas para el finde' },
+        { role: 'assistant', content: 'podés ir a la costa o quedarte a leer' },
+      ],
+      adapters: {
+        stt: async () => '',
+        llm: async ({ messageList }) => {
+          capturedMessageList = messageList;
+          return { text: 'Listo, te las mando.', toolCallList: [] };
+        },
+        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
+      },
+    });
+
+    expect(capturedMessageList.map((message) => message.role)).toEqual([
+      'system',
+      'user',
+      'assistant',
+      'user',
+    ]);
+    expect(capturedMessageList[1]).toEqual({
+      role: 'user',
+      content: 'dame ideas para el finde',
+    });
+    expect(capturedMessageList[2]).toEqual({
+      role: 'assistant',
+      content: 'podés ir a la costa o quedarte a leer',
+    });
+    expect(capturedMessageList[3]).toEqual({
+      role: 'user',
+      content: 'mandámelas por mail',
+    });
+  });
+
   it('treats whitespace-only speech as nothing heard', async () => {
     let didRecallSemanticMemory = false;
 
