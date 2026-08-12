@@ -1,0 +1,23 @@
+{
+  "name": "@apollo/agent",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "types": "wrangler types",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage"
+  },
+  "dependencies": {
+    "@cloudflare/sandbox": "^0.12.4",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "agents": "^0.20.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@apollo/typescript-config": "workspace:*",
+    "wrangler": "^4.119.0"
+  }
+}

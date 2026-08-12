@@ -2,35 +2,35 @@
 
 Thin map from handbook topics to code folders. Prefer the narrative chapters for behavior; use this table to jump into the repo.
 
-| Topic | Primary `src/` paths |
+| Topic | Primary `apps/agent/src/` paths |
 |-------|----------------------|
-| Worker entry / health | `src/index.ts` |
-| Agent / desk DO | `src/agents/` |
-| Turn execution | `src/turn/`, `src/agents/runtime.ts` |
-| Protocol | `src/protocol/` |
-| Voice (STT/LLM/TTS) | `src/voice/` |
-| Persona / speech modes | `src/persona/` |
-| Face (emotion, accent color) | `src/persona/face.ts` |
-| Tools | `src/tools/` |
-| Memory | `src/memory/` |
-| Search / research pipeline | `src/search/`, `src/tools/research.ts`, `src/tools/web.ts` |
-| Weather | `src/weather/`, `src/agents/dashboard.ts` |
-| Focus | `src/focus/`, `src/tools/focus.ts` |
-| Reminders | `src/reminders/`, `src/tools/reminder.ts` |
-| Timers / pomodoro | `src/tools/timer.ts` (rides `src/reminders/`) |
-| Lists | `src/lists/`, `src/tools/list.ts` |
-| Dollar rates | `src/rates/`, `src/tools/dollar.ts` |
-| Email | `src/notifications/`, `src/tools/email.ts` |
-| Sandbox | `src/sandbox/`, `src/tools/sandbox.ts` |
-| Coding tasks | `src/coding/`, `src/github/`, `src/tools/coding.ts`, `src/workflows/coding.ts` |
-| MCP servers (installed) | `src/mcp/adapter.ts`, `src/mcp/naming.ts`, `src/mcp/servers.ts`, `src/mcp/settings.ts` |
-| MCP bridge (device) | `src/mcp/bridge.ts`, `src/tools/device.ts` |
-| Auth / connection roles | `src/auth/` |
-| Queues | `src/queues/` |
-| Workflows | `src/workflows/` |
-| Session UI machine | `src/session/` |
-| Config / env types | `src/configuration/`, `wrangler.jsonc` |
-| Firmware (separate repo) | `firmware/apollo-firmware` (git submodule, own handbook) |
+| Worker entry / health | `apps/agent/src/index.ts` |
+| Agent / desk DO | `apps/agent/src/agents/` |
+| Turn execution | `apps/agent/src/turn/`, `apps/agent/src/agents/runtime.ts` |
+| Protocol | `apps/agent/src/protocol/` |
+| Voice (STT/LLM/TTS) | `apps/agent/src/voice/` |
+| Persona / speech modes | `apps/agent/src/persona/` |
+| Face (emotion, accent color) | `apps/agent/src/persona/face.ts` |
+| Tools | `apps/agent/src/tools/` |
+| Memory | `apps/agent/src/memory/` |
+| Search / research pipeline | `apps/agent/src/search/`, `apps/agent/src/tools/research.ts`, `apps/agent/src/tools/web.ts` |
+| Weather | `apps/agent/src/weather/`, `apps/agent/src/agents/dashboard.ts` |
+| Focus | `apps/agent/src/focus/`, `apps/agent/src/tools/focus.ts` |
+| Reminders | `apps/agent/src/reminders/`, `apps/agent/src/tools/reminder.ts` |
+| Timers / pomodoro | `apps/agent/src/tools/timer.ts` (rides `apps/agent/src/reminders/`) |
+| Lists | `apps/agent/src/lists/`, `apps/agent/src/tools/list.ts` |
+| Dollar rates | `apps/agent/src/rates/`, `apps/agent/src/tools/dollar.ts` |
+| Email | `apps/agent/src/notifications/`, `apps/agent/src/tools/email.ts` |
+| Sandbox | `apps/agent/src/sandbox/`, `apps/agent/src/tools/sandbox.ts` |
+| Coding tasks | `apps/agent/src/coding/`, `apps/agent/src/github/`, `apps/agent/src/tools/coding.ts`, `apps/agent/src/workflows/coding.ts` |
+| MCP servers (installed) | `apps/agent/src/mcp/adapter.ts`, `apps/agent/src/mcp/naming.ts`, `apps/agent/src/mcp/servers.ts`, `apps/agent/src/mcp/settings.ts` |
+| MCP bridge (device) | `apps/agent/src/mcp/bridge.ts`, `apps/agent/src/tools/device.ts` |
+| Auth / connection roles | `apps/agent/src/auth/` |
+| Queues | `apps/agent/src/queues/` |
+| Workflows | `apps/agent/src/workflows/` |
+| Session UI machine | `apps/agent/src/session/` |
+| Config / env types | `apps/agent/src/configuration/`, `apps/agent/wrangler.jsonc` |
+| Firmware (separate repo) | `apps/firmware/apollo-firmware` (git submodule, own handbook) |
 
 ## Navigation
 

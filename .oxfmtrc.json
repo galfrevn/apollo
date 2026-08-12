@@ -9,7 +9,7 @@
     "*.yaml",
     "*.toml",
     "*.json",
-    "firmware/**",
+    "apps/firmware/**",
     ".agents/skills/**",
     ".claude/skills/**"
   ]

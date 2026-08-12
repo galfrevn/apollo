@@ -13,10 +13,10 @@ confirmation flow — see [Tools](tools.md).
 ## Infrastructure
 
 The `containers` block and the `Sandbox` durable object binding are declared in
-`wrangler.jsonc`, and both tools are registered in `src/tools/catalog.ts`. The `Sandbox`
-class is exported from `src/index.ts` because `Env['Sandbox']` in
+`apps/agent/wrangler.jsonc`, and both tools are registered in `apps/agent/src/tools/catalog.ts`. The `Sandbox`
+class is exported from `apps/agent/src/index.ts` because `Env['Sandbox']` in
 `worker-configuration.d.ts` needs it to resolve. Runner helpers live under
-`src/sandbox/`. Local runs need Docker.
+`apps/agent/src/sandbox/`. Local runs need Docker.
 
 Containers require the Workers Paid plan to deploy. Local development does not: `wrangler dev` builds and runs the image in your own Docker, so the full path is exercisable on the free plan.
 

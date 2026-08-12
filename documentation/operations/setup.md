@@ -45,9 +45,9 @@ From `package.json`:
 
 ## Configuration
 
-- Worker config: `wrangler.jsonc`
+- Worker config: `apps/agent/wrangler.jsonc`
 - Local secrets: `.dev.vars` (from `.dev.vars.example`)
-- Path alias `@/` → `src/` (see `tsconfig.json`)
+- Path alias `@/` → `apps/agent/src/` (see `apps/agent/tsconfig.json`)
 
 ## Navigation
 

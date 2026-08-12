@@ -1,35 +1,34 @@
 # Apollo
 
-A personal desk agent for an ESP32 device, backed by a Cloudflare Worker that handles voice turns, tools, memory, and background work. Entry point `src/index.ts`.
+A personal desk agent for an ESP32 device: a Cloudflare Worker (`apps/agent/`) that handles voice turns, tools, memory, and background work, an ESP32 firmware submodule (`apps/firmware/`), and a management dashboard (`apps/console/`, not yet built). Turborepo + Bun workspaces.
 
 ## Commands
 
+Root scripts proxy through turbo; target a single app directly with `turbo run <task> --filter=@apollo/agent`.
+
 ```bash
-bun run dev          # wrangler dev — uses the *preview* R2 bucket (apollo-media-preview)
-bun test             # bun test, rooted at ./src
-bun run typecheck    # tsc --noEmit
-bun run lint         # oxlint --deny-warnings
-bun run format       # oxfmt --write
-bun run types        # regenerate worker-configuration.d.ts from wrangler.jsonc
+bun run dev          # turbo run dev --filter=@apollo/agent (wrangler dev, preview R2 bucket)
+bun run test         # turbo run test --filter=@apollo/agent
+bun run typecheck    # turbo run typecheck --filter=@apollo/agent
+bun run lint         # oxlint --deny-warnings (repo-wide)
+bun run format       # oxfmt --write (repo-wide)
+bun run types        # turbo run types --filter=@apollo/agent, regenerates worker-configuration.d.ts
 ```
 
-**Quality gate — all three must pass before a change is done:** `bun run typecheck`, `bun run lint`, `bun test`.
+**Quality gate — all three must pass before a change is done:** `bun run typecheck`, `bun run lint`, `bun run test`.
 
 Formatting is oxfmt's job; never hand-format. Note that oxfmt does *not* sort or group imports — the Import Grouping rules below are enforced by review only.
 
-## Architecture
+## Monorepo layout
 
-Durable Objects hold all state: `Apollo` (the agent, SQLite-backed), `ApolloBackground`, `ApolloCoding`, and `Sandbox`. Bindings: `MEDIA` (R2), `VECTORIZE`, `APOLLO_QUEUE`.
+- `apps/agent/` — the Cloudflare Worker (see `apps/agent/CLAUDE.md`)
+- `apps/console/` — management dashboard (not yet built)
+- `apps/firmware/` — ESP32 firmware, a git submodule, not a JS workspace member
+- `packages/typescript-config/` — shared base tsconfig
 
-`src/` is grouped by capability — one folder per domain (`voice/`, `memory/`, `tools/`, `mcp/`, `ota/`, `focus/`, …), each holding single-word files. `configuration/` holds pure data only.
+**Read `documentation/` before changing agent behavior** — it's a handbook meant to be read in order, and `documentation/reference/mapping.md` maps each topic to its `apps/agent/src/` folder. Start at `documentation/index.md`.
 
-Tests live beside the code they cover as `__tests__/*.spec.ts`.
-
-The device firmware is a submodule at `firmware/apollo-firmware`; the contract between the two repos is `documentation/runtime/protocol.md`.
-
-**Read `documentation/` before changing behavior** — it's a handbook meant to be read in order, and `documentation/reference/mapping.md` maps each topic to its `src/` folder. Start at `documentation/index.md`.
-
-Pushes to `main` deploy automatically (`.github/workflows/deploy.yml`), skipping doc-only changes.
+Pushes to `main` deploy the agent automatically (`.github/workflows/deploy.yml`), skipping doc-only changes.
 
 # Naming Conventions
 

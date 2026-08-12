@@ -17,7 +17,7 @@ Show what the user is saying while they speak, and clear it the moment the turn 
 screen goes back to just the face.
 
 - **Server**: transcription is still post-hold — audio buffers in memory and goes to STT as
-  one blocking request after `hold_end`/`audio_end` (`src/voice/stt.ts`). Needs streaming
+  one blocking request after `hold_end`/`audio_end` (`apps/agent/src/voice/stt.ts`). Needs streaming
   STT over the chunks already arriving on the WebSocket, plus an incremental caption message.
 - **Firmware**: closer than it looks. `application.cc` already has an `stt` handler that
   renders a user caption, but the Apollo protocol never emits that type. Wire the branch,
@@ -109,7 +109,7 @@ listed and cancelled apart from the owner's.
 ### 9. Repo/CI sentinel
 
 The coding engine already resolves the owner's repositories from the GitHub App installations
-(`list_coding_repositories`, `src/coding/`). Watch them: poll on a cron or take webhooks into
+(`list_coding_repositories`, `apps/agent/src/coding/`). Watch them: poll on a cron or take webhooks into
 the worker, and when CI goes red or a review is requested, announce it through the initiative
 engine and offer to act — "se rompió el build de apollo, ¿lo miro?". Acceptance flows through
 the Sí/No confirmation, which already replays the approval into the next LLM turn. Turns the
@@ -120,7 +120,7 @@ coding stack from on-demand into a standing watch.
 Idle should not always be neutral: subtle variation by time of day and last interaction.
 Today idle is a fixed `"neutral"` blink every 12 s. The transport is already there — `emotion`
 rides every `ui_state` — but the mapping is a pure lookup with `idle → neutral`
-(`src/persona/face.ts`). Only the policy is missing. Grounding it in item 6 beats a clock.
+(`apps/agent/src/persona/face.ts`). Only the policy is missing. Grounding it in item 6 beats a clock.
 
 ## Under consideration
 

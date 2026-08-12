@@ -1,0 +1,28 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "tasks": {
+    "types": {
+      "cache": true,
+      "outputs": ["worker-configuration.d.ts"]
+    },
+    "typecheck": {
+      "dependsOn": ["types"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["types"],
+      "outputs": []
+    },
+    "test:coverage": {
+      "dependsOn": ["types"],
+      "outputs": ["coverage/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "deploy": {
+      "cache": false
+    }
+  }
+}

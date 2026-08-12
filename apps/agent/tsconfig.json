@@ -1,5 +1,5 @@
 {
-  "extends": ["agents/tsconfig"],
+  "extends": ["@apollo/typescript-config/base.json", "agents/tsconfig"],
   "compilerOptions": {
     "types": ["bun"],
     "lib": ["es2023"],
@@ -10,11 +10,5 @@
     "strict": true,
     "skipLibCheck": true
   },
-
-
-  "include": [
-    "src/**/*.ts",
-    "scripts/**/*.ts",
-    "worker-configuration.d.ts"
-  ]
+  "include": ["src/**/*.ts", "worker-configuration.d.ts"]
 }

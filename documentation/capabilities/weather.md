@@ -13,7 +13,7 @@ Dashboard payloads include timezone clock fields plus a weather snapshot (`locat
 
 ## Code
 
-Lookup and caching live under `src/weather/`; dashboard assembly is in `src/agents/dashboard.ts`.
+Lookup and caching live under `apps/agent/src/weather/`; dashboard assembly is in `apps/agent/src/agents/dashboard.ts`.
 
 ## Navigation
 

@@ -16,7 +16,7 @@ Apollo deploys as a Cloudflare Worker named `apollo` with several bindings.
 
 ## Secrets
 
-None of these live in `wrangler.jsonc`; set each with `bunx wrangler secret put <NAME>`
+None of these live in `apps/agent/wrangler.jsonc`; set each with `bunx wrangler secret put <NAME>`
 (and mirror them in `.dev.vars` locally):
 
 | Secret | Used by |
@@ -32,17 +32,17 @@ None of these live in `wrangler.jsonc`; set each with `bunx wrangler secret put 
 
 ## Vars
 
-Plain vars in `wrangler.jsonc`: `OPENROUTER_MODEL`, `OPENROUTER_STT_MODEL`,
+Plain vars in `apps/agent/wrangler.jsonc`: `OPENROUTER_MODEL`, `OPENROUTER_STT_MODEL`,
 `OPENROUTER_RESEARCH_MODEL`, `OPENROUTER_CODING_MODEL`, `OPENROUTER_EMBEDDING_MODEL`,
 `ELEVENLABS_TTS_MODEL`, and `APOLLO_OWNER_EMAIL` (the pinned recipient for
 [Email](../capabilities/email.md)).
 
-Changing a var means editing `wrangler.jsonc` and redeploying. `wrangler types` turns each
+Changing a var means editing `apps/agent/wrangler.jsonc` and redeploying. `wrangler types` turns each
 var into a *literal* type, so `createFakeApolloEnvironment`
-(`src/configuration/testing.ts`) has to repeat the exact same string — a var change that
+(`apps/agent/src/configuration/testing.ts`) has to repeat the exact same string — a var change that
 skips it fails typecheck, not tests.
 
-See `wrangler.jsonc` for the authoritative list and the migration tags.
+See `apps/agent/wrangler.jsonc` for the authoritative list and the migration tags.
 
 ## Deploy command
 
@@ -61,7 +61,7 @@ The device self-updates from the `MEDIA` bucket (see [Protocol](../runtime/proto
 Rules that keep devices alive:
 
 - `version` must match `/^\d+(\.\d+)*$/` — digits and dots only. The worker refuses
-  anything else (`src/ota/manifest.ts`), because the device's version parser aborts on
+  anything else (`apps/agent/src/ota/manifest.ts`), because the device's version parser aborts on
   non-numeric segments.
 - Upload the **app image** (`build/xiaozhi.bin`), never `build/merged-binary.bin` — the
   merged binary contains the bootloader and partition table and would corrupt an OTA slot.
@@ -70,7 +70,7 @@ Rules that keep devices alive:
 
 ```sh
 bunx wrangler r2 object put apollo-media/firmware/apollo-2.5.0.bin \
-  --file firmware/apollo-firmware/build/xiaozhi.bin \
+  --file apps/firmware/apollo-firmware/build/xiaozhi.bin \
   --content-type application/octet-stream --remote
 bunx wrangler r2 object put apollo-media/firmware/latest.json \
   --file latest.json --content-type application/json --remote
@@ -78,7 +78,7 @@ bunx wrangler r2 object put apollo-media/firmware/latest.json \
 
 The device checks at boot, and the worker also **pushes** updates: when telemetry reports
 a version older than the manifest and the device is idle and powered (charging or ≥50%
-battery), the server calls `self.upgrade_firmware` over the MCP bridge (`src/ota/push.ts`,
+battery), the server calls `self.upgrade_firmware` over the MCP bridge (`apps/agent/src/ota/push.ts`,
 capped at 3 attempts per version, 6 h apart — a device that rolls back stops being
 retried until the next release). After the reboot, Apollo announces the update out loud.
 

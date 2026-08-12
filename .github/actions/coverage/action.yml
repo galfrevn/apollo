@@ -13,6 +13,10 @@ inputs:
     description: Path to the lcov report produced by the test run
     required: false
     default: coverage/lcov.info
+  path-prefix:
+    description: Prefix to prepend to lcov SF: paths so they match repo-root-relative PR file paths
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -22,6 +26,7 @@ runs:
       env:
         COVERAGE_THRESHOLD: ${{ inputs.threshold }}
         COVERAGE_LCOV_PATH: ${{ inputs.lcov-path }}
+        COVERAGE_PATH_PREFIX: ${{ inputs.path-prefix }}
       with:
         github-token: ${{ inputs.github-token }}
         script: |
@@ -30,6 +35,7 @@ runs:
           const coverageCommentMarker = '<!-- apollo-patch-coverage -->';
           const coverageThresholdPercentage = Number(process.env.COVERAGE_THRESHOLD);
           const lcovReportPath = process.env.COVERAGE_LCOV_PATH;
+          const coveragePathPrefix = process.env.COVERAGE_PATH_PREFIX ?? '';
 
           if (!fileSystem.existsSync(lcovReportPath)) {
             core.setFailed(
@@ -43,7 +49,8 @@ runs:
             let currentFilePath = null;
             for (const reportLine of lcovReportText.split('\n')) {
               if (reportLine.startsWith('SF:')) {
-                currentFilePath = reportLine.slice(3).trim().replace(/^\.\//, '');
+                currentFilePath =
+                  coveragePathPrefix + reportLine.slice(3).trim().replace(/^\.\//, '');
                 if (!hitCountByLineNumberByFilePath.has(currentFilePath)) {
                   hitCountByLineNumberByFilePath.set(currentFilePath, new Map());
                 }

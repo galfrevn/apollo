@@ -45,7 +45,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Run tests
-        run: bun test
+        run: bun run test
 
       # wrangler builds the Sandbox container image as part of the deploy,
       # which is why this runs on the runner's Docker daemon.

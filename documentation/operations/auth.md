@@ -2,7 +2,7 @@
 
 Two kinds of client reach the agent, and each presents its own shared secret as a URL
 `token` query parameter. Both are compared with the same timing-safe byte compare
-(`src/auth/token.ts`); what differs is which secret matches, and what that buys.
+(`apps/agent/src/auth/token.ts`); what differs is which secret matches, and what that buys.
 
 | Role | Secret | Is |
 |------|--------|-----|
@@ -18,7 +18,7 @@ fleet.
 
 1. The client opens the agent connection URL including `?token=...`
 2. `resolveApolloConnectionRole` tries the device secret, then the dashboard secret
-   (`src/auth/role.ts`)
+   (`apps/agent/src/auth/role.ts`)
 3. Neither matching rejects the connection before the desk session starts
 4. `getConnectionTags` re-derives the same role inside the Durable Object and tags the
    connection with it
@@ -60,7 +60,7 @@ firmware answers with an error.
 
 The SDK gives a `@callable()` method no way to identify the connection that invoked it, so
 the MCP management methods take the dashboard secret in their payload and re-check it
-(`src/agents/apollo.ts`). Connect-time authorization alone would let anything holding a
+(`apps/agent/src/agents/apollo.ts`). Connect-time authorization alone would let anything holding a
 socket install a server and grant itself tools.
 
 ## Operational notes
