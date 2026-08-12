@@ -1,6 +1,6 @@
 ---
 name: cloudflare
-description: Fallback reference for Cloudflare products that have no dedicated skill here — Pages, storage (KV, D1, R2), AI (Workers AI, Vectorize), feature flags (Flagship), networking (Tunnel, Spectrum), security (WAF, DDoS), and infrastructure-as-code (Terraform, Pulumi). Prefer the focused skill when one fits: agents-sdk for the Agents SDK, durable-objects for Durable Objects, workers-best-practices for reviewing or authoring Worker code, wrangler for CLI commands, sandbox-sdk for sandboxed execution. Biases towards retrieval from Cloudflare docs over pre-trained knowledge.
+description: 'Fallback reference for Cloudflare products that have no dedicated skill here — Pages, storage (KV, D1, R2), AI (Workers AI, Vectorize), feature flags (Flagship), networking (Tunnel, Spectrum), security (WAF, DDoS), and infrastructure-as-code (Terraform, Pulumi). Prefer the focused skill when one fits: agents-sdk for the Agents SDK, durable-objects for Durable Objects, workers-best-practices for reviewing or authoring Worker code, wrangler for CLI commands, sandbox-sdk for sandboxed execution. Biases towards retrieval from Cloudflare docs over pre-trained knowledge.'
 metadata:
   references:
     - workers
