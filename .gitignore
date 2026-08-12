@@ -41,7 +41,7 @@ Desktop.ini
 *~
 .idea/
 
-# claude code — .claude/skills is committed; these are per-machine runtime state
+# claude code
 .claude/worktrees/
 .claude/checkpoints/
 .claude/mailbox/
