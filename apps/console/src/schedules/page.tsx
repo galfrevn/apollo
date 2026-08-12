@@ -13,11 +13,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { CreateReminderForm } from '@/schedules/create';
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { Reminder } from '@/agent/schema';
 
+// Mirrors the worker's own timer convention: the "Timer" message prefix plus a
+// numeric delay, both required (apps/agent/src/agents/apollo.ts).
 function isTimerReminder(reminder: Reminder): boolean {
-  return reminder.delayInSeconds !== undefined;
+  return reminder.message.startsWith('Timer') && reminder.delayInSeconds !== undefined;
 }
 
 function formatRemainingLabel(firesAtIso: string, nowMilliseconds: number): string {
@@ -93,6 +96,16 @@ export function SchedulesPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
           {errorMessage}
         </p>
       )}
+
+      <Panel title="Schedule something">
+        <CreateReminderForm
+          onCreate={async (message, delaySeconds, isTimer) => {
+            setReminderList(
+              await consoleRpc.createReminder(message, delaySeconds, isTimer),
+            );
+          }}
+        />
+      </Panel>
 
       <Panel
         title="Reminders & timers"

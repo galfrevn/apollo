@@ -5,6 +5,8 @@ import { createConsoleRpc } from '@/agent/rpc';
 import { Chip } from '@/blueprint/chip';
 import { Button } from '@/components/ui/button';
 import { useConnection } from '@/connection/context';
+import { HistoryPage } from '@/history/page';
+import { JobsPage } from '@/jobs/page';
 import { Nav } from '@/layout/nav';
 import { McpPage } from '@/mcp/page';
 import { MemoryPage } from '@/memory/page';
@@ -87,6 +89,8 @@ export function Shell({ connection }: { readonly connection: ConsoleConnection }
           {activeRoute === 'mcp' && <McpPage consoleRpc={consoleRpc} />}
           {activeRoute === 'memory' && <MemoryPage consoleRpc={consoleRpc} />}
           {activeRoute === 'schedules' && <SchedulesPage consoleRpc={consoleRpc} />}
+          {activeRoute === 'history' && <HistoryPage consoleRpc={consoleRpc} />}
+          {activeRoute === 'jobs' && <JobsPage consoleRpc={consoleRpc} />}
         </main>
       </div>
     </div>

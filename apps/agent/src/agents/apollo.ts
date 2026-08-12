@@ -33,13 +33,33 @@ import {
 } from '@/auth/role';
 import { isDeviceSharedSecretValid } from '@/auth/token';
 import {
+  mapSessionMessagesToConsoleHistory,
+  type ConsoleHistoryTurn,
+} from '@/console/history';
+import {
+  listConsoleJobDocuments,
+  readConsoleJobDocument,
+  type ConsoleJobDocument,
+} from '@/console/jobs';
+import {
   browseConsoleMemory as browseConsoleMemoryRecords,
+  deleteConsoleMemory as deleteConsoleMemoryRecord,
   type ConsoleMemoryBrowseResult,
 } from '@/console/memory';
 import {
+  consoleAddListItemInputSchema,
+  consoleAddMemoryInputSchema,
   consoleCancelReminderInputSchema,
+  consoleCreateReminderInputSchema,
+  consoleDeleteMemoryInputSchema,
+  consoleDeviceBrightnessInputSchema,
+  consoleDeviceVolumeInputSchema,
+  consoleDocumentInputSchema,
+  consoleHistoryInputSchema,
   consoleMemoryBrowseInputSchema,
+  consoleRemoveListItemInputSchema,
   consoleSecretInputSchema,
+  consoleWeatherInputSchema,
 } from '@/console/rpc';
 import { buildConsoleStatusSnapshot, type ConsoleStatusSnapshot } from '@/console/status';
 import {
@@ -60,7 +80,12 @@ import {
   type InitiativeDeliveryOutcome,
   type InitiativeUtteranceInput,
 } from '@/initiative/logic';
-import { listListItemRecords, type ListItemRecord } from '@/lists/store';
+import {
+  addListItemRecord,
+  listListItemRecords,
+  removeListItemRecordById,
+  type ListItemRecord,
+} from '@/lists/store';
 import { resolveDiscoveredMcpToolSafety } from '@/mcp/adapter';
 import {
   buildDeviceToolCallPayload,
@@ -90,13 +115,15 @@ import {
 import { OWNER_MEMORY_CONSOLIDATION_CRON } from '@/memory/consolidate';
 import { runOwnerMemoryConsolidation } from '@/memory/nightly';
 import { deletePendingDeviceMessage, listPendingDeviceMessages } from '@/memory/pending';
-import { createApolloSession } from '@/memory/session';
+import { createApolloSession, rememberFactInSession } from '@/memory/session';
 import {
+  addMemoryRecord,
   getSessionPreference,
   setSessionPreference,
   type MemorySqlExecutor,
 } from '@/memory/store';
 import { PUBLIC_ORIGIN_PREFERENCE_KEY, runFirmwareLifecycle } from '@/ota/lifecycle';
+import { enqueueMemoryIndexJob } from '@/queues/consume';
 import { cycleDeskSpeechMode, resolveDeskSpeechMode } from '@/persona/catalog';
 import { resolveDeskFaceEmotion } from '@/persona/face';
 import { APOLLO_TTS_VOICE } from '@/persona/soul';
@@ -131,6 +158,7 @@ import type {
   ToolDefinition,
   ToolExecutionResult,
 } from '@/tools/types';
+import { geocodeDeskWeatherLocation, type DeskWeatherLocation } from '@/weather/geocode';
 import type { DeskWeatherSnapshot } from '@/weather/fetch';
 import {
   resolveDeskWeatherLocationFromPreferences,
@@ -649,6 +677,152 @@ export class Apollo extends Agent<Env, ApolloState> {
     return mapAgentScheduleListToReminderList(
       mapUnknownScheduleListToAgentScheduleLikeList(await this.listSchedules()),
     );
+  }
+
+  @callable()
+  async createConsoleReminder(
+    rawInput: unknown,
+  ): Promise<readonly ScheduledReminderRow[]> {
+    const input = consoleCreateReminderInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    // Timers are recognized downstream by the "Timer" message prefix plus a
+    // numeric delay, so the console reuses the voice tool's message shape.
+    const message =
+      input.isTimer === true ? `Timer terminado: ${input.message}.` : input.message;
+    await this.schedule(input.delaySeconds, 'deliverReminder', { message });
+    if (input.isTimer === true) {
+      this.#broadcastTimerArc({
+        endsAtEpochSeconds: Math.floor(Date.now() / 1000) + input.delaySeconds,
+        durationSeconds: input.delaySeconds,
+      });
+    }
+    return this.#listConsoleReminderRowList();
+  }
+
+  @callable()
+  async setConsoleDeviceVolume(rawInput: unknown): Promise<ToolExecutionResult> {
+    const input = consoleDeviceVolumeInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    return this.#callDeviceTool('self.audio_speaker.set_volume', {
+      volume: input.volume,
+    });
+  }
+
+  @callable()
+  async setConsoleDeviceBrightness(rawInput: unknown): Promise<ToolExecutionResult> {
+    const input = consoleDeviceBrightnessInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    return this.#callDeviceTool('self.screen.set_brightness', {
+      brightness: input.brightness,
+    });
+  }
+
+  @callable()
+  async getConsoleDeviceStatus(rawInput: unknown): Promise<ToolExecutionResult> {
+    const input = consoleSecretInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    return this.#callDeviceTool('self.get_device_status', {});
+  }
+
+  @callable()
+  async addConsoleMemory(rawInput: unknown): Promise<ConsoleMemoryBrowseResult> {
+    const input = consoleAddMemoryInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    const memoryRecord = await addMemoryRecord(this.#sqlExecutor(), input.content);
+    await rememberFactInSession(this.session, input.content);
+    await enqueueMemoryIndexJob(this.env, {
+      memoryId: memoryRecord.id,
+      content: input.content,
+      deviceId: this.name ?? 'default',
+    });
+    return browseConsoleMemoryRecords(this.#sqlExecutor(), {});
+  }
+
+  @callable()
+  async deleteConsoleMemory(rawInput: unknown): Promise<ConsoleMemoryBrowseResult> {
+    const input = consoleDeleteMemoryInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    await deleteConsoleMemoryRecord(
+      this.#sqlExecutor(),
+      this.env.VECTORIZE,
+      input.memoryId,
+    );
+    return browseConsoleMemoryRecords(this.#sqlExecutor(), {});
+  }
+
+  @callable()
+  async addConsoleListItem(rawInput: unknown): Promise<readonly ListItemRecord[]> {
+    const input = consoleAddListItemInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    await addListItemRecord(this.#sqlExecutor(), {
+      listName: input.listName,
+      content: input.content,
+    });
+    return listListItemRecords(this.#sqlExecutor());
+  }
+
+  @callable()
+  async removeConsoleListItem(rawInput: unknown): Promise<readonly ListItemRecord[]> {
+    const input = consoleRemoveListItemInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    await removeListItemRecordById(this.#sqlExecutor(), input.itemId);
+    return listListItemRecords(this.#sqlExecutor());
+  }
+
+  @callable()
+  async getConsoleWeather(rawInput: unknown): Promise<DeskWeatherLocation> {
+    const input = consoleSecretInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    return this.#resolveWeatherLocation();
+  }
+
+  @callable()
+  async setConsoleWeather(rawInput: unknown): Promise<DeskWeatherLocation> {
+    const input = consoleWeatherInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    const location = await geocodeDeskWeatherLocation({
+      locationQuery: input.locationQuery,
+    });
+    await setSessionPreference(
+      this.#sqlExecutor(),
+      WEATHER_LOCATION_PREFERENCE_KEY,
+      serializeWeatherLocation(location),
+    );
+    await this.refreshDashboardWeather();
+    return location;
+  }
+
+  @callable()
+  async listConsoleHistory(rawInput: unknown): Promise<readonly ConsoleHistoryTurn[]> {
+    const input = consoleHistoryInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    const recentHistory = await this.session.getRecentHistory(
+      input.maxContentBytes ?? 24_000,
+      10,
+    );
+    return mapSessionMessagesToConsoleHistory(recentHistory.messages);
+  }
+
+  @callable()
+  async listConsoleJobs(rawInput: unknown): Promise<readonly ConsoleJobDocument[]> {
+    const input = consoleSecretInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    return listConsoleJobDocuments(this.env.MEDIA, this.name ?? 'default');
+  }
+
+  @callable()
+  async getConsoleDocument(rawInput: unknown): Promise<{
+    readonly documentKey: string;
+    readonly content: string | null;
+  }> {
+    const input = consoleDocumentInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    const content = await readConsoleJobDocument(
+      this.env.MEDIA,
+      this.name ?? 'default',
+      input.documentKey,
+    );
+    return { documentKey: input.documentKey, content };
   }
 
   @callable()

@@ -16,6 +16,24 @@ export type ConsoleMemoryBrowseResult = {
   readonly lastConsolidatedAtMilliseconds: number | null;
 };
 
+type MemoryVectorIndexLike = {
+  deleteByIds(idList: string[]): Promise<unknown>;
+};
+
+// The Vectorize entry shares the memory record's UUID, so both stores are
+// cleared together — vector first, so a failed vector delete leaves the SQL
+// row intact instead of orphaning an embedding that voice recall would still
+// surface. The consolidated owner-fact list is left untouched: the next
+// nightly run may re-derive a fact whose source memory still reads true.
+export async function deleteConsoleMemory(
+  sqlExecutor: MemorySqlExecutor,
+  vectorIndex: MemoryVectorIndexLike,
+  memoryId: string,
+): Promise<void> {
+  await vectorIndex.deleteByIds([memoryId]);
+  sqlExecutor.execute('DELETE FROM memories WHERE id = ?', memoryId);
+}
+
 export async function browseConsoleMemory(
   sqlExecutor: MemorySqlExecutor,
   input: { readonly query?: string; readonly limit?: number },

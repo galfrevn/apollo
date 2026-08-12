@@ -5,7 +5,8 @@
   "packageManager": "bun@1.3.13",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "dev": "turbo run dev --filter=@apollo/agent",
+    "dev": "turbo run dev",
+    "dev:agent": "turbo run dev --filter=@apollo/agent",
     "dev:console": "turbo run dev --filter=@apollo/console",
     "build": "turbo run build",
     "deploy": "turbo run deploy",

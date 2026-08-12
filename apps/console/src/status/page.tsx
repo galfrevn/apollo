@@ -3,8 +3,11 @@ import { useEffect, useState } from 'react';
 import { Chip } from '@/blueprint/chip';
 import { Heading } from '@/blueprint/heading';
 import { Panel } from '@/blueprint/panel';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/components/utility';
+import { DeviceControls } from '@/status/device';
 import { TelemetryGrid } from '@/status/telemetry';
+import { WeatherPanel } from '@/status/weather';
 import type { ApolloAgentHandle } from '@/agent/hook';
 import type { ApolloAgentState, ConsoleStatus } from '@/agent/schema';
 import type { ConsoleRpc } from '@/agent/rpc';
@@ -31,6 +34,16 @@ export function StatusPage({
 }) {
   const [status, setStatus] = useState<ConsoleStatus | null>(null);
   const [didPollFail, setDidPollFail] = useState(false);
+  const [isResolvingConfirm, setIsResolvingConfirm] = useState(false);
+
+  async function handleResolveConfirm(isApproved: boolean) {
+    setIsResolvingConfirm(true);
+    try {
+      await consoleRpc.confirmPendingAction(isApproved);
+    } finally {
+      setIsResolvingConfirm(false);
+    }
+  }
 
   useEffect(() => {
     let isDisposed = false;
@@ -109,6 +122,7 @@ export function StatusPage({
               </p>
             )}
           </div>
+          <DeviceControls consoleRpc={consoleRpc} isDeviceConnected={isDeviceConnected} />
         </Panel>
 
         <Panel
@@ -154,12 +168,33 @@ export function StatusPage({
                 <div className="col-span-full bg-panel p-4">
                   <dt className="label-soft text-amber">Awaiting confirmation</dt>
                   <dd className="mt-1.5 text-sm">{agentState.pendingConfirmSummary}</dd>
+                  <dd className="mt-3 flex gap-2">
+                    <Button
+                      size="sm"
+                      disabled={isResolvingConfirm}
+                      onClick={() => void handleResolveConfirm(true)}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={isResolvingConfirm}
+                      onClick={() => void handleResolveConfirm(false)}
+                    >
+                      Reject
+                    </Button>
+                  </dd>
                 </div>
               )}
             </dl>
           )}
         </Panel>
       </div>
+
+      <Panel title="Weather location">
+        <WeatherPanel consoleRpc={consoleRpc} />
+      </Panel>
 
       <Panel title="Telemetry">
         <div className="p-4">
