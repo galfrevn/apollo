@@ -51,4 +51,4 @@ From `package.json`:
 
 ## Navigation
 
-Prev: [Sandbox](../capabilities/sandbox.md) · Next: [Deploy](deploy.md)
+Prev: [MCP servers](../capabilities/mcp.md) · Next: [Deploy](deploy.md)

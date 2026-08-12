@@ -1,5 +1,6 @@
 interface Env {
   DEVICE_SHARED_SECRET: string;
+  DASHBOARD_SHARED_SECRET: string;
   OPENROUTER_API_KEY: string;
   OPENROUTER_MODEL: string;
   OPENROUTER_STT_MODEL: string;
@@ -22,6 +23,7 @@ interface Env {
 declare namespace Cloudflare {
   interface Env {
     DEVICE_SHARED_SECRET: string;
+    DASHBOARD_SHARED_SECRET: string;
     OPENROUTER_API_KEY: string;
     OPENROUTER_MODEL: string;
     OPENROUTER_STT_MODEL: string;

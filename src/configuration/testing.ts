@@ -33,6 +33,42 @@ export function createInMemoryPendingConfirmationSqlExecutor(): MemorySqlExecuto
   };
 }
 
+export function createInMemoryMcpToolSettingsSqlExecutor(
+  initialRowList: readonly Record<string, unknown>[] = [],
+): MemorySqlExecutor {
+  let rowList: readonly Record<string, unknown>[] = [...initialRowList];
+  return {
+    execute<Row extends Record<string, unknown>>(
+      query: string,
+      ...bindValues: unknown[]
+    ): readonly Row[] {
+      if (query.startsWith('DELETE FROM mcp_tool_settings')) {
+        const removedServerId = String(bindValues[0]);
+        rowList = rowList.filter((row) => row.server_id !== removedServerId);
+        return [];
+      }
+      if (query.startsWith('INSERT INTO mcp_tool_settings')) {
+        const insertedRow = {
+          namespaced_name: String(bindValues[0]),
+          server_id: String(bindValues[1]),
+          tool_name: String(bindValues[2]),
+          is_enabled: Number(bindValues[3]),
+          safety: String(bindValues[4]),
+        };
+        rowList = [
+          ...rowList.filter((row) => row.namespaced_name !== insertedRow.namespaced_name),
+          insertedRow,
+        ];
+        return [];
+      }
+      if (query.includes('FROM mcp_tool_settings')) {
+        return rowList as readonly Row[];
+      }
+      return [];
+    },
+  };
+}
+
 export function createFakeMediaBucket(
   initialObjectMap: Record<string, string | Uint8Array> = {},
 ): Env['MEDIA'] {
@@ -114,6 +150,7 @@ export function createFakeApolloEnvironment(overrides: Partial<Env> = {}): Env {
     ELEVENLABS_TTS_MODEL: 'eleven_multilingual_v2',
     OPENROUTER_EMBEDDING_MODEL: 'openai/text-embedding-3-small',
     DEVICE_SHARED_SECRET: 'secret',
+    DASHBOARD_SHARED_SECRET: 'dashboard-secret',
     OPENROUTER_API_KEY: '',
     ELEVENLABS_API_KEY: '',
     TAVILY_API_KEY: '',
@@ -163,6 +200,7 @@ export function createStubDeskToolEffects(
     listListItems: async () => [],
     removeListItems: async () => ({ removedCount: 0, removedContentList: [] }),
     callDeviceTool: async () => ({ ok: false, summary: 'stub' }),
+    callInstalledMcpTool: async () => ({ ok: false, summary: 'stub' }),
     ...overrides,
   };
 }

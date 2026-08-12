@@ -17,6 +17,9 @@ Tools are how Apollo takes action beyond talking. Definitions live under `src/to
 - Sandbox: `sandbox_run_code`, `sandbox_exec` (both marked `unsafe`, so they route through confirmation)
 - Coding: `start_coding_task` (`unsafe`; clones a repo, edits it, opens a PR — see [Coding](coding.md))
 
+The catalog is the compiled-in half. Tools the owner connects at runtime, from external MCP
+servers, are assembled into the same map on every turn — see [MCP servers](mcp.md).
+
 ## Router
 
 The router resolves tool names to definitions, validates inputs, and coordinates confirmation when a tool is marked as needing it. Prefer extending the catalog with a new definition over special-casing in the agent class.

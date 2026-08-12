@@ -23,7 +23,9 @@ Thin map from handbook topics to code folders. Prefer the narrative chapters for
 | Email | `src/notifications/`, `src/tools/email.ts` |
 | Sandbox | `src/sandbox/`, `src/tools/sandbox.ts` |
 | Coding tasks | `src/coding/`, `src/github/`, `src/tools/coding.ts`, `src/workflows/coding.ts` |
-| Auth | `src/auth/` |
+| MCP servers (installed) | `src/mcp/adapter.ts`, `src/mcp/naming.ts`, `src/mcp/servers.ts`, `src/mcp/settings.ts` |
+| MCP bridge (device) | `src/mcp/bridge.ts`, `src/tools/device.ts` |
+| Auth / connection roles | `src/auth/` |
 | Queues | `src/queues/` |
 | Workflows | `src/workflows/` |
 | Session UI machine | `src/session/` |

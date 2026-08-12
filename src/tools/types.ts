@@ -72,6 +72,11 @@ export type DeskToolEffects = {
     readonly deviceToolName: string;
     readonly argumentRecord: Record<string, unknown>;
   }) => Promise<ToolExecutionResult>;
+  readonly callInstalledMcpTool: (input: {
+    readonly serverId: string;
+    readonly toolName: string;
+    readonly argumentRecord: Record<string, unknown>;
+  }) => Promise<ToolExecutionResult>;
 };
 
 export type ToolExecutionContext = {

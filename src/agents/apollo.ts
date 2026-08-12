@@ -26,7 +26,12 @@ import {
   retryInitiativeUtterancePayloadSchema,
 } from '@/agents/rpc';
 import { concatenateArrayBufferList, executeApolloTurn } from '@/agents/runtime';
-import { isDeviceSharedSecretValid, readDeviceTokenFromRequestUrl } from '@/auth/token';
+import {
+  DEVICE_CONNECTION_TAG,
+  hasDeviceConnectionTag,
+  resolveApolloConnectionRole,
+} from '@/auth/role';
+import { isDeviceSharedSecretValid } from '@/auth/token';
 import {
   clearDeskFocus,
   createInactiveDeskFocusState,
@@ -45,12 +50,32 @@ import {
   type InitiativeDeliveryOutcome,
   type InitiativeUtteranceInput,
 } from '@/initiative/logic';
+import { resolveDiscoveredMcpToolSafety } from '@/mcp/adapter';
 import {
   buildDeviceToolCallPayload,
   createDeviceMcpRequestRegistry,
   DEVICE_TOOL_CALL_TIMEOUT_MILLISECONDS,
   summarizeDeviceToolResult,
 } from '@/mcp/bridge';
+import { buildNamespacedMcpToolName } from '@/mcp/naming';
+import {
+  buildInstalledMcpServerSummaryList,
+  buildTurnToolDefinitionMap,
+  callInstalledMcpTool,
+  discoverInstalledMcpToolList,
+} from '@/mcp/runtime';
+import {
+  installMcpServerInputSchema,
+  mcpSecretInputSchema,
+  removeMcpServerInputSchema,
+  setMcpToolEnabledInputSchema,
+  type McpServerSummary,
+} from '@/mcp/servers';
+import {
+  deleteMcpToolSettingsForServer,
+  listMcpToolSettings,
+  saveMcpToolSetting,
+} from '@/mcp/settings';
 import { OWNER_MEMORY_CONSOLIDATION_CRON } from '@/memory/consolidate';
 import { runOwnerMemoryConsolidation } from '@/memory/nightly';
 import { deletePendingDeviceMessage, listPendingDeviceMessages } from '@/memory/pending';
@@ -88,7 +113,12 @@ import {
   readPendingToolConfirmation,
   savePendingToolConfirmation,
 } from '@/tools/pending';
-import type { PendingToolConfirmation, ToolExecutionResult } from '@/tools/types';
+import type {
+  DeskToolEffects,
+  PendingToolConfirmation,
+  ToolDefinition,
+  ToolExecutionResult,
+} from '@/tools/types';
 import type { DeskWeatherSnapshot } from '@/weather/fetch';
 import {
   resolveDeskWeatherLocationFromPreferences,
@@ -223,6 +253,17 @@ export class Apollo extends Agent<Env, ApolloState> {
         expires_at INTEGER NOT NULL
       )
     `;
+    // The SDK owns the server rows in cf_agents_mcp_servers; which of their
+    // tools Apollo may actually call is ours.
+    void this.sql`
+      CREATE TABLE IF NOT EXISTS mcp_tool_settings (
+        namespaced_name TEXT PRIMARY KEY,
+        server_id TEXT NOT NULL,
+        tool_name TEXT NOT NULL,
+        is_enabled INTEGER NOT NULL,
+        safety TEXT NOT NULL
+      )
+    `;
     this.#session = createApolloSession(this, this.env.MEDIA);
     await this.#ensurePreferencesLoaded();
     await this.scheduleEvery(
@@ -250,7 +291,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       this.#lastKnownWeatherSnapshot = weatherSnapshot;
     }
 
-    const connectionList = [...this.getConnections()];
+    const connectionList = [...this.getConnections(DEVICE_CONNECTION_TAG)];
     if (
       !shouldPushDashboardOnWeatherRefresh({
         uiState: this.state.uiState,
@@ -270,11 +311,41 @@ export class Apollo extends Agent<Env, ApolloState> {
     }
   }
 
+  // Device and dashboard share one instance so they share state, but almost
+  // everything the server sends is device-shaped. Tagging is what lets a
+  // broadcast address the device alone.
+  async getConnectionTags(
+    _connection: Connection,
+    connectionContext: ConnectionContext,
+  ): Promise<string[]> {
+    const connectionRole = await resolveApolloConnectionRole(
+      new URL(connectionContext.request.url),
+      this.env,
+    );
+    return connectionRole === null ? [] : [connectionRole];
+  }
+
+  // The SDK's own frames are not part of the Apollo protocol, and the firmware
+  // answers an unrecognized frame with an error.
+  shouldSendProtocolMessages(
+    connection: Connection,
+    _connectionContext: ConnectionContext,
+  ): boolean {
+    return !hasDeviceConnectionTag(connection.tags);
+  }
+
   async onConnect(
     connection: Connection,
     connectionContext: ConnectionContext,
   ): Promise<void> {
     await this.#ensurePreferencesLoaded();
+    // Everything below replays desk session state to the arriving client, and
+    // the pending-message flush *consumes* what it sends. A dashboard taking
+    // this path swallows a queued reminder the device never gets to announce,
+    // and stamps its own browser origin over the one OTA hands the device.
+    if (!hasDeviceConnectionTag(connection.tags)) {
+      return;
+    }
     // The DO has no ambient request origin, and the OTA push must hand the
     // device a URL it can reach — the connection that just arrived proves this
     // origin works, so it is captured here instead of configured.
@@ -302,6 +373,16 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   async onMessage(connection: Connection, message: WSMessage): Promise<void> {
+    // Everything below this line is the device protocol: mic audio, the listen
+    // state machine, telemetry that steers OTA, MCP replies that resolve a
+    // pending device tool call, and confirm answers to a prompt on the device's
+    // own screen. None of it means anything from a browser, and honoring it
+    // would let one desynchronize the desk. The SDK dispatches @callable RPC
+    // and state sync before this runs, so the dashboard keeps both.
+    if (!hasDeviceConnectionTag(connection.tags)) {
+      return;
+    }
+
     if (typeof message !== 'string') {
       this.#audioChunkList.push(message as ArrayBuffer);
       return;
@@ -396,12 +477,109 @@ export class Apollo extends Agent<Env, ApolloState> {
 
   @callable()
   async confirmAction(isApproved: boolean): Promise<ApolloState> {
-    const connection = [...this.getConnections()][0];
+    const connection = [...this.getConnections(DEVICE_CONNECTION_TAG)][0];
     if (connection === undefined) {
       return this.state;
     }
     await this.#resolveConfirm(connection, isApproved);
     return this.state;
+  }
+
+  // A @callable method cannot tell which connection invoked it, so connect-time
+  // authorization is re-checked here: otherwise anything holding a socket could
+  // install a server and grant itself tools.
+  async #assertDashboardSecret(presentedSecret: string): Promise<void> {
+    const isAuthorized = await isDeviceSharedSecretValid(
+      presentedSecret,
+      this.env.DASHBOARD_SHARED_SECRET,
+    );
+    if (!isAuthorized) {
+      throw new Error('Unauthorized');
+    }
+  }
+
+  async #listMcpServerSummaryList(): Promise<readonly McpServerSummary[]> {
+    const [discoveredToolList, settingList] = await Promise.all([
+      discoverInstalledMcpToolList(this.mcp),
+      listMcpToolSettings(this.#sqlExecutor()),
+    ]);
+    return buildInstalledMcpServerSummaryList({
+      serverRecordMap: this.getMcpServers().servers,
+      discoveredToolList,
+      settingList,
+    });
+  }
+
+  @callable()
+  async installMcpServer(rawInput: unknown): Promise<{
+    readonly serverId: string;
+    readonly state: string;
+    readonly authUrl: string | null;
+  }> {
+    const input = installMcpServerInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    const installResult = await this.addMcpServer(input.name, input.url);
+    return {
+      serverId: installResult.id,
+      state: installResult.state,
+      authUrl: 'authUrl' in installResult ? installResult.authUrl : null,
+    };
+  }
+
+  @callable()
+  async uninstallMcpServer(rawInput: unknown): Promise<readonly McpServerSummary[]> {
+    const input = removeMcpServerInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    await this.removeMcpServer(input.serverId);
+    await deleteMcpToolSettingsForServer(this.#sqlExecutor(), input.serverId);
+    return this.#listMcpServerSummaryList();
+  }
+
+  @callable()
+  async listMcpServers(rawInput: unknown): Promise<readonly McpServerSummary[]> {
+    const input = mcpSecretInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    return this.#listMcpServerSummaryList();
+  }
+
+  @callable()
+  async enableMcpTool(rawInput: unknown): Promise<readonly McpServerSummary[]> {
+    return this.#setMcpToolEnabled(rawInput, true);
+  }
+
+  @callable()
+  async disableMcpTool(rawInput: unknown): Promise<readonly McpServerSummary[]> {
+    return this.#setMcpToolEnabled(rawInput, false);
+  }
+
+  async #setMcpToolEnabled(
+    rawInput: unknown,
+    isEnabled: boolean,
+  ): Promise<readonly McpServerSummary[]> {
+    const input = setMcpToolEnabledInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    const discoveredTool = (await discoverInstalledMcpToolList(this.mcp)).find(
+      (candidate) =>
+        candidate.serverId === input.serverId && candidate.name === input.toolName,
+    );
+    // Disabling must work while the server is unreachable — that is exactly when
+    // the owner reaches for it.
+    if (isEnabled && discoveredTool === undefined) {
+      throw new Error(`Unknown MCP tool: ${input.serverId}/${input.toolName}`);
+    }
+    const resolvedSafety =
+      input.safety ??
+      (discoveredTool === undefined
+        ? 'unsafe'
+        : resolveDiscoveredMcpToolSafety(discoveredTool));
+    await saveMcpToolSetting(this.#sqlExecutor(), {
+      namespacedName: buildNamespacedMcpToolName(input.serverId, input.toolName),
+      serverId: input.serverId,
+      toolName: input.toolName,
+      isEnabled,
+      safety: resolvedSafety,
+    });
+    return this.#listMcpServerSummaryList();
   }
 
   @callable()
@@ -461,7 +639,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       caption,
       uiState: this.#uiMachine.state,
     });
-    for (const connection of this.getConnections()) {
+    for (const connection of this.getConnections(DEVICE_CONNECTION_TAG)) {
       this.#pushUiState(connection);
     }
   }
@@ -473,7 +651,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     this.#broadcastPlayEffect('ding');
     await deliverDeskDeviceNotification({
       notification: { type: 'reminder', message: parsedPayload.message },
-      connectionList: [...this.getConnections()],
+      connectionList: [...this.getConnections(DEVICE_CONNECTION_TAG)],
       sqlExecutor: this.#sqlExecutor(),
       focusState: this.#currentFocusState(),
       environment: this.env,
@@ -495,7 +673,7 @@ export class Apollo extends Agent<Env, ApolloState> {
           ? { documentKey: parsedInput.documentKey }
           : {}),
       },
-      connectionList: [...this.getConnections()],
+      connectionList: [...this.getConnections(DEVICE_CONNECTION_TAG)],
       sqlExecutor: this.#sqlExecutor(),
       focusState: this.#currentFocusState(),
       environment: this.env,
@@ -527,7 +705,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       state: initiativeState,
       nowMilliseconds,
       focusEndsAtMilliseconds: this.state.focusEndsAt,
-      connectionCount: [...this.getConnections()].length,
+      connectionCount: [...this.getConnections(DEVICE_CONNECTION_TAG)].length,
       deferCount,
     });
     console.log(
@@ -564,7 +742,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       }
       await deliverDeskDeviceNotification({
         notification: { type: 'reminder', message: input.message },
-        connectionList: [...this.getConnections()],
+        connectionList: [...this.getConnections(DEVICE_CONNECTION_TAG)],
         sqlExecutor: this.#sqlExecutor(),
         focusState: this.#currentFocusState(),
         environment: this.env,
@@ -938,11 +1116,26 @@ export class Apollo extends Agent<Env, ApolloState> {
     }
   }
 
+  async #buildTurnToolDefinitionMap(
+    effects: DeskToolEffects,
+  ): Promise<ReadonlyMap<string, ToolDefinition>> {
+    const [discoveredToolList, settingList] = await Promise.all([
+      discoverInstalledMcpToolList(this.mcp),
+      listMcpToolSettings(this.#sqlExecutor()),
+    ]);
+    return buildTurnToolDefinitionMap({
+      discoveredToolList,
+      settingList,
+      serverRecordMap: this.getMcpServers().servers,
+      callInstalledMcpTool: effects.callInstalledMcpTool,
+    });
+  }
+
   async #callDeviceTool(
     deviceToolName: string,
     argumentRecord: Record<string, unknown>,
   ): Promise<ToolExecutionResult> {
-    const connectionList = [...this.getConnections()];
+    const connectionList = [...this.getConnections(DEVICE_CONNECTION_TAG)];
     if (connectionList.length === 0) {
       return { ok: false, summary: 'El dispositivo no está conectado.' };
     }
@@ -965,7 +1158,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       type: 'play_effect',
       name: effectName,
     });
-    for (const connection of this.getConnections()) {
+    for (const connection of this.getConnections(DEVICE_CONNECTION_TAG)) {
       connection.send(encodedMessage);
     }
   }
@@ -976,7 +1169,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       id: confirmId,
       reason,
     });
-    for (const connection of this.getConnections()) {
+    for (const connection of this.getConnections(DEVICE_CONNECTION_TAG)) {
       connection.send(encodedMessage);
     }
   }
@@ -995,7 +1188,7 @@ export class Apollo extends Agent<Env, ApolloState> {
             durationSeconds: arc.durationSeconds,
           },
     );
-    for (const connection of this.getConnections()) {
+    for (const connection of this.getConnections(DEVICE_CONNECTION_TAG)) {
       connection.send(encodedMessage);
     }
   }
@@ -1168,7 +1361,10 @@ export class Apollo extends Agent<Env, ApolloState> {
       },
       callDeviceTool: async ({ deviceToolName, argumentRecord }) =>
         this.#callDeviceTool(deviceToolName, argumentRecord),
+      callInstalledMcpTool: async (call) => callInstalledMcpTool(this.mcp, call),
     });
+
+    const toolDefinitionMap = await this.#buildTurnToolDefinitionMap(deskToolEffects);
 
     try {
       await executeApolloTurn(
@@ -1192,6 +1388,7 @@ export class Apollo extends Agent<Env, ApolloState> {
           session: this.session,
           deviceId,
           effects: deskToolEffects,
+          toolDefinitionMap,
           isSpeechAborted: () => this.#isSpeechAborted,
           allocateTtsSequence: () => {
             this.#ttsSequence += 1;
@@ -1251,12 +1448,11 @@ export async function authorizeApolloConnection(
   request: Request,
   environment: Env,
 ): Promise<Response | undefined> {
-  const requestUrl = new URL(request.url);
-  const isAuthorized = await isDeviceSharedSecretValid(
-    readDeviceTokenFromRequestUrl(requestUrl),
-    environment.DEVICE_SHARED_SECRET,
+  const connectionRole = await resolveApolloConnectionRole(
+    new URL(request.url),
+    environment,
   );
-  if (!isAuthorized) {
+  if (connectionRole === null) {
     return new Response('Unauthorized', { status: 401 });
   }
   return undefined;
