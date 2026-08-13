@@ -1,4 +1,4 @@
-# Product
+# Console product
 
 <!-- impeccable:product-schema 1 -->
 
@@ -32,7 +32,7 @@ The owner enters their worker URL, device instance name (default `desk`), and th
 - The console must never take the device's protocol path (dashboard connections are deliberately excluded from device message handling) and never call agent state writes; it is read-and-RPC only.
 - MCP servers can require OAuth: install returns an authUrl the owner must open; server state may be `authenticating`/`failed`; tool enablement is opt-in with safety levels (`safe`/`confirm`/`unsafe`).
 - Telemetry is a snapshot with staleness (receivedAtMs), not a stream; the device pushes it only while connected.
-- Repo conventions are binding: single-word filenames, long descriptive identifiers, zod at every boundary, no comments except non-obvious why, ~300-line file cap. Vendored shadcn components under `src/components/ui/` are the sanctioned exception.
+- Repo conventions are binding: single-word filenames, long descriptive identifiers, zod at every boundary, no comments except non-obvious why, ~300-line file cap. Vendored shadcn components under `apps/console/src/components/ui/` are the sanctioned exception.
 
 ## Brand Commitments
 
@@ -49,3 +49,7 @@ The agent's real data models in `apps/agent/src/`: `ApolloState`, `McpServerSumm
 - The device is the hero; the console is the instrument panel around it.
 - One secret gates everything: never weaken the token model for convenience.
 - Stateless console: losing the browser loses nothing but a saved connection.
+
+## Navigation
+
+Prev: [Testing](../operations/testing.md) · Next: [Design](design.md)
