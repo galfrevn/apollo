@@ -12,7 +12,12 @@ export function detectInitialLocale(
   storage: Storage | null,
   preferredLanguageList: readonly string[],
 ): Locale {
-  const storedLocale = storage === null ? null : storage.getItem(LOCALE_STORAGE_KEY);
+  let storedLocale: string | null = null;
+  try {
+    storedLocale = storage === null ? null : storage.getItem(LOCALE_STORAGE_KEY);
+  } catch {
+    // Privacy-mode rejection: continue with browser preferences or Spanish.
+  }
   if (storedLocale !== null && isSupportedLocale(storedLocale)) {
     return storedLocale;
   }

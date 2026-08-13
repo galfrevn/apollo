@@ -22,12 +22,20 @@ function formatSizeLabel(sizeBytes: number): string {
   return `${(sizeBytes / 1024).toFixed(1)} kB`;
 }
 
+type DocumentLoadState =
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'loaded'; readonly content: string }
+  | { readonly kind: 'missing' }
+  | { readonly kind: 'failed' };
+
 export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
   const { locale } = useLocale();
   const jobsMessages = useMessages(JOBS_MESSAGE_CATALOG);
   const [documentList, setDocumentList] = useState<readonly JobDocument[] | null>(null);
   const [openDocumentKey, setOpenDocumentKey] = useState<string | null>(null);
-  const [openDocumentContent, setOpenDocumentContent] = useState<string | null>(null);
+  const [openDocumentLoadState, setOpenDocumentLoadState] = useState<DocumentLoadState>({
+    kind: 'loading',
+  });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const openDocumentKeyRef = useRef<string | null>(null);
 
@@ -49,28 +57,39 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
   async function handleOpenDocument(documentKey: string) {
     openDocumentKeyRef.current = documentKey;
     setOpenDocumentKey(documentKey);
-    setOpenDocumentContent(null);
-    let loadedContent: string;
+    setOpenDocumentLoadState({ kind: 'loading' });
+    let loadedState: DocumentLoadState;
     try {
       const documentResult = await consoleRpc.getDocument(documentKey);
-      loadedContent = documentResult.content ?? jobsMessages.documentNotFoundMessage;
+      loadedState =
+        documentResult.content === null || documentResult.content === undefined
+          ? { kind: 'missing' }
+          : { kind: 'loaded', content: documentResult.content };
     } catch {
-      loadedContent = jobsMessages.documentLoadErrorMessage;
+      loadedState = { kind: 'failed' };
     }
     if (openDocumentKeyRef.current === documentKey) {
-      setOpenDocumentContent(loadedContent);
+      setOpenDocumentLoadState(loadedState);
     }
   }
 
   function handleCloseDocument() {
     openDocumentKeyRef.current = null;
     setOpenDocumentKey(null);
-    setOpenDocumentContent(null);
+    setOpenDocumentLoadState({ kind: 'loading' });
   }
 
   const openDocument =
     documentList?.find((jobDocument) => jobDocument.documentKey === openDocumentKey) ??
     null;
+  const openDocumentText =
+    openDocumentLoadState.kind === 'loaded'
+      ? openDocumentLoadState.content
+      : openDocumentLoadState.kind === 'missing'
+        ? jobsMessages.documentNotFoundMessage
+        : openDocumentLoadState.kind === 'failed'
+          ? jobsMessages.documentLoadErrorMessage
+          : null;
 
   return (
     <div
@@ -173,7 +192,7 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
             )}
           </header>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-            {openDocumentContent === null ? (
+            {openDocumentText === null ? (
               <div className="space-y-3">
                 <Skeleton className="h-5 w-2/3" />
                 <Skeleton className="h-3.5 w-full" />
@@ -181,13 +200,14 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
                 <Skeleton className="h-3.5 w-5/6" />
                 <Skeleton className="h-3.5 w-3/4" />
               </div>
-            ) : openDocumentKey?.endsWith('.md') ? (
+            ) : openDocumentLoadState.kind === 'loaded' &&
+              openDocumentKey?.endsWith('.md') ? (
               <div className="text-[13px] leading-relaxed [&_h1]:text-xl [&_h2]:text-lg [&_h3]:text-base [&_h4]:text-sm">
-                <Streamdown>{openDocumentContent}</Streamdown>
+                <Streamdown>{openDocumentText}</Streamdown>
               </div>
             ) : (
               <pre className="font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                {openDocumentContent}
+                {openDocumentText}
               </pre>
             )}
           </div>
