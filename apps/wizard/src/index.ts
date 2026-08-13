@@ -5,7 +5,11 @@ import { z } from 'zod';
 
 import { playOpeningBanner } from '@/banner';
 import { collectRealModeConfiguration } from '@/configure';
-import { rewriteTimeZone, rewriteWeatherLocation } from '@/identity';
+import {
+  readCurrentHomeLocation,
+  rewriteTimeZone,
+  rewriteWeatherLocation,
+} from '@/identity';
 import {
   inspectWranglerAuthState,
   isR2Enabled,
@@ -172,6 +176,7 @@ async function runWizard(): Promise<void> {
   await Bun.write(IDENTITY_FILE, identityContent);
 
   renderPhaseHeader({ title: 'Ready to launch' });
+  const retainedHome = readCurrentHomeLocation(identityContent);
   const recapLineList = buildRecapLineList({
     modeLabel:
       setupMode === 'real' ? 'Full voice agent' : 'Trial — replies mocked, zero spend',
@@ -179,7 +184,9 @@ async function runWizard(): Promise<void> {
     homeLabel:
       chosenCity !== undefined
         ? `${chosenCity.label.split(',')[0]} · ${chosenCity.timezone}`
-        : `Buenos Aires ${picocolors.dim('· default')}`,
+        : retainedHome !== undefined
+          ? `${retainedHome.locationLabel} · ${retainedHome.timezone} ${picocolors.dim('· unchanged')}`
+          : `Buenos Aires ${picocolors.dim('· default')}`,
     webSearchLabel,
     emailLabel,
   });

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { join } from 'node:path';
 
 import {
+  readCurrentHomeLocation,
   readCurrentTtsVoiceId,
   rewriteTimeZone,
   rewriteTtsVoiceId,
@@ -95,6 +96,22 @@ describe('identity rewriters against the shipped file shape', () => {
     const secondPass = rewriteTimeZone(firstPass, 'Europe/Lisbon', 'hora de Lisboa');
     expect(secondPass).toContain("export const APOLLO_TIME_ZONE = 'Europe/Lisbon';");
     expect(secondPass).toContain("= 'hora de Lisboa';");
+  });
+
+  it('reads the configured home back, including escaped labels', async () => {
+    const identityContent = await readGeneratedShapeIdentityContent();
+    expect(readCurrentHomeLocation(identityContent)?.timezone).toBeDefined();
+    const rewrittenContent = rewriteWeatherLocation(identityContent, {
+      latitude: 41.36,
+      longitude: 2.1,
+      locationLabel: "L'Hospitalet de Llobregat",
+      timezone: 'Europe/Madrid',
+    });
+    expect(readCurrentHomeLocation(rewrittenContent)).toEqual({
+      locationLabel: "L'Hospitalet de Llobregat",
+      timezone: 'Europe/Madrid',
+    });
+    expect(readCurrentHomeLocation('const somethingElse = 1;')).toBeUndefined();
   });
 
   it('throws loudly when an anchor is missing', () => {
