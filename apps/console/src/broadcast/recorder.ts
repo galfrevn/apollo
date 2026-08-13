@@ -37,7 +37,25 @@ export async function startBroadcastRecording(): Promise<BroadcastRecorderHandle
   const mediaStream = await navigator.mediaDevices.getUserMedia({
     audio: { echoCancellation: true, noiseSuppression: true },
   });
-  const audioContext = new AudioContext();
+  let audioContext: AudioContext | null = null;
+  try {
+    audioContext = new AudioContext();
+    return await wireCaptureGraph(mediaStream, audioContext);
+  } catch (setupError) {
+    // The stream is live the moment getUserMedia resolves; a failure while
+    // wiring the graph must not leave the microphone capturing.
+    for (const track of mediaStream.getTracks()) {
+      track.stop();
+    }
+    await audioContext?.close();
+    throw setupError;
+  }
+}
+
+async function wireCaptureGraph(
+  mediaStream: MediaStream,
+  audioContext: AudioContext,
+): Promise<BroadcastRecorderHandle> {
   const workletUrl = URL.createObjectURL(
     new Blob([CAPTURE_WORKLET_SOURCE], { type: 'application/javascript' }),
   );

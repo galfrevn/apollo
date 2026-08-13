@@ -92,6 +92,21 @@ export function BroadcastPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
     [previewUrl],
   );
 
+  useEffect(
+    () => () => {
+      // Navigating away mid-recording must release the microphone, not just
+      // remove the controls.
+      const abandonedRecorderHandle = recorderHandleRef.current;
+      if (abandonedRecorderHandle !== null) {
+        recorderHandleRef.current = null;
+        abandonedRecorderHandle.stop().catch(() => {
+          // Releasing an already-torn-down graph has nothing left to report.
+        });
+      }
+    },
+    [],
+  );
+
   async function handleSendText(event: FormEvent) {
     event.preventDefault();
     const trimmedMessage = textMessage.trim();
