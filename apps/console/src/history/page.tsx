@@ -8,6 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/components/utility';
+import { HISTORY_MESSAGE_CATALOG } from '@/history/copy';
+import { useLocale, useMessages } from '@/locale/context';
+import { formatAbsoluteTimestamp, formatClockTime } from '@/locale/format';
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { HistoryTurn, ThreadSummary } from '@/agent/schema';
 
@@ -17,11 +20,9 @@ function isCommandThread(thread: ThreadSummary): boolean {
   return thread.kind === 'command';
 }
 
-function formatThreadTimestamp(lastTurnAtIso: string | null): string | null {
-  return lastTurnAtIso === null ? null : new Date(lastTurnAtIso).toLocaleString();
-}
-
 export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
+  const { locale } = useLocale();
+  const historyMessages = useMessages(HISTORY_MESSAGE_CATALOG);
   const [threadList, setThreadList] = useState<readonly ThreadSummary[] | null>(null);
   const [activeView, setActiveView] = useState<HistoryView>('conversations');
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
@@ -40,10 +41,10 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
       setThreadList(await consoleRpc.listThreads());
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'Could not load the history.',
+        error instanceof Error ? error.message : historyMessages.loadHistoryFallbackError,
       );
     }
-  }, [consoleRpc]);
+  }, [consoleRpc, historyMessages.loadHistoryFallbackError]);
 
   useEffect(() => {
     void refreshThreadList();
@@ -63,7 +64,9 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
       if (openThreadIdRef.current === threadId) {
         setOpenThreadTurnList([]);
         setOpenThreadErrorMessage(
-          error instanceof Error ? error.message : 'Could not load the thread.',
+          error instanceof Error
+            ? error.message
+            : historyMessages.loadThreadFallbackError,
         );
       }
     }
@@ -92,8 +95,8 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
       )}
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <Heading description="Conversation threads between the owner and the agent">
-          History
+        <Heading description={historyMessages.pageDescription}>
+          {historyMessages.pageTitle}
         </Heading>
         <div className="flex items-center gap-2">
           <Button
@@ -101,17 +104,17 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
             size="sm"
             onClick={() => setActiveView('conversations')}
           >
-            Conversations
+            {historyMessages.conversationsViewLabel}
           </Button>
           <Button
             variant={activeView === 'commands' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setActiveView('commands')}
           >
-            Commands
+            {historyMessages.commandsViewLabel}
           </Button>
           <Button variant="outline" size="sm" onClick={() => void refreshThreadList()}>
-            Refresh
+            {historyMessages.refreshLabel}
           </Button>
         </div>
       </div>
@@ -126,10 +129,16 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
       )}
 
       <Panel
-        title={activeView === 'commands' ? 'Command log' : 'Conversations'}
+        title={
+          activeView === 'commands'
+            ? historyMessages.commandLogPanelTitle
+            : historyMessages.conversationsPanelTitle
+        }
         meta={
           visibleThreadList !== null ? (
-            <span className="text-xs text-dim">{visibleThreadList.length} threads</span>
+            <span className="text-xs text-dim">
+              {historyMessages.threadCountLabel(visibleThreadList.length)}
+            </span>
           ) : undefined
         }
       >
@@ -150,8 +159,8 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
           <Empty
             message={
               activeView === 'commands'
-                ? 'No quick commands yet — ask the desk for a timer or the weather'
-                : 'No conversations yet — talk to the desk'
+                ? historyMessages.commandsEmptyMessage
+                : historyMessages.conversationsEmptyMessage
             }
             className="m-4"
           />
@@ -169,10 +178,8 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
                 >
                   <Badge variant={thread.isActive ? 'strong' : 'outline'}>
                     {thread.isActive
-                      ? 'active'
-                      : thread.kind === 'pending'
-                        ? 'open'
-                        : thread.kind}
+                      ? historyMessages.activeBadgeLabel
+                      : historyMessages.kindBadgeLabelMap[thread.kind]}
                   </Badge>
                   <span className="min-w-0 flex-1 truncate">
                     <span className="text-sm">{thread.title}</span>
@@ -180,9 +187,9 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
                       <span className="ml-2 text-xs text-dim">{thread.summary}</span>
                     )}
                   </span>
-                  {formatThreadTimestamp(thread.lastTurnAtIso) !== null && (
+                  {thread.lastTurnAtIso !== null && (
                     <span className="shrink-0 text-xs whitespace-nowrap text-dim">
-                      {formatThreadTimestamp(thread.lastTurnAtIso)}
+                      {formatAbsoluteTimestamp(new Date(thread.lastTurnAtIso), locale)}
                     </span>
                   )}
                 </button>
@@ -192,11 +199,7 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
         )}
       </Panel>
 
-      <p className="text-xs text-dim">
-        Threads close after 30 minutes of silence; conversations get a title and summary,
-        quick commands land in the command log. Tool calls show as chips on the turn that
-        ran them.
-      </p>
+      <p className="text-xs text-dim">{historyMessages.footNote}</p>
 
       <Sheet
         open={openThreadId !== null}
@@ -208,7 +211,9 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
       >
         <SheetContent aria-describedby={undefined}>
           <header className="flex h-[70px] shrink-0 flex-col justify-center gap-1 border-b px-5 pr-14">
-            <SheetTitle className="truncate">{openThread?.title ?? 'Thread'}</SheetTitle>
+            <SheetTitle className="truncate">
+              {openThread?.title ?? historyMessages.threadFallbackTitle}
+            </SheetTitle>
             {openThread !== null && openThread.summary !== null && (
               <p className="truncate text-xs text-dim">{openThread.summary}</p>
             )}
@@ -234,7 +239,7 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
                 </li>
               </ol>
             ) : openThreadTurnList.length === 0 ? (
-              <Empty message="No turns recorded in this thread" />
+              <Empty message={historyMessages.turnsEmptyMessage} />
             ) : (
               <ol className="space-y-3">
                 {openThreadTurnList.map((turn) => (
@@ -252,9 +257,11 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
                       )}
                     >
                       <p className="mb-1 text-xs font-medium text-dim">
-                        {turn.role === 'assistant' ? 'Apollo' : 'Owner'}
+                        {turn.role === 'assistant'
+                          ? historyMessages.assistantTurnLabel
+                          : historyMessages.ownerTurnLabel}
                         {turn.createdAtIso !== null &&
-                          ` · ${new Date(turn.createdAtIso).toLocaleTimeString()}`}
+                          ` · ${formatClockTime(new Date(turn.createdAtIso), locale)}`}
                       </p>
                       <p className="text-sm whitespace-pre-wrap">{turn.text}</p>
                       {turn.toolNameList.length > 0 && (

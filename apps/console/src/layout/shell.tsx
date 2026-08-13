@@ -9,8 +9,11 @@ import { useConnection } from '@/connection/context';
 import { DevicePage } from '@/device/page';
 import { HistoryPage } from '@/history/page';
 import { JobsPage } from '@/jobs/page';
+import { LAYOUT_MESSAGE_CATALOG } from '@/layout/copy';
 import { Nav } from '@/layout/nav';
 import { Search } from '@/layout/search';
+import { useMessages } from '@/locale/context';
+import { LocaleToggle } from '@/locale/toggle';
 import { McpPage } from '@/mcp/page';
 import { MemoryPage } from '@/memory/page';
 import { useConsoleRoute } from '@/router/route';
@@ -38,6 +41,7 @@ function useSocketReadyState(agent: ApolloAgentHandle): number {
 
 export function Shell({ connection }: { readonly connection: ConsoleConnection }) {
   const { disconnect } = useConnection();
+  const layoutMessages = useMessages(LAYOUT_MESSAGE_CATALOG);
   const agent = useApolloAgent(connection);
   const activeRoute = useConsoleRoute();
   useDocumentMetadata(activeRoute);
@@ -85,15 +89,16 @@ export function Shell({ connection }: { readonly connection: ConsoleConnection }
                 )}
               >
                 {isSocketOpen
-                  ? 'Connected'
+                  ? layoutMessages.connectionConnectedLabel
                   : isUnauthorized
-                    ? 'Unauthorized'
-                    : 'Connecting…'}
+                    ? layoutMessages.connectionUnauthorizedLabel
+                    : layoutMessages.connectionConnectingLabel}
               </span>
             </span>
+            <LocaleToggle />
             <Button variant="ghost" size="sm" onClick={disconnect}>
               <Icons.Logout size={16} />
-              <span className="hidden sm:inline">Disconnect</span>
+              <span className="hidden sm:inline">{layoutMessages.disconnectLabel}</span>
             </Button>
           </div>
         </header>
@@ -103,8 +108,7 @@ export function Shell({ connection }: { readonly connection: ConsoleConnection }
             role="alert"
             className="border-b border-destructive/40 bg-destructive/10 px-4 py-2 text-xs text-destructive"
           >
-            The worker refused this connection — the dashboard secret is likely wrong.
-            Disconnect and enter it again.
+            {layoutMessages.unauthorizedBanner}
           </div>
         )}
 

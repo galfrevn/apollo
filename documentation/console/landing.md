@@ -4,9 +4,11 @@ The marketing page for Apollo, served by the same assets-only Worker as the cons
 
 ## Page
 
-All code lives in `src/landing/`. Sections in order: hero (`hero.tsx`), 01 Listen (`showcase.tsx` + `script.ts`), 02 Think (`architecture.tsx`), 03 Act (`capabilities/`), 04 Yours (`yours.tsx` — the ownership close: brain/body/console cards with the console CTA), footer (`footer.tsx`).
+All code lives in `src/landing/`. Sections in order: hero (`hero.tsx`), 01 Listen (`showcase.tsx`), 02 Think (`architecture.tsx`), 03 Act (`capabilities/`), 04 Yours (`yours.tsx` — the ownership close: brain/body/console cards with the console CTA), footer (`footer.tsx`).
 
 The positioning is "the brain for physical agentic devices": the worker is the brain, and the page speaks of bodies generically — the copy never names the ESP32. Typography follows the console system: sentence case everywhere, Hedvig Sans for UI text, mono reserved for code and data, sizes on the text-xs/text-sm scale. All claims stay factual — real paths, real bindings, no invented users or metrics.
+
+All landing copy — every section, the conversation script, the capability rows, and the document title/description — lives in `src/landing/copy/` (`messages.ts` interface, `es.ts`, `en.ts`, `catalog.ts`), Spanish first with English via the nav toggle; `index.html` ships the Spanish static tags for crawlers and unfurlers. The catalog is imported only from `src/landing/`, so neither language's landing copy reaches the console chunk.
 
 ## The face
 

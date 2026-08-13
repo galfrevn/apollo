@@ -35,6 +35,10 @@ Three self-hosted faces in `apps/console/src/fonts/`, declared in `apps/console/
 
 Scale as used: page `Heading` is `text-xl font-medium tracking-tight`; dialog titles `text-lg font-medium tracking-tight`; body and controls `text-sm`; labels, chips, metadata `text-xs`; the ⌘K kbd hint `text-[10px]`. Labels (`ui/label.tsx`) are `text-xs font-medium text-muted-foreground`, sentence case — no uppercase, no letter-spacing. Tables get `tabular-nums` globally.
 
+## Language
+
+Both surfaces are bilingual, Spanish first. All copy lives in typed catalogs — `src/<area>/copy.ts` per console area, `src/landing/copy/` for the landing — consumed through `useMessages` from `src/locale/context.tsx`; no user-facing string is written inline in a component. Variable messages are template functions, never string concatenation; the status insights build word order per locale as segment arrays. Dates go through `src/locale/format.ts` (Intl with the app locale). The `LocaleToggle` (lowercase `es` / `en` text buttons, active `text-foreground`, inactive `text-dim`) mounts in the shell header, the connect screen's top-right corner, and the landing nav. Spanish runs ~20–30% longer than English — check the rail, nav chips, and prose clamps in both locales when adding copy.
+
 ## Radius
 
 Square everywhere — no `rounded-*` class exists in the tree except `rounded-full` in exactly two places: the Switch (track and thumb) and the 1.5-size status dot inside Chip. Panels, buttons, inputs, dialogs, tiles, badges, chips, nav items: all hard corners.

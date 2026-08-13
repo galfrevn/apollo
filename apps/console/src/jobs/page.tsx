@@ -9,6 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/components/utility';
+import { JOBS_MESSAGE_CATALOG } from '@/jobs/copy';
+import { useLocale, useMessages } from '@/locale/context';
+import { formatAbsoluteTimestamp } from '@/locale/format';
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { JobDocument } from '@/agent/schema';
 
@@ -20,6 +23,8 @@ function formatSizeLabel(sizeBytes: number): string {
 }
 
 export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
+  const { locale } = useLocale();
+  const jobsMessages = useMessages(JOBS_MESSAGE_CATALOG);
   const [documentList, setDocumentList] = useState<readonly JobDocument[] | null>(null);
   const [openDocumentKey, setOpenDocumentKey] = useState<string | null>(null);
   const [openDocumentContent, setOpenDocumentContent] = useState<string | null>(null);
@@ -31,9 +36,11 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
     try {
       setDocumentList(await consoleRpc.listJobs());
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Could not list jobs.');
+      setErrorMessage(
+        error instanceof Error ? error.message : jobsMessages.listFallbackError,
+      );
     }
-  }, [consoleRpc]);
+  }, [consoleRpc, jobsMessages.listFallbackError]);
 
   useEffect(() => {
     void refreshDocumentList();
@@ -46,9 +53,9 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
     let loadedContent: string;
     try {
       const documentResult = await consoleRpc.getDocument(documentKey);
-      loadedContent = documentResult.content ?? 'Document not found.';
+      loadedContent = documentResult.content ?? jobsMessages.documentNotFoundMessage;
     } catch {
-      loadedContent = 'Could not load the document.';
+      loadedContent = jobsMessages.documentLoadErrorMessage;
     }
     if (openDocumentKeyRef.current === documentKey) {
       setOpenDocumentContent(loadedContent);
@@ -73,11 +80,11 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
       )}
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <Heading description="Documents produced by research and coding runs">
-          Jobs
+        <Heading description={jobsMessages.pageDescription}>
+          {jobsMessages.pageTitle}
         </Heading>
         <Button variant="outline" size="sm" onClick={() => void refreshDocumentList()}>
-          Refresh
+          {jobsMessages.refreshLabel}
         </Button>
       </div>
 
@@ -91,10 +98,12 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
       )}
 
       <Panel
-        title="Run documents"
+        title={jobsMessages.panelTitle}
         meta={
           documentList !== null ? (
-            <span className="text-xs text-dim">{documentList.length} documents</span>
+            <span className="text-xs text-dim">
+              {jobsMessages.documentCountLabel(documentList.length)}
+            </span>
           ) : undefined
         }
       >
@@ -112,10 +121,7 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
             ))}
           </ul>
         ) : documentList.length === 0 ? (
-          <Empty
-            message="No run documents yet — ask the desk to research something"
-            className="m-4"
-          />
+          <Empty message={jobsMessages.emptyMessage} className="m-4" />
         ) : (
           <ul>
             {documentList.map((jobDocument) => (
@@ -129,14 +135,14 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
                   )}
                 >
                   <Badge variant={jobDocument.kind === 'coding' ? 'strong' : 'outline'}>
-                    {jobDocument.kind}
+                    {jobsMessages.kindLabelMap[jobDocument.kind]}
                   </Badge>
                   <span className="min-w-0 flex-1 truncate text-sm">
                     {jobDocument.documentKey.split('/').at(-1)}
                   </span>
                   <span className="shrink-0 text-xs whitespace-nowrap text-dim">
-                    {new Date(jobDocument.uploadedAtIso).toLocaleString()} ·{' '}
-                    {formatSizeLabel(jobDocument.sizeBytes)}
+                    {formatAbsoluteTimestamp(new Date(jobDocument.uploadedAtIso), locale)}{' '}
+                    · {formatSizeLabel(jobDocument.sizeBytes)}
                   </span>
                 </button>
               </li>
@@ -160,8 +166,8 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
             </SheetTitle>
             {openDocument !== null && (
               <p className="truncate text-xs text-dim">
-                {openDocument.kind} ·{' '}
-                {new Date(openDocument.uploadedAtIso).toLocaleString()} ·{' '}
+                {jobsMessages.kindLabelMap[openDocument.kind]} ·{' '}
+                {formatAbsoluteTimestamp(new Date(openDocument.uploadedAtIso), locale)} ·{' '}
                 {formatSizeLabel(openDocument.sizeBytes)}
               </p>
             )}

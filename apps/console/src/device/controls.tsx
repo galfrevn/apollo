@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Slider } from '@/components/ui/slider';
+import { DEVICE_MESSAGE_CATALOG } from '@/device/copy';
+import { useMessages } from '@/locale/context';
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { DeviceCommandResult } from '@/agent/schema';
 
@@ -14,6 +16,7 @@ function SliderRow({
   readonly currentValue?: number;
   readonly onApply: (value: number) => Promise<DeviceCommandResult>;
 }) {
+  const deviceMessages = useMessages(DEVICE_MESSAGE_CATALOG);
   const [pendingValue, setPendingValue] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isApplying, setIsApplying] = useState(false);
@@ -39,7 +42,11 @@ function SliderRow({
       }
     } catch (error) {
       setPendingValue(null);
-      setErrorMessage(error instanceof Error ? error.message : 'Command failed.');
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : deviceMessages.commandFailedFallbackError,
+      );
     } finally {
       setIsApplying(false);
     }
@@ -83,6 +90,7 @@ export function DeviceControls({
   readonly isLoading?: boolean;
   readonly onApplied?: () => void;
 }) {
+  const deviceMessages = useMessages(DEVICE_MESSAGE_CATALOG);
   if (isLoading) {
     return (
       <div className="space-y-5 p-4">
@@ -99,14 +107,12 @@ export function DeviceControls({
     );
   }
   if (!isDeviceConnected) {
-    return (
-      <p className="p-4 text-xs text-dim">Controls appear when the desk is online.</p>
-    );
+    return <p className="p-4 text-xs text-dim">{deviceMessages.offlineControlsNote}</p>;
   }
   return (
     <div className="space-y-5 p-4">
       <SliderRow
-        label="Volume"
+        label={deviceMessages.volumeLabel}
         currentValue={currentVolume}
         onApply={async (volume) => {
           const commandResult = await consoleRpc.setDeviceVolume(volume);
@@ -117,7 +123,7 @@ export function DeviceControls({
         }}
       />
       <SliderRow
-        label="Brightness"
+        label={deviceMessages.brightnessLabel}
         onApply={async (brightness) => {
           const commandResult = await consoleRpc.setDeviceBrightness(brightness);
           if (commandResult.ok) {

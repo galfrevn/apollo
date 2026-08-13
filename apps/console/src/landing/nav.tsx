@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react';
 import { z } from 'zod';
 
 import { Icons } from '@/components/icons';
+import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { MagneticLink } from '@/landing/magnet';
 import { LANDING_LINK_MAP } from '@/landing/metadata';
+import { useMessages } from '@/locale/context';
+import { LocaleToggle } from '@/locale/toggle';
 
 const REPOSITORY_API_URL = 'https://api.github.com/repos/galfrevn/apollo';
 const repositorySchema = z.object({ stargazers_count: z.number() });
@@ -40,6 +43,7 @@ function useGithubStarCount(): number | null {
 }
 
 export function LandingNav() {
+  const landingMessages = useMessages(LANDING_MESSAGE_CATALOG);
   const starCount = useGithubStarCount();
 
   return (
@@ -54,13 +58,14 @@ export function LandingNav() {
           Apollo
         </a>
         <div className="flex items-center gap-7 text-sm text-muted-foreground">
+          <LocaleToggle />
           <a
             href={LANDING_LINK_MAP.documentation}
             target="_blank"
             rel="noreferrer"
             className="underline-reveal hover:text-foreground"
           >
-            Docs
+            {landingMessages.nav.docsLabel}
           </a>
           <a
             href={LANDING_LINK_MAP.github}
@@ -68,7 +73,7 @@ export function LandingNav() {
             rel="noreferrer"
             className="underline-reveal flex items-center gap-1.5 hover:text-foreground"
           >
-            GitHub
+            {landingMessages.nav.githubLabel}
             {starCount === null ? null : (
               <span className="flex items-center gap-0.5 text-xs text-dim">
                 <Icons.Star size={13} />
@@ -80,7 +85,7 @@ export function LandingNav() {
             href={LANDING_LINK_MAP.console}
             className="bg-primary px-3.5 py-2 text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Open console →
+            {landingMessages.nav.openConsoleLabel}
           </MagneticLink>
         </div>
       </div>

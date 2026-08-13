@@ -1,25 +1,29 @@
-import { CAPABILITY_ROW_LIST } from '@/landing/capabilities/catalog';
+import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { ActHeading } from '@/landing/heading';
+import { useMessages } from '@/locale/context';
 
 export function LandingCapabilities() {
+  const capabilitiesMessages = useMessages(LANDING_MESSAGE_CATALOG).capabilities;
   return (
     <section id="act" className="border-t py-[130px]">
       <div className="mx-auto w-full max-w-[1180px] px-8">
-        <ActHeading indexLabel="03 · Act">Small talk is not the point.</ActHeading>
+        <ActHeading indexLabel={capabilitiesMessages.actIndexLabel}>
+          {capabilitiesMessages.actTitle}
+        </ActHeading>
         <div className="mt-16 md:ml-[220px]">
           <p
             data-reveal
             className="max-w-[720px] font-serif text-[clamp(20px,2.4vw,28px)] leading-[1.4] text-muted-foreground"
           >
-            Apollo exists to get things done:{' '}
+            {capabilitiesMessages.intro.lead}
             <b className="font-normal text-foreground">
-              remember, remind, research, and ship
+              {capabilitiesMessages.intro.emphasis}
             </b>
-            , all from a sentence spoken across the desk.
+            {capabilitiesMessages.intro.trail}
           </p>
         </div>
         <div className="mt-14 border-t">
-          {CAPABILITY_ROW_LIST.map((capabilityRow, rowIndex) => (
+          {capabilitiesMessages.capabilityRowList.map((capabilityRow, rowIndex) => (
             <div
               key={capabilityRow.indexLabel}
               data-reveal

@@ -1,113 +1,55 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConnection } from '@/connection/context';
+import { useMessages } from '@/locale/context';
 import { navigateToRoute } from '@/router/route';
+import { STATUS_MESSAGE_CATALOG } from '@/status/copy';
 import type { ApolloAgentState, ConsoleStatus } from '@/agent/schema';
-import type { ConsoleRoute } from '@/router/route';
-
-type InsightSegment =
-  | { readonly kind: 'plain'; readonly text: string }
-  | { readonly kind: 'highlight'; readonly label: string; readonly route?: ConsoleRoute };
+import type { InsightSegment, StatusMessages } from '@/status/copy';
 
 type Insight = {
   readonly id: string;
   readonly segmentList: readonly InsightSegment[];
 };
 
-function buildPlainSegment(text: string): InsightSegment {
-  return { kind: 'plain', text };
-}
-
-function buildHighlightSegment(label: string, route?: ConsoleRoute): InsightSegment {
-  return { kind: 'highlight', label, route };
-}
-
-function resolveGreetingLabel(hourOfDay: number): string {
-  if (hourOfDay < 12) {
-    return 'Good morning';
-  }
-  if (hourOfDay < 19) {
-    return 'Good afternoon';
-  }
-  return 'Good evening';
-}
-
 function buildInsightList(
   agentState: ApolloAgentState | undefined,
   status: ConsoleStatus,
+  statusMessages: StatusMessages,
 ): readonly Insight[] {
   const insightList: Insight[] = [];
 
-  if (status.isDeviceConnected) {
-    const deviceSegmentList: InsightSegment[] = [
-      buildPlainSegment('The desk is '),
-      buildHighlightSegment('online'),
-    ];
-    if (status.deviceConnectionCount > 1) {
-      deviceSegmentList.push(
-        buildPlainSegment(` with ${status.deviceConnectionCount} device links`),
-      );
-    }
-    deviceSegmentList.push(buildPlainSegment('.'));
-    insightList.push({ id: 'device', segmentList: deviceSegmentList });
-  } else {
-    insightList.push({
-      id: 'device',
-      segmentList: [
-        buildPlainSegment('The desk is '),
-        buildHighlightSegment('offline'),
-        buildPlainSegment(' — telemetry pauses until it reconnects.'),
-      ],
-    });
-  }
+  insightList.push({
+    id: 'device',
+    segmentList: status.isDeviceConnected
+      ? statusMessages.insights.deviceOnline(status.deviceConnectionCount)
+      : statusMessages.insights.deviceOffline,
+  });
 
   const batteryLevel = status.telemetry?.battery;
   if (batteryLevel !== undefined) {
-    const isCharging = status.telemetry?.charging;
     insightList.push({
       id: 'battery',
-      segmentList: [
-        buildPlainSegment('Battery at '),
-        buildHighlightSegment(`${batteryLevel}%`),
-        buildPlainSegment(
-          isCharging === undefined ? '.' : isCharging ? ', charging.' : ', on battery.',
-        ),
-      ],
+      segmentList: statusMessages.insights.battery(
+        batteryLevel,
+        status.telemetry?.charging,
+      ),
     });
   }
 
-  if (status.pendingReminderCount > 0) {
-    const reminderNoun = status.pendingReminderCount === 1 ? 'reminder' : 'reminders';
-    insightList.push({
-      id: 'reminders',
-      segmentList: [
-        buildPlainSegment('There '),
-        buildPlainSegment(status.pendingReminderCount === 1 ? 'is ' : 'are '),
-        buildHighlightSegment(
-          `${status.pendingReminderCount} ${reminderNoun}`,
-          'schedules',
-        ),
-        buildPlainSegment(' waiting to fire.'),
-      ],
-    });
-  } else {
-    insightList.push({
-      id: 'reminders',
-      segmentList: [
-        buildPlainSegment('Nothing on the '),
-        buildHighlightSegment('schedule', 'schedules'),
-        buildPlainSegment('.'),
-      ],
-    });
-  }
+  insightList.push({
+    id: 'reminders',
+    segmentList:
+      status.pendingReminderCount > 0
+        ? statusMessages.insights.pendingReminders(status.pendingReminderCount)
+        : statusMessages.insights.emptySchedule,
+  });
 
   if (agentState !== undefined && agentState.uiState !== 'idle') {
     insightList.push({
       id: 'agent',
-      segmentList: [
-        buildPlainSegment('The agent is '),
-        buildHighlightSegment(agentState.uiState),
-        buildPlainSegment(' right now.'),
-      ],
+      segmentList: statusMessages.insights.agentBusy(
+        statusMessages.agentActivityLabelMap[agentState.uiState],
+      ),
     });
   }
 
@@ -143,7 +85,8 @@ export function Insights({
   readonly status: ConsoleStatus | null;
 }) {
   const { connection } = useConnection();
-  const greetingLabel = resolveGreetingLabel(new Date().getHours());
+  const statusMessages = useMessages(STATUS_MESSAGE_CATALOG);
+  const greetingLabel = statusMessages.resolveGreeting(new Date().getHours());
 
   return (
     <section className="space-y-5 text-center">
@@ -163,7 +106,7 @@ export function Insights({
         </ul>
       ) : (
         <ul className="space-y-1.5">
-          {buildInsightList(agentState, status).map((insight) => (
+          {buildInsightList(agentState, status, statusMessages).map((insight) => (
             <li
               key={insight.id}
               className="text-sm leading-relaxed text-muted-foreground"

@@ -1,16 +1,13 @@
 import { useRef } from 'react';
 
+import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { FaceCanvas } from '@/landing/face/canvas';
 import { ActHeading } from '@/landing/heading';
 import { REDUCED_MOTION_SAFE_QUERY, RISE_EASE, gsap, useGSAP } from '@/landing/motion';
-
-const TOOL_NODE_LIST = [
-  { name: 'Tools', detail: 'MCP servers, search, a coding sandbox' },
-  { name: 'R2', detail: 'media the agent records and serves' },
-  { name: 'Vectorize', detail: 'memory, recalled by meaning' },
-];
+import { useMessages } from '@/locale/context';
 
 export function LandingArchitecture() {
+  const architectureMessages = useMessages(LANDING_MESSAGE_CATALOG).architecture;
   const sectionReference = useRef<HTMLElement | null>(null);
 
   useGSAP(
@@ -89,18 +86,19 @@ export function LandingArchitecture() {
   return (
     <section ref={sectionReference} id="think" className="border-t py-[130px]">
       <div className="mx-auto w-full max-w-[1180px] px-8">
-        <ActHeading indexLabel="02 · Think">One brain, any body.</ActHeading>
+        <ActHeading indexLabel={architectureMessages.actIndexLabel}>
+          {architectureMessages.actTitle}
+        </ActHeading>
         <div className="mt-16 md:ml-[220px]">
           <p
             className="max-w-[720px] font-serif text-[clamp(20px,2.4vw,28px)] leading-[1.4] text-muted-foreground"
             data-reveal
           >
-            Every turn travels one path: the body streams your voice to{' '}
+            {architectureMessages.intro.lead}
             <b className="font-normal text-foreground">
-              a Durable Object in your Cloudflare account
+              {architectureMessages.intro.emphasis}
             </b>
-            . It remembers, decides, reaches for tools, and answers in a sentence. The
-            brain doesn’t care what the body is.
+            {architectureMessages.intro.trail}
           </p>
         </div>
         <div
@@ -109,20 +107,24 @@ export function LandingArchitecture() {
           className="mt-14 grid items-stretch md:grid-cols-[1fr_88px_1.25fr_88px_1fr]"
         >
           <div data-diagram-node className="flex flex-col gap-4 border bg-card p-6">
-            <span className="text-xs text-dim">The body</span>
+            <span className="text-xs text-dim">{architectureMessages.bodyNodeLabel}</span>
             <FaceCanvas
               mode="screen"
               gridResolution={14}
               className="size-14 self-center"
             />
             <div className="mt-auto">
-              <p className="text-sm">A mic, a speaker, a face.</p>
-              <p className="mt-1 text-xs text-dim">Any device that speaks the protocol</p>
+              <p className="text-sm">{architectureMessages.bodyNodeHeadline}</p>
+              <p className="mt-1 text-xs text-dim">
+                {architectureMessages.bodyNodeDetail}
+              </p>
             </div>
           </div>
           <div aria-hidden className="mx-auto h-8 w-px bg-[#3a3a3a] md:hidden" />
           <div className="relative hidden flex-col items-center justify-center gap-2 px-2 md:flex">
-            <span className="text-xs text-dim">voice →</span>
+            <span className="text-xs text-dim">
+              {architectureMessages.voiceWireLabel}
+            </span>
             <div className="relative w-full">
               <div data-diagram-wire className="h-px w-full origin-left bg-[#3a3a3a]" />
               <span
@@ -136,18 +138,24 @@ export function LandingArchitecture() {
                 className="absolute top-1/2 size-1 -translate-x-1/2 -translate-y-1/2 bg-foreground opacity-0"
               />
             </div>
-            <span className="text-xs text-dim">← reply</span>
+            <span className="text-xs text-dim">
+              {architectureMessages.replyWireLabel}
+            </span>
           </div>
           <div data-diagram-node className="flex flex-col gap-4 border bg-card p-7">
-            <span className="text-xs text-dim">The brain</span>
+            <span className="text-xs text-dim">
+              {architectureMessages.brainNodeLabel}
+            </span>
             <p className="max-w-[18ch] font-serif text-2xl leading-snug">
-              One Durable Object per device, on your account.
+              {architectureMessages.brainNodeHeadline}
             </p>
             <div className="mt-auto">
               <p className="font-mono text-xs leading-relaxed text-muted-foreground">
-                turns · memory · persona · schedules
+                {architectureMessages.brainNodeMonoLine}
               </p>
-              <p className="mt-1 text-xs text-dim">Cloudflare Worker</p>
+              <p className="mt-1 text-xs text-dim">
+                {architectureMessages.brainNodeDetail}
+              </p>
             </div>
           </div>
           <div aria-hidden className="mx-auto h-8 w-px bg-[#3a3a3a] md:hidden" />
@@ -188,7 +196,7 @@ export function LandingArchitecture() {
             </svg>
           </div>
           <div className="flex flex-col justify-between gap-3">
-            {TOOL_NODE_LIST.map((toolNode) => (
+            {architectureMessages.toolNodeList.map((toolNode) => (
               <div
                 key={toolNode.name}
                 data-diagram-node

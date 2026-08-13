@@ -4,6 +4,8 @@ import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useMessages } from '@/locale/context';
+import { MCP_MESSAGE_CATALOG } from '@/mcp/copy';
 import type { McpInstallResult } from '@/agent/schema';
 
 export function InstallForm({
@@ -21,6 +23,7 @@ export function InstallForm({
   readonly initialName?: string;
   readonly initialUrl?: string;
 }) {
+  const mcpMessages = useMessages(MCP_MESSAGE_CATALOG);
   const [name, setName] = useState(initialName ?? '');
   const [url, setUrl] = useState(initialUrl ?? '');
   const [authToken, setAuthToken] = useState('');
@@ -33,7 +36,7 @@ export function InstallForm({
     setErrorMessage(null);
     setAuthUrl(null);
     if (name.trim().length === 0 || !url.startsWith('https://')) {
-      setErrorMessage('Give the server a name and an https:// URL.');
+      setErrorMessage(mcpMessages.installValidationError);
       return;
     }
     setIsInstalling(true);
@@ -53,7 +56,7 @@ export function InstallForm({
       onInstalled?.(installResult);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'Install failed — check the URL.',
+        error instanceof Error ? error.message : mcpMessages.installUrlFallbackError,
       );
     } finally {
       setIsInstalling(false);
@@ -63,7 +66,7 @@ export function InstallForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4" aria-busy={isInstalling}>
       <div className="space-y-2">
-        <Label htmlFor="mcp-name">Name</Label>
+        <Label htmlFor="mcp-name">{mcpMessages.nameFieldLabel}</Label>
         <Input
           id="mcp-name"
           placeholder="linear"
@@ -73,7 +76,7 @@ export function InstallForm({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="mcp-url">Server URL</Label>
+        <Label htmlFor="mcp-url">{mcpMessages.urlFieldLabel}</Label>
         <Input
           id="mcp-url"
           type="url"
@@ -84,7 +87,7 @@ export function InstallForm({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="mcp-token">Access token</Label>
+        <Label htmlFor="mcp-token">{mcpMessages.tokenFieldLabel}</Label>
         <Input
           id="mcp-token"
           type="password"
@@ -92,10 +95,7 @@ export function InstallForm({
           onChange={(event) => setAuthToken(event.target.value)}
           autoComplete="off"
         />
-        <p className="text-xs text-dim">
-          Optional — only for servers that use a personal access token instead of OAuth.
-          Sign-in servers (Linear, Notion) show an authorization link after install.
-        </p>
+        <p className="text-xs text-dim">{mcpMessages.tokenFieldHint}</p>
       </div>
 
       {errorMessage !== null && (
@@ -105,21 +105,21 @@ export function InstallForm({
       )}
       {authUrl !== null && (
         <p className="border bg-accent px-3 py-2 text-xs text-muted-foreground">
-          This server needs authorization —{' '}
+          {mcpMessages.authorizationNoticePrefix}
           <a
             href={authUrl}
             target="_blank"
             rel="noreferrer"
             className="text-foreground underline underline-offset-2"
           >
-            open the auth page
+            {mcpMessages.authorizationLinkLabel}
           </a>
-          , then refresh the list.
+          {mcpMessages.authorizationNoticeSuffix}
         </p>
       )}
 
       <Button type="submit" className="w-full" disabled={isInstalling}>
-        {isInstalling ? 'Installing…' : 'Install'}
+        {isInstalling ? mcpMessages.installingLabel : mcpMessages.installLabel}
       </Button>
     </form>
   );

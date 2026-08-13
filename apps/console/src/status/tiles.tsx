@@ -1,25 +1,12 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/components/utility';
+import { useMessages } from '@/locale/context';
 import { navigateToRoute } from '@/router/route';
+import { STATUS_MESSAGE_CATALOG } from '@/status/copy';
 import type { ApolloAgentState, ConsoleStatus } from '@/agent/schema';
 import type { ConsoleRoute } from '@/router/route';
 
 const TELEMETRY_STALE_AFTER_MS = 5 * 60_000;
-
-function formatAgeLabel(receivedAtMs: number, nowMilliseconds: number): string {
-  const ageMinutes = Math.round((nowMilliseconds - receivedAtMs) / 60_000);
-  if (ageMinutes < 1) {
-    return 'just now';
-  }
-  if (ageMinutes < 60) {
-    return `${ageMinutes} min ago`;
-  }
-  const ageHours = Math.round(ageMinutes / 60);
-  if (ageHours < 48) {
-    return `${ageHours} h ago`;
-  }
-  return `${Math.round(ageHours / 24)} d ago`;
-}
 
 function capitalizeFirstLetter(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -83,6 +70,8 @@ export function TileGrid({
   readonly agentState: ApolloAgentState | undefined;
   readonly status: ConsoleStatus | null;
 }) {
+  const statusMessages = useMessages(STATUS_MESSAGE_CATALOG);
+  const tileMessages = statusMessages.tiles;
   const isLoading = status === null;
   const telemetry = status?.telemetry ?? null;
   const nowMilliseconds = status?.nowMilliseconds ?? Date.now();
@@ -94,61 +83,75 @@ export function TileGrid({
     <section className="space-y-2.5">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Tile
-          label="Device"
+          label={tileMessages.deviceLabel}
           isLoading={isLoading}
-          value={status?.isDeviceConnected ? 'Online' : 'Offline'}
+          value={
+            status?.isDeviceConnected
+              ? tileMessages.deviceOnlineValue
+              : tileMessages.deviceOfflineValue
+          }
           detail={
             status !== null && status.deviceConnectionCount > 1
-              ? `${status.deviceConnectionCount} links`
+              ? tileMessages.deviceLinksDetail(status.deviceConnectionCount)
               : undefined
           }
         />
         <Tile
-          label="Agent"
+          label={tileMessages.agentLabel}
           isLoading={agentState === undefined}
           value={
-            agentState === undefined ? '—' : capitalizeFirstLetter(agentState.uiState)
+            agentState === undefined
+              ? '—'
+              : capitalizeFirstLetter(
+                  statusMessages.agentActivityLabelMap[agentState.uiState],
+                )
           }
           detail={agentState?.speechMode}
           route="history"
         />
         <Tile
-          label="Battery"
+          label={tileMessages.batteryLabel}
           isLoading={isLoading}
           value={telemetry?.battery === undefined ? '—' : `${telemetry.battery}%`}
           detail={
             telemetry?.charging === undefined
               ? undefined
               : telemetry.charging
-                ? 'Charging'
-                : 'On battery'
+                ? tileMessages.chargingDetail
+                : tileMessages.onBatteryDetail
           }
         />
         <Tile
-          label="Wi-Fi"
+          label={tileMessages.wifiLabel}
           isLoading={isLoading}
           value={telemetry?.wifiRssi === undefined ? '—' : `${telemetry.wifiRssi} dBm`}
         />
         <Tile
-          label="Reminders"
+          label={tileMessages.remindersLabel}
           isLoading={isLoading}
           value={status === null ? '—' : String(status.pendingReminderCount)}
-          detail="pending"
+          detail={tileMessages.remindersPendingDetail}
           route="schedules"
         />
         <Tile
-          label="Firmware"
+          label={tileMessages.firmwareLabel}
           isLoading={isLoading}
           value={telemetry?.firmwareVersion ?? '—'}
           detail={
-            telemetry?.volume === undefined ? undefined : `Volume ${telemetry.volume}`
+            telemetry?.volume === undefined
+              ? undefined
+              : tileMessages.volumeDetail(telemetry.volume)
           }
         />
       </div>
       {telemetry !== null && (
         <p className="text-xs text-dim">
-          Snapshot {formatAgeLabel(telemetry.receivedAtMs, nowMilliseconds)}
-          {isStale && ' — stale; the device pushes telemetry only while connected'}
+          {tileMessages.snapshotLine(
+            tileMessages.formatSnapshotAge(
+              Math.round((nowMilliseconds - telemetry.receivedAtMs) / 60_000),
+            ),
+          )}
+          {isStale && tileMessages.staleSuffix}
         </p>
       )}
     </section>

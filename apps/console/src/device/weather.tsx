@@ -4,10 +4,13 @@ import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DEVICE_MESSAGE_CATALOG } from '@/device/copy';
+import { useMessages } from '@/locale/context';
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { WeatherLocation } from '@/agent/schema';
 
 export function WeatherPanel({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
+  const deviceMessages = useMessages(DEVICE_MESSAGE_CATALOG);
   const [location, setLocation] = useState<WeatherLocation | null>(null);
   const [locationQuery, setLocationQuery] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -17,8 +20,8 @@ export function WeatherPanel({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }
     void consoleRpc
       .getWeather()
       .then(setLocation)
-      .catch(() => setErrorMessage('Could not load the weather location.'));
-  }, [consoleRpc]);
+      .catch(() => setErrorMessage(deviceMessages.weatherLoadError));
+  }, [consoleRpc, deviceMessages.weatherLoadError]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -32,7 +35,7 @@ export function WeatherPanel({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }
       setLocation(await consoleRpc.setWeather(trimmedQuery));
       setLocationQuery('');
     } catch {
-      setErrorMessage(`No location found for “${trimmedQuery}”.`);
+      setErrorMessage(deviceMessages.weatherNotFoundError(trimmedQuery));
     } finally {
       setIsSaving(false);
     }
@@ -62,11 +65,11 @@ export function WeatherPanel({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }
         <Input
           value={locationQuery}
           onChange={(event) => setLocationQuery(event.target.value)}
-          placeholder="Change city…"
-          aria-label="New weather location"
+          placeholder={deviceMessages.weatherPlaceholder}
+          aria-label={deviceMessages.weatherInputAriaLabel}
         />
         <Button type="submit" variant="outline" disabled={isSaving}>
-          {isSaving ? 'Saving…' : 'Set'}
+          {isSaving ? deviceMessages.savingLabel : deviceMessages.applyLabel}
         </Button>
       </form>
       {errorMessage !== null && (

@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SheetTitle } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
+import { useMessages } from '@/locale/context';
+import { MCP_MESSAGE_CATALOG, resolveServerStateLabel } from '@/mcp/copy';
 import type { McpServer } from '@/agent/schema';
 import type { ChipTone } from '@/blueprint/chip';
 
@@ -29,6 +31,7 @@ export function ServerDetail({
   readonly onRetry: () => Promise<void>;
   readonly onUninstall: () => Promise<void>;
 }) {
+  const mcpMessages = useMessages(MCP_MESSAGE_CATALOG);
   const [busyToolName, setBusyToolName] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [isUninstalling, setIsUninstalling] = useState(false);
@@ -67,7 +70,9 @@ export function ServerDetail({
       <header className="flex h-[70px] shrink-0 flex-col justify-center gap-1 border-b px-5 pr-14">
         <div className="flex items-center gap-3">
           <SheetTitle className="truncate">{server.name}</SheetTitle>
-          <Chip tone={resolveServerTone(server.state)}>{server.state}</Chip>
+          <Chip tone={resolveServerTone(server.state)}>
+            {resolveServerStateLabel(server.state, mcpMessages)}
+          </Chip>
         </div>
         <p className="truncate text-xs text-dim">{server.url}</p>
       </header>
@@ -83,26 +88,26 @@ export function ServerDetail({
 
       {server.authUrl !== null && (
         <p className="shrink-0 border-b bg-accent px-5 py-2 text-xs text-muted-foreground">
-          Awaiting authorization —{' '}
+          {mcpMessages.awaitingAuthorizationPrefix}
           <a
             href={server.authUrl}
             target="_blank"
             rel="noreferrer"
             className="text-foreground underline underline-offset-2"
           >
-            open the auth page
+            {mcpMessages.authorizationLinkLabel}
           </a>
-          , then refresh.
+          {mcpMessages.awaitingAuthorizationSuffix}
         </p>
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <p className="border-b px-5 py-2.5 text-xs text-muted-foreground">
-          {enabledCount}/{server.toolList.length} tools enabled
+          {mcpMessages.toolsEnabledLabel(enabledCount, server.toolList.length)}
         </p>
         {server.toolList.length === 0 ? (
           <p className="dotted-bg px-5 py-8 text-center text-xs text-muted-foreground">
-            No tools discovered yet
+            {mcpMessages.noToolsMessage}
           </p>
         ) : (
           <ul>
@@ -118,11 +123,16 @@ export function ServerDetail({
                     onCheckedChange={(isChecked) =>
                       void handleToggle(tool.toolName, isChecked)
                     }
-                    aria-label={`${tool.isEnabled ? 'Disable' : 'Enable'} ${tool.toolName}`}
+                    aria-label={mcpMessages.toggleToolAriaLabel(
+                      tool.isEnabled,
+                      tool.toolName,
+                    )}
                   />
                   <p className="min-w-0 flex-1 truncate text-sm">{tool.toolName}</p>
                   <Badge variant={tool.safety === 'safe' ? 'outline' : 'destructive'}>
-                    {tool.safety === 'safe' ? 'Safe' : 'Asks first'}
+                    {tool.safety === 'safe'
+                      ? mcpMessages.safeBadgeLabel
+                      : mcpMessages.asksFirstBadgeLabel}
                   </Badge>
                 </div>
                 {tool.description.length > 0 && (
@@ -145,7 +155,7 @@ export function ServerDetail({
             onClick={() => void handleRetry()}
             disabled={isRetrying}
           >
-            {isRetrying ? 'Connecting…' : 'Retry connection'}
+            {isRetrying ? mcpMessages.retryingLabel : mcpMessages.retryLabel}
           </Button>
         )}
         <Button
@@ -155,7 +165,7 @@ export function ServerDetail({
           onClick={() => void handleUninstall()}
           disabled={isUninstalling}
         >
-          {isUninstalling ? 'Removing…' : 'Uninstall server'}
+          {isUninstalling ? mcpMessages.uninstallingLabel : mcpMessages.uninstallLabel}
         </Button>
       </footer>
     </>

@@ -1,10 +1,11 @@
 import { useRef } from 'react';
 
+import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { REDUCED_MOTION_SAFE_QUERY, RISE_EASE, gsap, useGSAP } from '@/landing/motion';
-
-const ECHO_WORD_LIST = ['The', 'desk', 'is', 'listening'];
+import { useMessages } from '@/locale/context';
 
 export function LandingFooter() {
+  const footerMessages = useMessages(LANDING_MESSAGE_CATALOG).footer;
   const footerReference = useRef<HTMLElement | null>(null);
 
   useGSAP(
@@ -31,8 +32,9 @@ export function LandingFooter() {
     <footer ref={footerReference} className="border-t pb-14 pt-[120px]">
       <div className="mx-auto w-full max-w-[1180px] px-8">
         <p className="mb-20 flex flex-wrap items-center gap-x-[0.24em] font-serif text-[clamp(48px,9vw,120px)] leading-[1.05] tracking-[-0.02em]">
-          {ECHO_WORD_LIST.map((echoWord, echoWordIndex) => {
-            const isLastEchoWord = echoWordIndex === ECHO_WORD_LIST.length - 1;
+          {footerMessages.echoWordList.map((echoWord, echoWordIndex) => {
+            const isLastEchoWord =
+              echoWordIndex === footerMessages.echoWordList.length - 1;
             return (
               <span key={echoWord} className="block overflow-hidden">
                 <span data-echo-word className="flex items-center whitespace-nowrap">
@@ -49,9 +51,9 @@ export function LandingFooter() {
           })}
         </p>
         <div className="flex flex-wrap items-center justify-between gap-5 text-xs text-dim">
-          <span className="font-serif text-sm">“Hey, Apollo.”</span>
+          <span className="font-serif text-sm">{footerMessages.wakePhrase}</span>
           <span>
-            Built by{' '}
+            {footerMessages.builtByPrefix}
             <a
               href="https://github.com/galfrevn"
               target="_blank"

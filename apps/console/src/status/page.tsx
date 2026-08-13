@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { useMessages } from '@/locale/context';
+import { STATUS_MESSAGE_CATALOG } from '@/status/copy';
 import { Insights } from '@/status/insights';
 import { TileGrid } from '@/status/tiles';
 import type { ApolloAgentHandle } from '@/agent/hook';
@@ -16,6 +18,7 @@ export function StatusPage({
   readonly agent: ApolloAgentHandle;
   readonly consoleRpc: ConsoleRpc;
 }) {
+  const statusMessages = useMessages(STATUS_MESSAGE_CATALOG);
   const [status, setStatus] = useState<ConsoleStatus | null>(null);
   const [didPollFail, setDidPollFail] = useState(false);
   const [isResolvingConfirm, setIsResolvingConfirm] = useState(false);
@@ -60,7 +63,9 @@ export function StatusPage({
 
       {agentState?.pendingConfirmSummary != null && (
         <section className="border bg-card p-5">
-          <p className="text-xs text-muted-foreground">Awaiting confirmation</p>
+          <p className="text-xs text-muted-foreground">
+            {statusMessages.awaitingConfirmationLabel}
+          </p>
           <p className="mt-2 text-sm">{agentState.pendingConfirmSummary}</p>
           <div className="mt-4 flex gap-2">
             <Button
@@ -68,7 +73,7 @@ export function StatusPage({
               disabled={isResolvingConfirm}
               onClick={() => void handleResolveConfirm(true)}
             >
-              Approve
+              {statusMessages.approveLabel}
             </Button>
             <Button
               variant="destructive"
@@ -76,7 +81,7 @@ export function StatusPage({
               disabled={isResolvingConfirm}
               onClick={() => void handleResolveConfirm(false)}
             >
-              Reject
+              {statusMessages.rejectLabel}
             </Button>
           </div>
         </section>
@@ -90,7 +95,7 @@ export function StatusPage({
 
       {didPollFail && (
         <p role="alert" className="text-xs text-destructive">
-          Status poll failed — retrying every {STATUS_POLL_INTERVAL_MS / 1000}s.
+          {statusMessages.pollFailedMessage(STATUS_POLL_INTERVAL_MS / 1000)}
         </p>
       )}
     </div>

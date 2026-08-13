@@ -5,19 +5,18 @@ import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { CONNECTION_MESSAGE_CATALOG } from '@/connection/copy';
 import { useConnection } from '@/connection/context';
 import { probeWorkerHealth } from '@/connection/probe';
 import { consoleConnectionSchema } from '@/connection/schema';
+import { useMessages } from '@/locale/context';
+import { LocaleToggle } from '@/locale/toggle';
 import { useDocumentMetadata } from '@/router/metadata';
-
-const PROBE_ERROR_MESSAGE_MAP = {
-  unreachable: 'Worker unreachable — check the URL and that the worker is deployed.',
-  'not-apollo': 'That URL responds, but not like an Apollo worker — check /health.',
-} as const;
 
 export function ConnectScreen() {
   useDocumentMetadata(null);
   const { connect } = useConnection();
+  const connectionMessages = useMessages(CONNECTION_MESSAGE_CATALOG);
   const [workerUrl, setWorkerUrl] = useState('');
   const [deviceName, setDeviceName] = useState('desk');
   const [secret, setSecret] = useState('');
@@ -33,23 +32,22 @@ export function ConnectScreen() {
       secret,
     });
     if (!parsedConnection.success) {
-      setErrorMessage(
-        'Enter a full worker URL (https://…), a device name, and the dashboard secret.',
-      );
+      setErrorMessage(connectionMessages.validationMessage);
       return;
     }
     setIsProbing(true);
     const probeResult = await probeWorkerHealth(parsedConnection.data.workerUrl);
     setIsProbing(false);
     if (probeResult.outcome !== 'ok') {
-      setErrorMessage(PROBE_ERROR_MESSAGE_MAP[probeResult.outcome]);
+      setErrorMessage(connectionMessages.probeErrorMap[probeResult.outcome]);
       return;
     }
     connect(parsedConnection.data);
   }
 
   return (
-    <main className="grid min-h-dvh place-items-center px-4 py-16">
+    <main className="relative grid min-h-dvh place-items-center px-4 py-16">
+      <LocaleToggle className="absolute top-6 right-6" />
       <div className="settle w-full max-w-sm">
         <div className="mb-8 text-center">
           <span className="inline-flex">
@@ -57,18 +55,20 @@ export function ConnectScreen() {
           </span>
           <h1 className="mt-4 font-serif text-[32px] leading-tight">Apollo Console</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            The instrument panel for your desk agent
+            {connectionMessages.tagline}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="border bg-card" aria-busy={isProbing}>
           <div className="border-b px-5 py-3.5">
-            <h2 className="text-sm text-muted-foreground">Connect to your worker</h2>
+            <h2 className="text-sm text-muted-foreground">
+              {connectionMessages.formTitle}
+            </h2>
           </div>
 
           <div className="space-y-5 p-5">
             <div className="space-y-2">
-              <Label htmlFor="worker-url">Worker URL</Label>
+              <Label htmlFor="worker-url">{connectionMessages.workerUrlLabel}</Label>
               <Input
                 id="worker-url"
                 type="url"
@@ -80,20 +80,19 @@ export function ConnectScreen() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="device-name">Device name</Label>
+              <Label htmlFor="device-name">{connectionMessages.deviceNameLabel}</Label>
               <Input
                 id="device-name"
                 value={deviceName}
                 onChange={(event) => setDeviceName(event.target.value)}
                 spellCheck={false}
               />
-              <p className="text-xs text-dim">
-                The agent instance the device connects as — “desk” unless changed in
-                firmware.
-              </p>
+              <p className="text-xs text-dim">{connectionMessages.deviceNameHint}</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="dashboard-secret">Dashboard secret</Label>
+              <Label htmlFor="dashboard-secret">
+                {connectionMessages.dashboardSecretLabel}
+              </Label>
               <Input
                 id="dashboard-secret"
                 type="password"
@@ -113,13 +112,15 @@ export function ConnectScreen() {
             )}
 
             <Button type="submit" className="w-full" disabled={isProbing}>
-              {isProbing ? 'Probing worker…' : 'Connect'}
+              {isProbing
+                ? connectionMessages.probingLabel
+                : connectionMessages.connectLabel}
             </Button>
           </div>
         </form>
 
         <p className="mt-6 text-center text-xs text-dim">
-          Stored in this browser only. Nothing leaves it except calls to your worker.
+          {connectionMessages.privacyNote}
         </p>
       </div>
     </main>

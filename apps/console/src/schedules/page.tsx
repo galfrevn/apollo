@@ -13,9 +13,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLocale, useMessages } from '@/locale/context';
+import {
+  formatClockTime,
+  formatDayTimestamp,
+  formatRemainingDuration,
+} from '@/locale/format';
+import { SCHEDULES_MESSAGE_CATALOG } from '@/schedules/copy';
 import { ScheduleComposer } from '@/schedules/create';
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { Reminder } from '@/agent/schema';
+import type { Locale } from '@/locale/detect';
 
 // Mirrors the worker's own timer convention: the "Timer" message prefix plus a
 // numeric delay, both required (apps/agent/src/agents/apollo.ts).
@@ -23,41 +31,22 @@ function isTimerReminder(reminder: Reminder): boolean {
   return reminder.message.startsWith('Timer') && reminder.delayInSeconds !== undefined;
 }
 
-function formatRemainingLabel(firesAtIso: string, nowMilliseconds: number): string {
-  const remainingMinutes = Math.round(
-    (new Date(firesAtIso).getTime() - nowMilliseconds) / 60_000,
-  );
-  if (remainingMinutes <= 0) {
-    return 'due';
-  }
-  if (remainingMinutes < 90) {
-    return `in ${remainingMinutes} min`;
-  }
-  if (remainingMinutes < 48 * 60) {
-    return `in ${Math.round(remainingMinutes / 60)} h`;
-  }
-  return `in ${Math.round(remainingMinutes / (24 * 60))} d`;
-}
-
-function formatFireTimeLabel(firesAtIso: string, nowMilliseconds: number): string {
+function formatFireTimeLabel(
+  firesAtIso: string,
+  nowMilliseconds: number,
+  locale: Locale,
+): string {
   const firesAtDate = new Date(firesAtIso);
   const isSameDay =
     firesAtDate.toDateString() === new Date(nowMilliseconds).toDateString();
-  if (isSameDay) {
-    return firesAtDate.toLocaleTimeString(undefined, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  }
-  return firesAtDate.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  return isSameDay
+    ? formatClockTime(firesAtDate, locale)
+    : formatDayTimestamp(firesAtDate, locale);
 }
 
 export function SchedulesPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
+  const { locale } = useLocale();
+  const schedulesMessages = useMessages(SCHEDULES_MESSAGE_CATALOG);
   const [reminderList, setReminderList] = useState<readonly Reminder[] | null>(null);
   const [pendingCancel, setPendingCancel] = useState<Reminder | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -69,10 +58,10 @@ export function SchedulesPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
       setReminderList(await consoleRpc.listReminders());
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'Could not list reminders.',
+        error instanceof Error ? error.message : schedulesMessages.listFallbackError,
       );
     }
-  }, [consoleRpc]);
+  }, [consoleRpc, schedulesMessages.listFallbackError]);
 
   useEffect(() => {
     void refreshReminderList();
@@ -88,7 +77,7 @@ export function SchedulesPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
       setPendingCancel(null);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'Cancel failed — refresh and retry.',
+        error instanceof Error ? error.message : schedulesMessages.cancelFallbackError,
       );
     } finally {
       setIsCancelling(false);
@@ -106,9 +95,11 @@ export function SchedulesPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
   return (
     <div className="settle space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <Heading description="What the desk will say, and when">Schedules</Heading>
+        <Heading description={schedulesMessages.pageDescription}>
+          {schedulesMessages.pageTitle}
+        </Heading>
         <Button variant="outline" size="sm" onClick={() => void refreshReminderList()}>
-          Refresh
+          {schedulesMessages.refreshLabel}
         </Button>
       </div>
 
@@ -122,10 +113,12 @@ export function SchedulesPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
       )}
 
       <Panel
-        title="Reminders & timers"
+        title={schedulesMessages.panelTitle}
         meta={
           sortedReminderList !== null ? (
-            <span className="text-xs text-dim">{sortedReminderList.length} pending</span>
+            <span className="text-xs text-dim">
+              {schedulesMessages.pendingCountLabel(sortedReminderList.length)}
+            </span>
           ) : undefined
         }
       >
@@ -157,7 +150,7 @@ export function SchedulesPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
             ))}
           </ul>
         ) : sortedReminderList.length === 0 ? (
-          <Empty message="Nothing scheduled" className="m-4" />
+          <Empty message={schedulesMessages.emptyMessage} className="m-4" />
         ) : (
           <ul>
             {sortedReminderList.map((reminder) => (
@@ -167,16 +160,23 @@ export function SchedulesPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
               >
                 <div className="w-24 shrink-0">
                   <p className="text-sm font-medium whitespace-nowrap">
-                    {formatRemainingLabel(reminder.firesAtIso, nowMilliseconds)}
+                    {new Date(reminder.firesAtIso).getTime() - nowMilliseconds <= 30_000
+                      ? schedulesMessages.dueLabel
+                      : formatRemainingDuration(
+                          new Date(reminder.firesAtIso).getTime() - nowMilliseconds,
+                          locale,
+                        )}
                   </p>
                   <p className="mt-0.5 text-xs whitespace-nowrap text-dim">
-                    {formatFireTimeLabel(reminder.firesAtIso, nowMilliseconds)}
+                    {formatFireTimeLabel(reminder.firesAtIso, nowMilliseconds, locale)}
                   </p>
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm">{reminder.message}</p>
                   <p className="mt-0.5 text-xs text-dim">
-                    {isTimerReminder(reminder) ? 'Timer' : 'Reminder'}
+                    {isTimerReminder(reminder)
+                      ? schedulesMessages.timerKindLabel
+                      : schedulesMessages.reminderKindLabel}
                   </p>
                 </div>
                 <Button
@@ -184,7 +184,7 @@ export function SchedulesPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
                   size="sm"
                   onClick={() => setPendingCancel(reminder)}
                 >
-                  Cancel
+                  {schedulesMessages.cancelLabel}
                 </Button>
               </li>
             ))}
@@ -202,21 +202,23 @@ export function SchedulesPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancel this reminder?</DialogTitle>
+            <DialogTitle>{schedulesMessages.cancelDialogTitle}</DialogTitle>
             <DialogDescription>
-              “{pendingCancel?.message}” will not fire on the desk.
+              {schedulesMessages.cancelDialogDescription(pendingCancel?.message ?? '')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setPendingCancel(null)}>
-              Keep it
+              {schedulesMessages.keepLabel}
             </Button>
             <Button
               variant="destructive"
               onClick={() => void handleConfirmCancel()}
               disabled={isCancelling}
             >
-              {isCancelling ? 'Cancelling…' : 'Cancel reminder'}
+              {isCancelling
+                ? schedulesMessages.cancellingLabel
+                : schedulesMessages.confirmCancelLabel}
             </Button>
           </DialogFooter>
         </DialogContent>
