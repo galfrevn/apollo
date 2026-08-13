@@ -12,7 +12,7 @@ export const LANDING_MESSAGES_ES: LandingMessages = {
     openConsoleLabel: 'Abrir consola →',
   },
   hero: {
-    lineOne: 'Tu agente personal',
+    lineOne: 'Tu agente',
     lineTwo: 'de escritorio',
     subhead:
       'El cerebro open source para dispositivos agénticos físicos. Vive en tu cuenta de Cloudflare; el cuerpo descansa en tu escritorio.',
@@ -168,7 +168,7 @@ export const LANDING_MESSAGES_ES: LandingMessages = {
     consoleCardAction: 'Abrir consola →',
   },
   footer: {
-    echoWordList: ['El', 'escritorio', 'está', 'escuchando'],
+    echoWordList: ['El', 'escritorio', 'escucha'],
     wakePhrase: '“Hey, Apollo.”',
     builtByPrefix: 'Hecho por ',
   },
