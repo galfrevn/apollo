@@ -2,6 +2,7 @@ import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { ActHeading } from '@/landing/heading';
 import { MagneticLink } from '@/landing/magnet';
 import { LANDING_LINK_MAP } from '@/landing/metadata';
+import { warmConsoleChunk } from '@/landing/prefetch';
 import { useMessages } from '@/locale/context';
 
 export function LandingYours() {
@@ -68,6 +69,7 @@ export function LandingYours() {
             <div className="mt-auto pt-4">
               <MagneticLink
                 href={LANDING_LINK_MAP.console}
+                onWarm={warmConsoleChunk}
                 className="inline-block bg-primary px-4 py-2.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 {yoursMessages.consoleCardAction}

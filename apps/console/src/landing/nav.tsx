@@ -5,6 +5,7 @@ import { Icons } from '@/components/icons';
 import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { MagneticLink } from '@/landing/magnet';
 import { LANDING_LINK_MAP } from '@/landing/metadata';
+import { warmConsoleChunk } from '@/landing/prefetch';
 import { useMessages } from '@/locale/context';
 
 const REPOSITORY_API_URL = 'https://api.github.com/repos/galfrevn/apollo';
@@ -81,6 +82,7 @@ export function LandingNav() {
           </a>
           <MagneticLink
             href={LANDING_LINK_MAP.console}
+            onWarm={warmConsoleChunk}
             className="bg-primary px-3.5 py-2 text-primary-foreground transition-colors hover:bg-primary/90"
           >
             {landingMessages.nav.openConsoleLabel}
