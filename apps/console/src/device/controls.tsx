@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Slider } from '@/components/ui/slider';
 import type { ConsoleRpc } from '@/agent/rpc';
+import type { DeviceCommandResult } from '@/agent/schema';
 
 function SliderRow({
   label,
@@ -11,7 +12,7 @@ function SliderRow({
 }: {
   readonly label: string;
   readonly currentValue?: number;
-  readonly onApply: (value: number) => Promise<void>;
+  readonly onApply: (value: number) => Promise<DeviceCommandResult>;
 }) {
   const [pendingValue, setPendingValue] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -23,8 +24,13 @@ function SliderRow({
     setIsApplying(true);
     setErrorMessage(null);
     try {
-      await onApply(committedValue);
+      const commandResult = await onApply(committedValue);
+      if (!commandResult.ok) {
+        setPendingValue(null);
+        setErrorMessage(commandResult.summary);
+      }
     } catch (error) {
+      setPendingValue(null);
       setErrorMessage(error instanceof Error ? error.message : 'Command failed.');
     } finally {
       setIsApplying(false);
@@ -95,15 +101,21 @@ export function DeviceControls({
         label="Volume"
         currentValue={currentVolume}
         onApply={async (volume) => {
-          await consoleRpc.setDeviceVolume(volume);
-          onApplied?.();
+          const commandResult = await consoleRpc.setDeviceVolume(volume);
+          if (commandResult.ok) {
+            onApplied?.();
+          }
+          return commandResult;
         }}
       />
       <SliderRow
         label="Brightness"
         onApply={async (brightness) => {
-          await consoleRpc.setDeviceBrightness(brightness);
-          onApplied?.();
+          const commandResult = await consoleRpc.setDeviceBrightness(brightness);
+          if (commandResult.ok) {
+            onApplied?.();
+          }
+          return commandResult;
         }}
       />
     </div>

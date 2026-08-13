@@ -28,6 +28,9 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
   const [openThreadTurnList, setOpenThreadTurnList] = useState<
     readonly HistoryTurn[] | null
   >(null);
+  const [openThreadErrorMessage, setOpenThreadErrorMessage] = useState<string | null>(
+    null,
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const openThreadIdRef = useRef<string | null>(null);
 
@@ -50,14 +53,19 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
     openThreadIdRef.current = threadId;
     setOpenThreadId(threadId);
     setOpenThreadTurnList(null);
-    let loadedTurnList: readonly HistoryTurn[] = [];
+    setOpenThreadErrorMessage(null);
     try {
-      loadedTurnList = await consoleRpc.getThread(threadId);
-    } catch {
-      loadedTurnList = [];
-    }
-    if (openThreadIdRef.current === threadId) {
-      setOpenThreadTurnList(loadedTurnList);
+      const loadedTurnList = await consoleRpc.getThread(threadId);
+      if (openThreadIdRef.current === threadId) {
+        setOpenThreadTurnList(loadedTurnList);
+      }
+    } catch (error) {
+      if (openThreadIdRef.current === threadId) {
+        setOpenThreadTurnList([]);
+        setOpenThreadErrorMessage(
+          error instanceof Error ? error.message : 'Could not load the thread.',
+        );
+      }
     }
   }
 
@@ -65,6 +73,7 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
     openThreadIdRef.current = null;
     setOpenThreadId(null);
     setOpenThreadTurnList(null);
+    setOpenThreadErrorMessage(null);
   }
 
   const visibleThreadList =
@@ -205,7 +214,14 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
             )}
           </header>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-            {openThreadTurnList === null ? (
+            {openThreadErrorMessage !== null ? (
+              <p
+                role="alert"
+                className="border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+              >
+                {openThreadErrorMessage}
+              </p>
+            ) : openThreadTurnList === null ? (
               <ol className="space-y-3">
                 <li className="flex justify-end">
                   <Skeleton className="h-14 w-1/2" />
