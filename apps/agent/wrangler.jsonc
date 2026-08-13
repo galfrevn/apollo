@@ -5,6 +5,9 @@
   "compatibility_date": "2026-08-05",
   "compatibility_flags": ["nodejs_compat"],
   "routes": [{ "pattern": "agent.heyapollo.dev", "custom_domain": true }],
+  // Keep the workers.dev host alive until every device has reconnected through
+  // the custom domain; flashed firmware carries the old wss URL until then.
+  "workers_dev": true,
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,
