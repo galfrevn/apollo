@@ -21,4 +21,4 @@ Before considering a change done, `bun run check` should pass — it runs lint, 
 
 ## Navigation
 
-Prev: [Auth](auth.md) · Next: [Mapping](../reference/mapping.md)
+Prev: [Auth](auth.md) · Next: [Product](../console/product.md)

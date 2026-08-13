@@ -23,7 +23,7 @@ Formatting is oxfmt's job; never hand-format. Note that oxfmt does *not* sort or
 ## Monorepo layout
 
 - `apps/agent/` — the Cloudflare Worker (see `apps/agent/CLAUDE.md`)
-- `apps/console/` — management dashboard (not yet built)
+- `apps/console/` — management dashboard (see `documentation/console/`)
 - `apps/firmware/` — ESP32 firmware, a git submodule, not a JS workspace member
 - `packages/typescript-config/` — shared base tsconfig
 

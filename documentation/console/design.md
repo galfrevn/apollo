@@ -1,10 +1,10 @@
-# Apollo Console — Design System
+# Console design
 
-The visual authority for console work, documented from the code as built. Direction (binding, user-pinned 2026-08-12): a quiet monochrome instrument language — full monochrome, dark only, square corners, elevation by hairline border. This supersedes the amber pixel-console look, which itself superseded the stacked-echo blueprint look; both are rejected — never reintroduce either. See PRODUCT.md "Brand Commitments" and the direction contract in `index.html`.
+The visual authority for console work, documented from the code as built. Direction (binding, user-pinned 2026-08-12): a quiet monochrome instrument language — full monochrome, dark only, square corners, elevation by hairline border. This supersedes the amber pixel-console look, which itself superseded the stacked-echo blueprint look; both are rejected — never reintroduce either. See [Product](product.md) "Brand Commitments" and the direction contract in `apps/console/index.html`.
 
 ## Color
 
-All tokens live in `src/index.css` under `@theme`; the default Tailwind palette is disabled (`--color-*: initial`), so these are the only colors available.
+All tokens live in `apps/console/src/index.css` under `@theme`; the default Tailwind palette is disabled (`--color-*: initial`), so these are the only colors available.
 
 | Token                | Value                    | Role |
 | -------------------- | ------------------------ | ---- |
@@ -27,11 +27,11 @@ There is no accent hue. "Live/online" is white (`foreground`), not green; positi
 
 ## Typography
 
-Three self-hosted faces in `src/fonts/`, declared in `src/index.css`:
+Three self-hosted faces in `apps/console/src/fonts/`, declared in `apps/console/src/index.css`:
 
 - **Hedvig Letters Sans** (`font-sans`, the default) — all UI text. Ships weight 400 only; `font-medium` therefore resolves to 400 by design — weight classes are rhythm markers, not visible weight changes. Sentence case throughout.
-- **Hedvig Letters Serif** (`font-serif`) — display moments only. Exactly two exist: the overview greeting (`text-[38px] leading-tight`, `src/status/insights.tsx`) and the connect-screen title (`text-[32px] leading-tight`, `src/connection/screen.tsx`). PRODUCT.md says "the single overview greeting"; the build added the connect title as a second — both are pre-shell display moments, no serif appears inside page content.
-- **JetBrains Mono** (`font-mono`, variable 100–800) — one use: the jobs document viewer `<pre>` (`text-xs leading-relaxed`, `src/jobs/page.tsx`). Never elsewhere, not even for URLs or telemetry values.
+- **Hedvig Letters Serif** (`font-serif`) — display moments only. Exactly two exist: the overview greeting (`text-[38px] leading-tight`, `apps/console/src/status/insights.tsx`) and the connect-screen title (`text-[32px] leading-tight`, `apps/console/src/connection/screen.tsx`). [Product](product.md) says "the single overview greeting"; the build added the connect title as a second — both are pre-shell display moments, no serif appears inside page content.
+- **JetBrains Mono** (`font-mono`, variable 100–800) — one use: the jobs document viewer `<pre>` (`text-xs leading-relaxed`, `apps/console/src/jobs/page.tsx`). Never elsewhere, not even for URLs or telemetry values.
 
 Scale as used: page `Heading` is `text-xl font-medium tracking-tight`; dialog titles `text-lg font-medium tracking-tight`; body and controls `text-sm`; labels, chips, metadata `text-xs`; the ⌘K kbd hint `text-[10px]`. Labels (`ui/label.tsx`) are `text-xs font-medium text-muted-foreground`, sentence case — no uppercase, no letter-spacing. Tables get `tabular-nums` globally.
 
@@ -41,18 +41,18 @@ Square everywhere — no `rounded-*` class exists in the tree except `rounded-fu
 
 ## Icons
 
-One `Icons` object in `src/components/icons.tsx`; nothing imports icon components directly. Nine Material Design **outline** icons from `react-icons/md` (Close, History, Jobs, Logout, Mcp, Memory, Schedules, Search, Status) plus `LogoMark` — the brand: a hand-drawn 20×20 SVG of four squares in a 2×2 grid, `currentColor` at opacities 1 / 0.45 / 0.45 / 0.18 fading corner to corner. Rendered monochrome at 20–22px in the rail and mobile header, 26px on the connect screen. Icon sizes in use: 16, 18, 20, 22, 26.
+One `Icons` object in `apps/console/src/components/icons.tsx`; nothing imports icon components directly. Nine Material Design **outline** icons from `react-icons/md` (Close, History, Jobs, Logout, Mcp, Memory, Schedules, Search, Status) plus `LogoMark` — the brand: a hand-drawn 20×20 SVG of the device's face, a solid `currentColor` square with two capsule eyes punched out (even-odd fill, so the ground shows through). Masters and social assets live in `branding/` at the repo root; the favicon set is in `apps/console/public/`. Rendered monochrome at 20–22px in the rail and mobile header, 26px on the connect screen. Icon sizes in use: 16, 18, 20, 22, 26.
 
 ## Components
 
-`src/blueprint/` — console-specific primitives:
+`apps/console/src/blueprint/` — console-specific primitives:
 
 - **Panel** — `border bg-card`, square; optional 44px (`h-11`) header with a `text-sm text-muted-foreground` title and a `meta` slot.
 - **Chip** — square status tag (`border px-2 py-0.5 text-xs font-medium`) with a round 1.5 dot. Tones: `live` (accent fill, foreground dot pulsing at 2s), `busy` (same at 1s), `idle` (muted text, static dot), `down` (destructive text and `/40` border on transparent — the only red chip).
 - **Heading** — `text-xl font-medium tracking-tight` h1 with optional muted description. No mark, no ornament.
 - **Empty** — dashed border box with `dotted-bg` texture; the message sits on a `bg-card` pill in `text-xs font-medium text-muted-foreground`.
 
-`src/components/ui/` — vendored shadcn-style primitives on Radix, restyled to the tokens (the sanctioned multi-export exception):
+`apps/console/src/components/ui/` — vendored shadcn-style primitives on Radix, restyled to the tokens (the sanctioned multi-export exception):
 
 - **Button** — variants `default` (solid `primary` fill, `primary-foreground` text, `/90` on hover), `outline` (border, transparent, `bg-accent` hover), `ghost` (muted text, `bg-accent` hover), `destructive` (red text on transparent, red-tint hover). Sizes `default` h-9, `sm` h-8 `text-xs`, `lg` h-10, `icon` 9×9. All square, `transition-colors duration-150`.
 - **Badge** — static square tag, same frame as Chip minus the dot. Variants `default` (accent fill), `strong` (`foreground/10` fill), `destructive`, `outline` (muted text).
@@ -64,7 +64,7 @@ One `Icons` object in `src/components/icons.tsx`; nothing imports icon component
 - **Skeleton** — `animate-pulse bg-accent` block, always shaped to the final content's box so nothing shifts on load.
 - **Label** — `text-xs font-medium text-muted-foreground`.
 
-Signature patterns: **stat tiles** (`src/status/tiles.tsx`) are `min-h-[110px] border bg-card p-5` with an xs muted label above a `text-xl font-medium` value; clickable ones hover to `border-border-hover bg-card-hover` over 300ms. **Insight fragments** (`src/status/insights.tsx`) are dashed underlines — `border-b border-dashed border-muted-foreground/40 text-foreground` inside muted sentences; navigable ones are buttons whose dash darkens on hover. **⌘K search** (`src/layout/search.tsx`) is a Dialog pinned to `top-[20%]` with a borderless h-12 input row and a filtered route list.
+Signature patterns: **stat tiles** (`apps/console/src/status/tiles.tsx`) are `min-h-[110px] border bg-card p-5` with an xs muted label above a `text-xl font-medium` value; clickable ones hover to `border-border-hover bg-card-hover` over 300ms. **Insight fragments** (`apps/console/src/status/insights.tsx`) are dashed underlines — `border-b border-dashed border-muted-foreground/40 text-foreground` inside muted sentences; navigable ones are buttons whose dash darkens on hover. **⌘K search** (`apps/console/src/layout/search.tsx`) is a Dialog pinned to `top-[20%]` with a borderless h-12 input row and a filtered route list.
 
 ## Motion
 
@@ -72,14 +72,14 @@ Signature patterns: **stat tiles** (`src/status/tiles.tsx`) are `min-h-[110px] b
 - `signal` — opacity pulse (1 → 0.35) for chip dots; 2s on `live`, 1s on `busy`.
 - Everything else is `transition-colors duration-150`, with two slower cases: stat tiles at 300ms and the rail expansion at 200ms `cubic-bezier(0.4, 0, 0.2, 1)` (width plus label opacity fade).
 - The 3D device auto-rotates at speed 0.9 with damping — disabled when `prefers-reduced-motion` matches.
-- A global reduced-motion guard in `src/index.css` collapses all animation and transition durations to 0.01ms.
+- A global reduced-motion guard in `apps/console/src/index.css` collapses all animation and transition durations to 0.01ms.
 
 Structural motion is limited to three moves: the rail's push (margin animation on the content column), the Sheet's 0.4s slide-in from the right (`sheet` keyframe, same ease family as `settle`), and the Skeleton pulse. No scale, spring, or blur transitions; no spinners.
 
 ## Layout
 
-- **Rail** (`src/layout/nav.tsx`) — fixed left, full height, `hidden md:flex`; 70px wide collapsed, expanding to 240px (`w-60`) on hover or focus. The expansion pushes: the shell animates the content column's `margin-left` from 70px to 240px in step with the rail, so nothing is ever covered. Three bands: 70px brand row (LogoMark + "Apollo Console"), nav list (h-10 square items, active = `border-border bg-active text-foreground`, inactive = `text-dim` borderless), 70px identity footer (device initial in a bordered `bg-accent` square, device name + worker host).
-- **Header** (`src/layout/shell.tsx`) — sticky, 70px, `border-b bg-background/70 backdrop-blur-xl`, z-40. Left: LogoMark (mobile only) + search trigger; right: connection Chip (`Link up` live / `Linking` busy / `Unauthorized` down) + ghost disconnect button.
+- **Rail** (`apps/console/src/layout/nav.tsx`) — fixed left, full height, `hidden md:flex`; 70px wide collapsed, expanding to 240px (`w-60`) on hover or focus. The expansion pushes: the shell animates the content column's `margin-left` from 70px to 240px in step with the rail, so nothing is ever covered. Three bands: 70px brand row (LogoMark + "Apollo Console"), nav list (h-10 square items, active = `border-border bg-active text-foreground`, inactive = `text-dim` borderless), 70px identity footer (device initial in a bordered `bg-accent` square, device name + worker host).
+- **Header** (`apps/console/src/layout/shell.tsx`) — sticky, 70px, `border-b bg-background/70 backdrop-blur-xl`, z-40. Left: LogoMark (mobile only) + search trigger; right: connection Chip (`Link up` live / `Linking` busy / `Unauthorized` down) + ghost disconnect button.
 - **Content** — everything offset `md:ml-[70px]`, animating to `md:ml-60` while the rail is expanded. Main is `px-4 py-6 md:px-8`. Section pages: `settle space-y-5`/`space-y-6`, full width. Overview: a single centered `mx-auto max-w-3xl space-y-8` column (greeting → insights → confirm/caption → tiles), vertically centered in the viewport below the header on md+. Device page: `lg:grid-cols-2 gap-6` — the 3D model centered in the left half (`min-h-[28rem]`), a self-centered stack of Mode / Volume & brightness / Weather location panels on the right. The jobs page adds `lg:mr-[calc(100vw/3)]` while its Sheet is open, squeezing in step with the panel.
 - **Mobile** — rail hidden; a `scrollbar-hide` horizontal chip row of h-9 square nav buttons under the header.
 - **Connect screen** — centered `max-w-sm` column: LogoMark, serif title, muted tagline, one bordered form card, `text-dim` privacy note.
@@ -96,7 +96,7 @@ Structural motion is limited to three moves: the rail's push (margin animation o
 
 ## The 3D device
 
-`src/device/model.tsx`, rendered with three.js via `@react-three/fiber` + `@react-three/drei`, lazy-loaded (`src/device/page.tsx`) behind a Suspense placeholder so the bundle stays off every other page. It owns the Device route alongside the Mode / Volume & brightness / Weather panels; changing the mode there re-colors the ring live, so the model is the mode picker's preview.
+`apps/console/src/device/model.tsx`, rendered with three.js via `@react-three/fiber` + `@react-three/drei`, lazy-loaded (`apps/console/src/device/page.tsx`) behind a Suspense placeholder so the bundle stays off every other page. It owns the Device route alongside the Mode / Volume & brightness / Weather panels; changing the mode there re-colors the ring live, so the model is the mode picker's preview.
 
 - **Geometry** — a black cylinder, radius 1 (diameter equals height, the real 4 × 4 cm proportions): a straight `#2e2e2e` body section, a tapering base (radius 1 → 0.8 over the bottom 0.45) so the foot closes like the real enclosure, and a dark `#0a0a0a` seam band 0.5 below the top (the physical 1 cm separator line). A matte `#030303` screen disc (r 0.86) on top carries two white (`#FAFAFA`) circular eyes (r 0.19 at x ±0.38) and a flat accent ring (inner 0.78 → outer 0.86), `toneMapped={false}` so it reads as emissive. Body hardware matches the device: USB-C and USB-A recesses with `#242424` bezels on the lower front, two `#d4d4d4` charge-light dots above them, a `#242424`/`#3a3a3a` slide switch on the left, two slot buttons on the right.
 - **Blink** — every 10 s the eyes squash to 8% height and back over 0.28 s (sine ease in `useFrame`), skipped under reduced motion.
@@ -115,6 +115,10 @@ Structural motion is limited to three moves: the rail's push (margin animation o
 - **Sentence case everywhere.** No uppercase labels, no tracked-out smallcaps.
 - **Mono only in the jobs document viewer.** URLs, telemetry, and identifiers render in the sans face like everything else.
 - **Serif is a display voice**, limited to the overview greeting and the connect-screen title.
-- **One Icons object.** All glyphs route through `src/components/icons.tsx`; Material outline style only.
+- **One Icons object.** All glyphs route through `apps/console/src/components/icons.tsx`; Material outline style only.
 - **The dashboard secret** is entered via `type="password"` and never rendered anywhere in the UI.
-- **The four-square LogoMark is the only brand mark** — no third-party logos or names anywhere in the chrome (connector logos inside the MCP catalog are content, not chrome).
+- **The face LogoMark is the only brand mark** — the device's square screen with two punched capsule eyes; no third-party logos or names anywhere in the chrome (connector logos inside the MCP catalog are content, not chrome).
+
+## Navigation
+
+Prev: [Product](product.md) · Next: [Mapping](../reference/mapping.md)

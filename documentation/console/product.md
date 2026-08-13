@@ -1,4 +1,4 @@
-# Product
+# Console product
 
 <!-- impeccable:product-schema 1 -->
 
@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Vite + React 19, Tailwind v4 + shadcn/ui, deployed as an assets-only Cloudflare Worker at console.apollodevice.com. (User-confirmed this session.)
+Vite + React 19, Tailwind v4 + shadcn/ui, deployed as an assets-only Cloudflare Worker at apollo-console.galfre-vn.workers.dev. (console.apollodevice.com is the planned domain once it is acquired; the social meta in `index.html` points at the workers.dev host until then.)
 
 ## Users
 
@@ -32,11 +32,11 @@ The owner enters their worker URL, device instance name (default `desk`), and th
 - The console must never take the device's protocol path (dashboard connections are deliberately excluded from device message handling) and never call agent state writes; it is read-and-RPC only.
 - MCP servers can require OAuth: install returns an authUrl the owner must open; server state may be `authenticating`/`failed`; tool enablement is opt-in with safety levels (`safe`/`confirm`/`unsafe`).
 - Telemetry is a snapshot with staleness (receivedAtMs), not a stream; the device pushes it only while connected.
-- Repo conventions are binding: single-word filenames, long descriptive identifiers, zod at every boundary, no comments except non-obvious why, ~300-line file cap. Vendored shadcn components under `src/components/ui/` are the sanctioned exception.
+- Repo conventions are binding: single-word filenames, long descriptive identifiers, zod at every boundary, no comments except non-obvious why, ~300-line file cap. Vendored shadcn components under `apps/console/src/components/ui/` are the sanctioned exception.
 
 ## Brand Commitments
 
-Name: "Apollo Console". Binding visual direction (user-revised 2026-08-12, superseding the earlier amber pixel-console look, which itself superseded the stacked-echo blueprint look): a quiet monochrome instrument language, dark only. Grayscale-only chrome — #0d0d0d ground, #0c0c0c cards, #1d1d1d hairline borders, #fafafa ink, #878787/#666666 grays — red reserved for failure; no accent color of any kind. Hedvig Letters Sans for all UI with Hedvig Letters Serif for the single overview greeting; square corners everywhere (rounded only on the switch and status dots); elevation by 1px border, never shadow; Material Design outline icons via a single Icons object; the four-square cluster mark is the brand, rendered monochrome. Sentence case; no tracked-uppercase labels. The identity is Apollo's own — no third-party branding anywhere in the chrome.
+Name: "Apollo Console". Binding visual direction (user-revised 2026-08-12, superseding the earlier amber pixel-console look, which itself superseded the stacked-echo blueprint look): a quiet monochrome instrument language, dark only. Grayscale-only chrome — #0d0d0d ground, #0c0c0c cards, #1d1d1d hairline borders, #fafafa ink, #878787/#666666 grays — red reserved for failure; no accent color of any kind. Hedvig Letters Sans for all UI with Hedvig Letters Serif for the single overview greeting; square corners everywhere (rounded only on the switch and status dots); elevation by 1px border, never shadow; Material Design outline icons via a single Icons object; the face mark — the device's square screen with two punched capsule eyes — is the brand, rendered monochrome (chosen 2026-08-12, superseding the four-square cluster). Sentence case; no tracked-uppercase labels. The identity is Apollo's own — no third-party branding anywhere in the chrome.
 
 ## Evidence on Hand
 
@@ -49,3 +49,7 @@ The agent's real data models in `apps/agent/src/`: `ApolloState`, `McpServerSumm
 - The device is the hero; the console is the instrument panel around it.
 - One secret gates everything: never weaken the token model for convenience.
 - Stateless console: losing the browser loses nothing but a saved connection.
+
+## Navigation
+
+Prev: [Testing](../operations/testing.md) · Next: [Design](design.md)
