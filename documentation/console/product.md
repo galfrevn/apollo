@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Vite + React 19, Tailwind v4 + shadcn/ui, deployed as an assets-only Cloudflare Worker at console.apollodevice.com. (User-confirmed this session.)
+Vite + React 19, Tailwind v4 + shadcn/ui, deployed as an assets-only Cloudflare Worker at apollo-console.galfre-vn.workers.dev. (console.apollodevice.com is the planned domain once it is acquired; the social meta in `index.html` points at the workers.dev host until then.)
 
 ## Users
 
