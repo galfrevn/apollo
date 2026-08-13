@@ -18,7 +18,9 @@ function SliderRow({
 }) {
   const deviceMessages = useMessages(DEVICE_MESSAGE_CATALOG);
   const [pendingValue, setPendingValue] = useState<number | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [commandFailure, setCommandFailure] = useState<{
+    readonly serverMessage: string | null;
+  } | null>(null);
   const [isApplying, setIsApplying] = useState(false);
 
   // Telemetry is the source of truth: once a fresh reading arrives, the
@@ -33,20 +35,18 @@ function SliderRow({
 
   async function handleCommit(committedValue: number) {
     setIsApplying(true);
-    setErrorMessage(null);
+    setCommandFailure(null);
     try {
       const commandResult = await onApply(committedValue);
       if (!commandResult.ok) {
         setPendingValue(null);
-        setErrorMessage(commandResult.summary);
+        setCommandFailure({ serverMessage: commandResult.summary });
       }
     } catch (error) {
       setPendingValue(null);
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : deviceMessages.commandFailedFallbackError,
-      );
+      setCommandFailure({
+        serverMessage: error instanceof Error ? error.message : null,
+      });
     } finally {
       setIsApplying(false);
     }
@@ -68,9 +68,9 @@ function SliderRow({
         onValueCommit={([committedValue]) => void handleCommit(committedValue)}
         aria-label={label}
       />
-      {errorMessage !== null && (
+      {commandFailure !== null && (
         <p role="alert" className="text-xs text-destructive">
-          {errorMessage}
+          {commandFailure.serverMessage ?? deviceMessages.commandFailedFallbackError}
         </p>
       )}
     </div>

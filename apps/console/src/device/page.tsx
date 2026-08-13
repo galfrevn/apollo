@@ -29,7 +29,9 @@ export function DevicePage({
   const deviceMessages = useMessages(DEVICE_MESSAGE_CATALOG);
   const [status, setStatus] = useState<ConsoleStatus | null>(null);
   const [isSettingMode, setIsSettingMode] = useState(false);
-  const [modeErrorMessage, setModeErrorMessage] = useState<string | null>(null);
+  const [modeFailure, setModeFailure] = useState<{
+    readonly serverMessage: string | null;
+  } | null>(null);
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -47,13 +49,13 @@ export function DevicePage({
 
   async function handleSelectSpeechMode(speechModeId: string) {
     setIsSettingMode(true);
-    setModeErrorMessage(null);
+    setModeFailure(null);
     try {
       await consoleRpc.setSpeechMode(speechModeId);
     } catch (error) {
-      setModeErrorMessage(
-        error instanceof Error ? error.message : deviceMessages.modeChangeFallbackError,
-      );
+      setModeFailure({
+        serverMessage: error instanceof Error ? error.message : null,
+      });
     } finally {
       setIsSettingMode(false);
     }
@@ -91,9 +93,9 @@ export function DevicePage({
               ))}
             </div>
             <p className="px-4 pb-4 text-xs text-dim">{deviceMessages.modeHint}</p>
-            {modeErrorMessage !== null && (
+            {modeFailure !== null && (
               <p role="alert" className="px-4 pb-4 text-xs text-destructive">
-                {modeErrorMessage}
+                {modeFailure.serverMessage ?? deviceMessages.modeChangeFallbackError}
               </p>
             )}
           </Panel>

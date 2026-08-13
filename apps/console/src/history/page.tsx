@@ -16,6 +16,8 @@ import type { HistoryTurn, ThreadSummary } from '@/agent/schema';
 
 type HistoryView = 'conversations' | 'commands';
 
+type RpcFailure = { readonly serverMessage: string | null };
+
 function isCommandThread(thread: ThreadSummary): boolean {
   return thread.kind === 'command';
 }
@@ -29,22 +31,20 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
   const [openThreadTurnList, setOpenThreadTurnList] = useState<
     readonly HistoryTurn[] | null
   >(null);
-  const [openThreadErrorMessage, setOpenThreadErrorMessage] = useState<string | null>(
-    null,
-  );
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [threadFailure, setThreadFailure] = useState<RpcFailure | null>(null);
+  const [listFailure, setListFailure] = useState<RpcFailure | null>(null);
   const openThreadIdRef = useRef<string | null>(null);
 
   const refreshThreadList = useCallback(async () => {
-    setErrorMessage(null);
+    setListFailure(null);
     try {
       setThreadList(await consoleRpc.listThreads());
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : historyMessages.loadHistoryFallbackError,
-      );
+      setListFailure({
+        serverMessage: error instanceof Error ? error.message : null,
+      });
     }
-  }, [consoleRpc, historyMessages.loadHistoryFallbackError]);
+  }, [consoleRpc]);
 
   useEffect(() => {
     void refreshThreadList();
@@ -54,7 +54,7 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
     openThreadIdRef.current = threadId;
     setOpenThreadId(threadId);
     setOpenThreadTurnList(null);
-    setOpenThreadErrorMessage(null);
+    setThreadFailure(null);
     try {
       const loadedTurnList = await consoleRpc.getThread(threadId);
       if (openThreadIdRef.current === threadId) {
@@ -63,11 +63,9 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
     } catch (error) {
       if (openThreadIdRef.current === threadId) {
         setOpenThreadTurnList([]);
-        setOpenThreadErrorMessage(
-          error instanceof Error
-            ? error.message
-            : historyMessages.loadThreadFallbackError,
-        );
+        setThreadFailure({
+          serverMessage: error instanceof Error ? error.message : null,
+        });
       }
     }
   }
@@ -76,7 +74,7 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
     openThreadIdRef.current = null;
     setOpenThreadId(null);
     setOpenThreadTurnList(null);
-    setOpenThreadErrorMessage(null);
+    setThreadFailure(null);
   }
 
   const visibleThreadList =
@@ -119,12 +117,12 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
         </div>
       </div>
 
-      {errorMessage !== null && (
+      {listFailure !== null && (
         <p
           role="alert"
           className="border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
         >
-          {errorMessage}
+          {listFailure.serverMessage ?? historyMessages.loadHistoryFallbackError}
         </p>
       )}
 
@@ -219,12 +217,12 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
             )}
           </header>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-            {openThreadErrorMessage !== null ? (
+            {threadFailure !== null ? (
               <p
                 role="alert"
                 className="border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
               >
-                {openThreadErrorMessage}
+                {threadFailure.serverMessage ?? historyMessages.loadThreadFallbackError}
               </p>
             ) : openThreadTurnList === null ? (
               <ol className="space-y-3">

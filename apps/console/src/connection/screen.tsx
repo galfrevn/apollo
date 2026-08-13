@@ -13,6 +13,8 @@ import { useMessages } from '@/locale/context';
 import { LocaleToggle } from '@/locale/toggle';
 import { useDocumentMetadata } from '@/router/metadata';
 
+type ConnectFailureKind = 'validation' | 'unreachable' | 'not-apollo';
+
 export function ConnectScreen() {
   useDocumentMetadata(null);
   const { connect } = useConnection();
@@ -20,30 +22,37 @@ export function ConnectScreen() {
   const [workerUrl, setWorkerUrl] = useState('');
   const [deviceName, setDeviceName] = useState('desk');
   const [secret, setSecret] = useState('');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [failureKind, setFailureKind] = useState<ConnectFailureKind | null>(null);
   const [isProbing, setIsProbing] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    setErrorMessage(null);
+    setFailureKind(null);
     const parsedConnection = consoleConnectionSchema.safeParse({
       workerUrl,
       deviceName,
       secret,
     });
     if (!parsedConnection.success) {
-      setErrorMessage(connectionMessages.validationMessage);
+      setFailureKind('validation');
       return;
     }
     setIsProbing(true);
     const probeResult = await probeWorkerHealth(parsedConnection.data.workerUrl);
     setIsProbing(false);
     if (probeResult.outcome !== 'ok') {
-      setErrorMessage(connectionMessages.probeErrorMap[probeResult.outcome]);
+      setFailureKind(probeResult.outcome);
       return;
     }
     connect(parsedConnection.data);
   }
+
+  const failureMessage =
+    failureKind === null
+      ? null
+      : failureKind === 'validation'
+        ? connectionMessages.validationMessage
+        : connectionMessages.probeErrorMap[failureKind];
 
   return (
     <main className="relative grid min-h-dvh place-items-center px-4 py-16">
@@ -102,12 +111,12 @@ export function ConnectScreen() {
               />
             </div>
 
-            {errorMessage !== null && (
+            {failureMessage !== null && (
               <p
                 role="alert"
                 className="border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
               >
-                {errorMessage}
+                {failureMessage}
               </p>
             )}
 
