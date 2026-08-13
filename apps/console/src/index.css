@@ -1,4 +1,19 @@
 @import 'tailwindcss';
+@source '../node_modules/streamdown/dist/index.js';
+
+@font-face {
+  font-family: 'Hedvig Letters Sans';
+  src: url('./fonts/hedvigsans.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Hedvig Letters Serif';
+  src: url('./fonts/hedvigserif.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
 
 @font-face {
   font-family: 'JetBrains Mono';
@@ -7,35 +22,31 @@
   font-display: swap;
 }
 
-@font-face {
-  font-family: 'Archivo';
-  src: url('./fonts/archivo.woff2') format('woff2');
-  font-weight: 100 900;
-  font-display: swap;
-}
-
 @theme {
   --color-*: initial;
-  --color-ground: #0b0b0d;
-  --color-panel: #111114;
-  --color-raised: #19191d;
-  --color-line: #26262c;
-  --color-linefaint: rgba(235, 235, 242, 0.05);
-  --color-ink: #ececf1;
-  --color-muted: #a3a3ad;
-  --color-faint: #8a8a96;
-  --color-amber: #f5a623;
-  --color-amberdim: rgba(245, 166, 35, 0.12);
-  --color-danger: #ec5a5f;
-  --color-dangerdim: rgba(229, 72, 77, 0.12);
+  --color-background: #0d0d0d;
+  --color-foreground: #fafafa;
+  --color-card: #0c0c0c;
+  --color-card-hover: #0f0f0f;
+  --color-active: #131313;
+  --color-border: #1d1d1d;
+  --color-border-hover: #222222;
+  --color-accent: #1c1c1c;
+  --color-primary: #fafafa;
+  --color-primary-foreground: #171717;
+  --color-muted-foreground: #878787;
+  --color-dim: #666666;
+  --color-destructive: hsl(359deg 100% 61%);
+  --color-ring: hsl(240deg 4.9% 83.9%);
 
-  --font-sans: 'Archivo', 'Helvetica Neue', system-ui, sans-serif;
+  --font-sans: 'Hedvig Letters Sans', system-ui, sans-serif;
+  --font-serif: 'Hedvig Letters Serif', Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
 }
 
 @layer base {
   * {
-    border-color: var(--color-line);
+    border-color: var(--color-border);
   }
 
   html {
@@ -43,24 +54,21 @@
   }
 
   body {
-    background-color: var(--color-ground);
-    background-image: radial-gradient(var(--color-linefaint) 1px, transparent 1px);
-    background-size: 26px 26px;
-    color: var(--color-ink);
+    background-color: var(--color-background);
+    color: var(--color-foreground);
     font-family: var(--font-sans);
-    caret-color: var(--color-amber);
+    caret-color: var(--color-foreground);
     -webkit-font-smoothing: antialiased;
   }
 
   ::selection {
-    background-color: var(--color-amber);
-    color: var(--color-ground);
+    background-color: var(--color-foreground);
+    color: var(--color-background);
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-amber);
+    outline: 1px solid var(--color-ring);
     outline-offset: 2px;
-    border-radius: 2px;
   }
 
   ::-webkit-scrollbar {
@@ -69,21 +77,26 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: var(--color-ground);
+    background: var(--color-background);
   }
 
   ::-webkit-scrollbar-thumb {
-    background: var(--color-line);
-    border: 2px solid var(--color-ground);
-    border-radius: 5px;
+    background: var(--color-border);
+    border: 2px solid var(--color-background);
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-faint);
+    background: var(--color-border-hover);
+  }
+
+  button:not(:disabled),
+  [role='button']:not(:disabled),
+  a {
+    cursor: pointer;
   }
 
   input::placeholder {
-    color: var(--color-faint);
+    color: var(--color-muted-foreground);
   }
 
   table {
@@ -91,15 +104,17 @@
   }
 }
 
-@utility label-soft {
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.01em;
+@utility scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-@utility pixelfield {
-  background-image: radial-gradient(var(--color-linefaint) 1.5px, transparent 1.5px);
-  background-size: 10px 10px;
+@utility dotted-bg {
+  background-image: radial-gradient(circle, #232323 1px, transparent 1px);
+  background-size: 6px 6px;
 }
 
 @keyframes signal {
@@ -109,6 +124,15 @@
   }
   50% {
     opacity: 0.35;
+  }
+}
+
+@keyframes sheet {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
   }
 }
 

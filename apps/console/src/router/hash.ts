@@ -1,9 +1,17 @@
 import { useSyncExternalStore } from 'react';
 
-export type ConsoleRoute = 'status' | 'mcp' | 'memory' | 'schedules' | 'history' | 'jobs';
+export type ConsoleRoute =
+  | 'status'
+  | 'device'
+  | 'mcp'
+  | 'memory'
+  | 'schedules'
+  | 'history'
+  | 'jobs';
 
 export const CONSOLE_ROUTE_LIST: readonly ConsoleRoute[] = [
   'status',
+  'device',
   'mcp',
   'memory',
   'schedules',

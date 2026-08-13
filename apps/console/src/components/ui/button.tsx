@@ -5,22 +5,20 @@ import * as React from 'react';
 import { cn } from '@/components/utility';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors duration-150 disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-4 [&_svg]:shrink-0',
+  'inline-flex items-center justify-center gap-2 text-sm font-medium whitespace-nowrap transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
-        default:
-          'border border-amber bg-amber text-ground hover:bg-[#ffb83d] hover:border-[#ffb83d]',
-        outline:
-          'border border-line bg-transparent text-ink hover:border-faint hover:bg-raised',
-        ghost: 'border border-transparent text-muted hover:text-ink hover:bg-raised',
+        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        outline: 'border bg-transparent text-foreground hover:bg-accent',
+        ghost: 'text-muted-foreground hover:bg-accent hover:text-foreground',
         destructive:
-          'border border-line bg-transparent text-danger hover:border-danger hover:bg-dangerdim',
+          'border bg-transparent text-destructive hover:border-destructive/40 hover:bg-destructive/10',
       },
       size: {
         default: 'h-9 px-4',
         sm: 'h-8 px-3 text-xs',
-        lg: 'h-11 px-6',
+        lg: 'h-10 px-8',
         icon: 'size-9',
       },
     },

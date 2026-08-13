@@ -36,7 +36,7 @@ The owner enters their worker URL, device instance name (default `desk`), and th
 
 ## Brand Commitments
 
-Name: "Apollo Console". Binding visual direction (user-revised 2026-08-12, superseding the earlier stacked-echo blueprint look, which the user found over-stylized): modern dark console in the register of the current Cloudflare dashboard, with pixel accents. Near-black ground carrying a subtle pixel dot-grid; rounded (12px) hairline-bordered cards; Archivo sans UI type in sentence case; JetBrains Mono reserved for data values (URLs, telemetry readings, tool names); a single solar-amber accent (~#f5a623, a nod to Apollo the sun god); pixel touches — the four-square amber cluster as the mark and device indicator, dot-field empty states. No stacked echo headings, no tracked-uppercase labels, no hard 1px line grids. Do not copy Cloudflare branding.
+Name: "Apollo Console". Binding visual direction (user-revised 2026-08-12, superseding the earlier amber pixel-console look, which itself superseded the stacked-echo blueprint look): a quiet monochrome instrument language, dark only. Grayscale-only chrome — #0d0d0d ground, #0c0c0c cards, #1d1d1d hairline borders, #fafafa ink, #878787/#666666 grays — red reserved for failure; no accent color of any kind. Hedvig Letters Sans for all UI with Hedvig Letters Serif for the single overview greeting; square corners everywhere (rounded only on the switch and status dots); elevation by 1px border, never shadow; Material Design outline icons via a single Icons object; the four-square cluster mark is the brand, rendered monochrome. Sentence case; no tracked-uppercase labels. The identity is Apollo's own — no third-party branding anywhere in the chrome.
 
 ## Evidence on Hand
 

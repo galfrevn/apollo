@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 
+import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,29 +48,20 @@ export function ConnectScreen() {
 
   return (
     <main className="grid min-h-dvh place-items-center px-4 py-16">
-      <div className="settle w-full max-w-md">
-        <div className="mb-8 flex items-center gap-3">
-          <span aria-hidden className="grid grid-cols-2 gap-0.5">
-            <span className="size-2 bg-amber" />
-            <span className="size-2 bg-amber/40" />
-            <span className="size-2 bg-amber/40" />
-            <span className="size-2 bg-amber/15" />
+      <div className="settle w-full max-w-sm">
+        <div className="mb-8 text-center">
+          <span className="inline-flex">
+            <Icons.LogoMark size={26} />
           </span>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-[-0.01em]">Apollo Console</h1>
-            <p className="mt-0.5 text-sm text-muted">
-              The instrument panel for your desk agent
-            </p>
-          </div>
+          <h1 className="mt-4 font-serif text-[32px] leading-tight">Apollo Console</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            The instrument panel for your desk agent
+          </p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-xl border border-line bg-panel"
-          aria-busy={isProbing}
-        >
-          <div className="border-b border-line px-5 py-3.5">
-            <h2 className="text-sm font-medium">Connect to your worker</h2>
+        <form onSubmit={handleSubmit} className="border bg-card" aria-busy={isProbing}>
+          <div className="border-b px-5 py-3.5">
+            <h2 className="text-sm text-muted-foreground">Connect to your worker</h2>
           </div>
 
           <div className="space-y-5 p-5">
@@ -83,7 +75,6 @@ export function ConnectScreen() {
                 onChange={(event) => setWorkerUrl(event.target.value)}
                 autoComplete="url"
                 spellCheck={false}
-                className="font-mono"
               />
             </div>
             <div className="space-y-2">
@@ -93,9 +84,8 @@ export function ConnectScreen() {
                 value={deviceName}
                 onChange={(event) => setDeviceName(event.target.value)}
                 spellCheck={false}
-                className="font-mono"
               />
-              <p className="text-xs text-faint">
+              <p className="text-xs text-dim">
                 The agent instance the device connects as — “desk” unless changed in
                 firmware.
               </p>
@@ -114,7 +104,7 @@ export function ConnectScreen() {
             {errorMessage !== null && (
               <p
                 role="alert"
-                className="rounded-lg border border-danger/40 bg-dangerdim px-3 py-2 text-xs text-danger"
+                className="border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
               >
                 {errorMessage}
               </p>
@@ -126,7 +116,7 @@ export function ConnectScreen() {
           </div>
         </form>
 
-        <p className="mt-6 text-center text-xs text-faint">
+        <p className="mt-6 text-center text-xs text-dim">
           Stored in this browser only. Nothing leaves it except calls to your worker.
         </p>
       </div>

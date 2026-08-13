@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Empty } from '@/blueprint/empty';
 import { Heading } from '@/blueprint/heading';
 import { Panel } from '@/blueprint/panel';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -13,7 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { CreateReminderForm } from '@/schedules/create';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ScheduleComposer } from '@/schedules/create';
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { Reminder } from '@/agent/schema';
 
@@ -37,6 +37,24 @@ function formatRemainingLabel(firesAtIso: string, nowMilliseconds: number): stri
     return `in ${Math.round(remainingMinutes / 60)} h`;
   }
   return `in ${Math.round(remainingMinutes / (24 * 60))} d`;
+}
+
+function formatFireTimeLabel(firesAtIso: string, nowMilliseconds: number): string {
+  const firesAtDate = new Date(firesAtIso);
+  const isSameDay =
+    firesAtDate.toDateString() === new Date(nowMilliseconds).toDateString();
+  if (isSameDay) {
+    return firesAtDate.toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
+  return firesAtDate.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 export function SchedulesPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
@@ -78,6 +96,12 @@ export function SchedulesPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
   }
 
   const nowMilliseconds = Date.now();
+  const sortedReminderList =
+    reminderList === null
+      ? null
+      : [...reminderList].toSorted((left, right) =>
+          left.firesAtIso.localeCompare(right.firesAtIso),
+        );
 
   return (
     <div className="settle space-y-6">
@@ -91,76 +115,80 @@ export function SchedulesPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
       {errorMessage !== null && (
         <p
           role="alert"
-          className="rounded-lg border border-danger/40 bg-dangerdim px-3 py-2 text-xs text-danger"
+          className="border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
         >
           {errorMessage}
         </p>
       )}
 
-      <Panel title="Schedule something">
-        <CreateReminderForm
+      <Panel
+        title="Reminders & timers"
+        meta={
+          sortedReminderList !== null ? (
+            <span className="text-xs text-dim">{sortedReminderList.length} pending</span>
+          ) : undefined
+        }
+      >
+        <ScheduleComposer
           onCreate={async (message, delaySeconds, isTimer) => {
             setReminderList(
               await consoleRpc.createReminder(message, delaySeconds, isTimer),
             );
           }}
         />
-      </Panel>
 
-      <Panel
-        title="Reminders & timers"
-        meta={
-          reminderList !== null ? (
-            <span className="text-xs text-faint">{reminderList.length} pending</span>
-          ) : undefined
-        }
-      >
-        {reminderList === null ? (
-          <p className="p-4 text-sm text-muted">Loading…</p>
-        ) : reminderList.length === 0 ? (
+        {sortedReminderList === null ? (
+          <ul>
+            {[0, 1].map((rowIndex) => (
+              <li
+                key={rowIndex}
+                className="flex items-center gap-4 border-b px-4 py-3 last:border-b-0"
+              >
+                <div className="w-24 shrink-0 space-y-1.5">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-3 w-14" />
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <Skeleton className="h-8 w-16" />
+              </li>
+            ))}
+          </ul>
+        ) : sortedReminderList.length === 0 ? (
           <Empty message="Nothing scheduled" className="m-4" />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="sr-only">
-                <tr>
-                  <th>Type</th>
-                  <th>Message</th>
-                  <th>Fires</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reminderList.map((reminder) => (
-                  <tr key={reminder.id} className="border-b border-line last:border-b-0">
-                    <td className="py-2.5 pl-4">
-                      <Badge variant={isTimerReminder(reminder) ? 'amber' : 'outline'}>
-                        {isTimerReminder(reminder) ? 'Timer' : 'Reminder'}
-                      </Badge>
-                    </td>
-                    <td className="w-full px-4 py-2.5 text-sm">{reminder.message}</td>
-                    <td className="px-4 py-2.5 text-right text-xs text-muted">
-                      <span className="whitespace-nowrap">
-                        {formatRemainingLabel(reminder.firesAtIso, nowMilliseconds)}
-                      </span>
-                      <span className="mt-0.5 block text-faint">
-                        {new Date(reminder.firesAtIso).toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-4">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => setPendingCancel(reminder)}
-                      >
-                        Cancel
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul>
+            {sortedReminderList.map((reminder) => (
+              <li
+                key={reminder.id}
+                className="flex items-center gap-4 border-b px-4 py-3 last:border-b-0"
+              >
+                <div className="w-24 shrink-0">
+                  <p className="text-sm font-medium whitespace-nowrap">
+                    {formatRemainingLabel(reminder.firesAtIso, nowMilliseconds)}
+                  </p>
+                  <p className="mt-0.5 text-xs whitespace-nowrap text-dim">
+                    {formatFireTimeLabel(reminder.firesAtIso, nowMilliseconds)}
+                  </p>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm">{reminder.message}</p>
+                  <p className="mt-0.5 text-xs text-dim">
+                    {isTimerReminder(reminder) ? 'Timer' : 'Reminder'}
+                  </p>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setPendingCancel(reminder)}
+                >
+                  Cancel
+                </Button>
+              </li>
+            ))}
+          </ul>
         )}
       </Panel>
 
