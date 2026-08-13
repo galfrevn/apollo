@@ -35,4 +35,4 @@ Carrying duration/remaining on the wire so the device can draw a countdown arc i
 
 ## Navigation
 
-Prev: [Reminders](reminders.md) · Next: [Lists](lists.md)
+Prev: [Reminders](reminders.md) · Next: [Broadcast](broadcast.md)

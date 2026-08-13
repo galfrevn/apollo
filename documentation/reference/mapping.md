@@ -19,6 +19,7 @@ Thin map from handbook topics to code folders. Prefer the narrative chapters for
 | Focus | `apps/agent/src/focus/`, `apps/agent/src/tools/focus.ts` |
 | Reminders | `apps/agent/src/reminders/`, `apps/agent/src/tools/reminder.ts` |
 | Timers / pomodoro | `apps/agent/src/tools/timer.ts` (rides `apps/agent/src/reminders/`) |
+| Broadcast | `apps/agent/src/broadcast/`, `apps/console/src/broadcast/` |
 | Lists | `apps/agent/src/lists/`, `apps/agent/src/tools/list.ts` |
 | Dollar rates | `apps/agent/src/rates/`, `apps/agent/src/tools/dollar.ts` |
 | Email | `apps/agent/src/notifications/`, `apps/agent/src/tools/email.ts` |

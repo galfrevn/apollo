@@ -12,6 +12,7 @@ import type { ConsoleRoute } from '@/router/route';
 export const ROUTE_ICON_MAP = {
   status: Icons.Status,
   device: Icons.Device,
+  broadcast: Icons.Broadcast,
   mcp: Icons.Mcp,
   memory: Icons.Memory,
   schedules: Icons.Schedules,

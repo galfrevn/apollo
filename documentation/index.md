@@ -29,30 +29,31 @@ This handbook is meant to be read in order. Later chapters assume the concepts i
 13. [Focus](capabilities/focus.md) — Focus timer behavior
 14. [Reminders](capabilities/reminders.md) — Schedules and delivery
 15. [Timers](capabilities/timers.md) — Countdowns and pomodoros
-16. [Lists](capabilities/lists.md) — Durable spoken lists
-17. [Dollar rates](capabilities/rates.md) — Argentine dollar quotes
-18. [Email](capabilities/email.md) — Reports and notes to the owner
-19. [Sandbox](capabilities/sandbox.md) — Isolated code execution
-20. [Coding](capabilities/coding.md) — Clone a repo, change it, open a pull request
-21. [MCP servers](capabilities/mcp.md) — Connect external tools at runtime
+16. [Broadcast](capabilities/broadcast.md) — Owner messages spoken through the desk, typed or recorded
+17. [Lists](capabilities/lists.md) — Durable spoken lists
+18. [Dollar rates](capabilities/rates.md) — Argentine dollar quotes
+19. [Email](capabilities/email.md) — Reports and notes to the owner
+20. [Sandbox](capabilities/sandbox.md) — Isolated code execution
+21. [Coding](capabilities/coding.md) — Clone a repo, change it, open a pull request
+22. [MCP servers](capabilities/mcp.md) — Connect external tools at runtime
 
 ### Part IV — Operations
 
-22. [Setup](operations/setup.md) — Local development
-23. [Deploy](operations/deploy.md) — Workers, bindings, secrets, and vars
-24. [Auth](operations/auth.md) — Device and dashboard credentials
-25. [Testing](operations/testing.md) — How this repo verifies behavior
+23. [Setup](operations/setup.md) — Local development
+24. [Deploy](operations/deploy.md) — Workers, bindings, secrets, and vars
+25. [Auth](operations/auth.md) — Device and dashboard credentials
+26. [Testing](operations/testing.md) — How this repo verifies behavior
 
 ### Part V — Console
 
-26. [Product](console/product.md) — What the console is for and who it serves
-27. [Design](console/design.md) — The console's visual system, documented from the code as built
-28. [Landing](console/landing.md) — The marketing landing at `/`, its narrative, pixel face, and motion policy
+27. [Product](console/product.md) — What the console is for and who it serves
+28. [Design](console/design.md) — The console's visual system, documented from the code as built
+29. [Landing](console/landing.md) — The marketing landing at `/`, its narrative, pixel face, and motion policy
 
 ### Part VI — Reference
 
-29. [Mapping](reference/mapping.md) — Handbook topics to `apps/agent/src/` folders
-30. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
+30. [Mapping](reference/mapping.md) — Handbook topics to `apps/agent/src/` folders
+31. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
 
 ## The firmware
 

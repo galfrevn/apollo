@@ -2,7 +2,11 @@ import { z } from 'zod';
 
 import type { MemorySqlExecutor } from '@/memory/store';
 
-export type PendingDeviceMessageType = 'background_result' | 'reminder';
+export type PendingDeviceMessageType =
+  | 'background_result'
+  | 'reminder'
+  | 'broadcast_text'
+  | 'broadcast_audio';
 
 export type PendingDeviceMessagePayloadValue =
   | string
@@ -17,7 +21,12 @@ export type PendingDeviceMessagePayload = Record<
   PendingDeviceMessagePayloadValue
 >;
 
-const pendingDeviceMessageTypeSchema = z.enum(['background_result', 'reminder']);
+const pendingDeviceMessageTypeSchema = z.enum([
+  'background_result',
+  'reminder',
+  'broadcast_text',
+  'broadcast_audio',
+]);
 const pendingDeviceMessagePayloadValueSchema: z.ZodType<PendingDeviceMessagePayloadValue> =
   z.lazy(() =>
     z.union([
@@ -59,19 +68,22 @@ export async function listPendingDeviceMessages(sqlExecutor: MemorySqlExecutor):
     id: string;
     type: PendingDeviceMessageType;
     payload: PendingDeviceMessagePayload;
+    createdAtMilliseconds: number;
   }[]
 > {
   const rows = sqlExecutor.execute<{
     id: string;
     type: string;
     payload_json: string;
+    created_at: number;
   }>(
-    'SELECT id, type, payload_json FROM pending_device_messages ORDER BY created_at ASC',
+    'SELECT id, type, payload_json, created_at FROM pending_device_messages ORDER BY created_at ASC',
   );
   return rows.map((row) => ({
     id: row.id,
     type: pendingDeviceMessageTypeSchema.parse(row.type),
     payload: pendingDeviceMessagePayloadSchema.parse(JSON.parse(row.payload_json)),
+    createdAtMilliseconds: row.created_at,
   }));
 }
 

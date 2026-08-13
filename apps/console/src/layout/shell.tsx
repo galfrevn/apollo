@@ -2,6 +2,7 @@ import { useMemo, useState, useSyncExternalStore } from 'react';
 
 import { useApolloAgent } from '@/agent/hook';
 import { createConsoleRpc } from '@/agent/rpc';
+import { BroadcastPage } from '@/broadcast/page';
 import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/utility';
@@ -121,6 +122,7 @@ export function Shell({ connection }: { readonly connection: ConsoleConnection }
           {activeRoute === 'device' && (
             <DevicePage agent={agent} consoleRpc={consoleRpc} />
           )}
+          {activeRoute === 'broadcast' && <BroadcastPage consoleRpc={consoleRpc} />}
           {activeRoute === 'mcp' && <McpPage consoleRpc={consoleRpc} />}
           {activeRoute === 'memory' && <MemoryPage consoleRpc={consoleRpc} />}
           {activeRoute === 'schedules' && <SchedulesPage consoleRpc={consoleRpc} />}

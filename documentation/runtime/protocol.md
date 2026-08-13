@@ -53,7 +53,8 @@ no-op (it used to mute the microphone and did so invisibly — see `#handleGestu
 | `mcp` | JSON-RPC request for the device's embedded MCP server |
 
 `play_effect` carries a logical `name` — `ding` (timer/reminder landing), `chime`
-(confirmation request), `error` (turn failure), `low_battery` — and the firmware maps
+(confirmation request and console broadcasts), `error` (turn failure), `low_battery` —
+and the firmware maps
 names to flash assets, so the server can re-purpose sounds without a flash. Unknown
 names are logged and ignored. The point is latency: the earcon plays instantly while the
 TTS announcement is still being synthesized, and it costs no ElevenLabs credits.
@@ -61,6 +62,13 @@ TTS announcement is still being synthesized, and it costs no ElevenLabs credits.
 `tts_start` carries `format` (always `pcm` in production), `bytes` for the clip that
 follows, and optional `sampleRate` / `channels` — 24 000 Hz mono, so the ESP32 needs no
 decoder. The binary frames that follow belong to the clip just announced.
+
+Console broadcasts ([Broadcast](../capabilities/broadcast.md)) add no vocabulary of
+their own: a text broadcast is a `chime` effect, a `reminder` card, and a standard
+`tts_start`/PCM/`tts_end`/`turn_end` run; an audio broadcast is the same minus the card,
+with the PCM recorded by the owner instead of synthesized. Pending replay on reconnect
+may therefore speak — queued broadcasts deliver with sound, while queued reminders and
+background results stay silent cards.
 
 `turn_end.expectsReply` is the model's own judgment: the persona appends an `[[escucho]]`
 mark when its reply asks the user for something (a reply ending in `?` counts even

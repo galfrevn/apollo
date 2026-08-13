@@ -27,4 +27,4 @@ the device reads it literally, so markdown would be spoken out loud (see
 
 ## Navigation
 
-Prev: [Timers](timers.md) · Next: [Dollar rates](rates.md)
+Prev: [Broadcast](broadcast.md) · Next: [Dollar rates](rates.md)

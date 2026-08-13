@@ -8,6 +8,7 @@ export const ROUTE_LABEL_CATALOG: Record<Locale, Record<ConsoleRoute, string>> =
   es: {
     status: 'Estado',
     device: 'Dispositivo',
+    broadcast: 'Difusión',
     mcp: 'MCP',
     memory: 'Memoria',
     schedules: 'Agenda',
@@ -17,6 +18,7 @@ export const ROUTE_LABEL_CATALOG: Record<Locale, Record<ConsoleRoute, string>> =
   en: {
     status: 'Status',
     device: 'Device',
+    broadcast: 'Broadcast',
     mcp: 'MCP',
     memory: 'Memory',
     schedules: 'Schedules',
@@ -31,6 +33,8 @@ export const ROUTE_DESCRIPTION_CATALOG: Record<Locale, Record<ConsoleRoute, stri
       'Estado del agente en vivo, conectividad del dispositivo y telemetría de un vistazo.',
     device:
       'El dispositivo de escritorio en 3D, con controles de modo, volumen, brillo y ubicación del clima.',
+    broadcast:
+      'Habla al escritorio al instante — escribe una frase o graba tu voz y suena en el dispositivo.',
     mcp: 'Servidores MCP instalados, su estado de conexión y habilitación por herramienta.',
     memory: 'Lo que el agente recuerda — memorias, datos del dueño y listas.',
     schedules: 'Recordatorios programados y temporizadores en curso.',
@@ -41,6 +45,8 @@ export const ROUTE_DESCRIPTION_CATALOG: Record<Locale, Record<ConsoleRoute, stri
     status: 'Live agent status, device connectivity, and telemetry at a glance.',
     device:
       'The desk device in 3D, with mode, volume, brightness, and weather location controls.',
+    broadcast:
+      'Speak to the desk instantly — type a phrase or record your voice and it plays on the device.',
     mcp: 'Installed MCP servers, their connection state, and per-tool enablement.',
     memory: 'What the agent remembers — memories, owner facts, and lists.',
     schedules: 'Scheduled reminders and running timers.',
