@@ -1,6 +1,30 @@
-# create-heyapollo
+<a id="readme-top"></a>
 
-Scaffold your own [Apollo](https://heyapollo.dev) — a personal desk agent that lives on your Cloudflare Worker and talks to an ESP32 device (or any hardware you build).
+[![npm][npm-shield]][npm-url]
+[![TypeScript][typescript-shield]][typescript-url]
+[![Bun][bun-shield]][bun-url]
+[![Cloudflare][cloudflare-shield]][cloudflare-url]
+
+<br />
+<div align="center">
+  <img src="https://raw.githubusercontent.com/galfrevn/apollo/main/.github/assets/banner.jpeg" alt="Apollo banner" width="100%">
+
+  <h3 align="center">create-heyapollo</h3>
+
+  <p align="center">
+    Scaffold your own Apollo, a personal desk agent on your Cloudflare account.
+    <br />
+    <br />
+    <a href="https://heyapollo.dev"><strong>heyapollo.dev »</strong></a>
+    <br />
+    <br />
+    <a href="https://github.com/galfrevn/apollo">Monorepo</a>
+    ·
+    <a href="https://github.com/galfrevn/apollo-firmware">Reference firmware</a>
+  </p>
+</div>
+
+## Usage
 
 ```sh
 bun create heyapollo
@@ -8,10 +32,32 @@ bun create heyapollo
 npm create heyapollo
 ```
 
-This copies the Apollo starter into `apollo/` (or a name you pass), initializes git, installs dependencies, and drops you into the interactive setup wizard: Cloudflare account confirmation, live API-key validation, an ElevenLabs voice picker, your city and timezone, then provision → deploy → a verified device handshake. "No keys yet" is a first-class answer (trial mode, zero external spend).
+One command copies the Apollo starter into `apollo/` (or a name you pass), initializes git, installs dependencies, and drops you into the interactive setup wizard: Cloudflare account confirmation, live API key validation, an ElevenLabs voice picker, your city and timezone, then provision, deploy, and a verified device handshake. "No keys yet" is a first class answer: trial mode deploys a fully protocol correct brain with zero external spend.
 
-The scaffolded project requires [Bun](https://bun.sh). The Workers **free plan is enough** for everything except the optional coding sandbox.
+The scaffolded project requires [Bun](https://bun.sh). The Cloudflare Workers free plan is enough for everything except the optional coding sandbox.
 
-Flags: `--no-install`, `--no-setup`, `--no-git`.
+## Flags
 
-The template is embedded in this package — no network fetch, no repository cloning. Source, issues, and documentation: https://github.com/galfrevn/apollo
+| Flag | Effect |
+|:--|:--|
+| `--no-install` | Skip `bun install` |
+| `--no-setup` | Skip the wizard |
+| `--no-git` | Skip `git init` |
+
+The template is embedded in this package. No network fetch, no repository cloning.
+
+## License
+
+MIT. Source, issues, and documentation live in the [Apollo monorepo](https://github.com/galfrevn/apollo).
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- MARKDOWN LINKS & IMAGES -->
+[npm-shield]: https://img.shields.io/npm/v/create-heyapollo?style=for-the-badge&logo=npm&logoColor=white&label=create-heyapollo&color=CB3837
+[npm-url]: https://www.npmjs.com/package/create-heyapollo
+[typescript-shield]: https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white
+[typescript-url]: https://www.typescriptlang.org/
+[bun-shield]: https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white
+[bun-url]: https://bun.sh/
+[cloudflare-shield]: https://img.shields.io/badge/Cloudflare-F38020?style=for-the-badge&logo=cloudflare&logoColor=white
+[cloudflare-url]: https://workers.cloudflare.com/
