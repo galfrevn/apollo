@@ -9,10 +9,10 @@ function isSupportedLocale(candidate: string): candidate is Locale {
 }
 
 export function detectInitialLocale(
-  storage: Storage,
+  storage: Storage | null,
   preferredLanguageList: readonly string[],
 ): Locale {
-  const storedLocale = storage.getItem(LOCALE_STORAGE_KEY);
+  const storedLocale = storage === null ? null : storage.getItem(LOCALE_STORAGE_KEY);
   if (storedLocale !== null && isSupportedLocale(storedLocale)) {
     return storedLocale;
   }
@@ -25,6 +25,13 @@ export function detectInitialLocale(
   return 'es';
 }
 
-export function persistLocale(storage: Storage, locale: Locale): void {
-  storage.setItem(LOCALE_STORAGE_KEY, locale);
+export function persistLocale(storage: Storage | null, locale: Locale): void {
+  if (storage === null) {
+    return;
+  }
+  try {
+    storage.setItem(LOCALE_STORAGE_KEY, locale);
+  } catch {
+    // Quota or privacy-mode rejection: the choice still applies for this session.
+  }
 }

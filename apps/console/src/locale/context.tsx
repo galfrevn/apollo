@@ -11,13 +11,23 @@ type LocaleContextValue = {
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
+// Reading window.localStorage throws a SecurityError when the browser denies
+// storage access (privacy settings, sandboxed embeds); the app must still boot.
+function resolveBrowserStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export function LocaleProvider({ children }: { readonly children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(() =>
-    detectInitialLocale(window.localStorage, navigator.languages),
+    detectInitialLocale(resolveBrowserStorage(), navigator.languages),
   );
 
   const setLocale = useCallback((nextLocale: Locale) => {
-    persistLocale(window.localStorage, nextLocale);
+    persistLocale(resolveBrowserStorage(), nextLocale);
     setLocaleState(nextLocale);
   }, []);
 

@@ -53,6 +53,11 @@ describe('detectInitialLocale', () => {
   it('defaults to Spanish for an empty language list', () => {
     expect(detectInitialLocale(buildMemoryStorage(), [])).toBe('es');
   });
+
+  it('still detects from browser languages when storage is unavailable', () => {
+    expect(detectInitialLocale(null, ['en-US'])).toBe('en');
+    expect(detectInitialLocale(null, [])).toBe('es');
+  });
 });
 
 describe('persistLocale', () => {
@@ -60,5 +65,14 @@ describe('persistLocale', () => {
     const storage = buildMemoryStorage();
     persistLocale(storage, 'en');
     expect(detectInitialLocale(storage, ['es-AR'])).toBe('en');
+  });
+
+  it('tolerates unavailable and rejecting storage', () => {
+    expect(() => persistLocale(null, 'en')).not.toThrow();
+    const rejectingStorage = buildMemoryStorage();
+    rejectingStorage.setItem = () => {
+      throw new Error('quota exceeded');
+    };
+    expect(() => persistLocale(rejectingStorage, 'en')).not.toThrow();
   });
 });
