@@ -1,0 +1,31 @@
+# Apollo
+
+> Apollo es un agente personal de escritorio open source: un cerebro de IA que corre como Cloudflare Worker en tu propia cuenta, con un cuerpo físico que descansa en tu escritorio. Le hablas desde el otro lado del escritorio y la respuesta vuelve en voz alta. Sin app, sin teclado.
+
+Apollo tiene licencia MIT y es gratis. El cerebro se despliega con un comando a tu cuenta de Cloudflare; el cuerpo es un dispositivo con firmware abierto que flasheas tú. Lo construye Valentín Galfre (github.com/galfrevn).
+
+## Capacidades
+
+- Turnos de voz: respuestas habladas y breves, afinadas para un dispositivo en el escritorio
+- Memoria: recuerda lo que le dices y lo trae de vuelta cuando importa (Vectorize)
+- Recordatorios: temporizadores y agendas que suenan en el propio dispositivo
+- Respuestas en vivo: investigación web condensada en una oración accionable
+- Agente de código: delega trabajo real sobre repositorios a un motor aislado
+- Tus herramientas: se conecta por MCP a los servicios que ya usas, administrados desde la consola
+
+## Enlaces
+
+- [Repositorio](https://github.com/galfrevn/apollo)
+- [Documentación](https://github.com/galfrevn/apollo/tree/main/documentation)
+- [Landing en español](https://apollo-console.galfre-vn.workers.dev/)
+- [Consola](https://apollo-console.galfre-vn.workers.dev/console)
+
+## English
+
+> Apollo is an open source personal desk agent: an AI brain that runs as a Cloudflare Worker in your own account, paired with a physical body that sits on your desk. You speak to it across the desk and the answer comes back out loud. No app, no keyboard.
+
+Apollo is MIT licensed and free. The brain deploys with one command to your own Cloudflare account; the body is a device with open firmware you flash yourself. It is built by Valentín Galfre (github.com/galfrevn).
+
+Capabilities: voice turns tuned for a desk device, memory recalled by meaning (Vectorize), reminders that fire on the device itself, live answers condensed from web research, a sandboxed coding agent for repository work, and your own services connected over MCP.
+
+- [English landing](https://apollo-console.galfre-vn.workers.dev/en)

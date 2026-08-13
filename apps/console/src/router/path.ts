@@ -1,9 +1,10 @@
 import { CONSOLE_BASE_PATH, CONSOLE_ROUTE_LIST } from '@/router/route';
 
+import type { Locale } from '@/locale/detect';
 import type { ConsoleRoute } from '@/router/route';
 
 export type SurfaceResolution =
-  | { readonly kind: 'landing' }
+  | { readonly kind: 'landing'; readonly localeOverride: Locale | null }
   | { readonly kind: 'console' }
   | { readonly kind: 'redirect'; readonly targetUrl: string };
 
@@ -29,7 +30,10 @@ export function resolveSurfaceFromLocation(
       targetUrl: `${CONSOLE_BASE_PATH}/${legacyHashRoute}`,
     };
   }
-  return { kind: 'landing' };
+  if (pathname === '/en' || pathname === '/en/') {
+    return { kind: 'landing', localeOverride: 'en' };
+  }
+  return { kind: 'landing', localeOverride: null };
 }
 
 function parseLegacyHashRoute(hash: string): ConsoleRoute | null {

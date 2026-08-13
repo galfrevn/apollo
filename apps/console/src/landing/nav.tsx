@@ -47,7 +47,7 @@ export function LandingNav() {
   const starCount = useGithubStarCount();
 
   return (
-    <nav className="fixed inset-x-0 top-0 z-10">
+    <nav aria-label="Apollo" className="fixed inset-x-0 top-0 z-10">
       <div
         aria-hidden
         className="absolute inset-0 -bottom-4 bg-gradient-to-b from-background/70 to-background/0 backdrop-blur-md [mask-image:linear-gradient(to_bottom,black_40%,transparent)]"
