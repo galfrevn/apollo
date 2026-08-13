@@ -65,44 +65,8 @@ async function emitConfiguration(): Promise<void> {
         join(starterManifest.agentDirectory, 'package.json'),
       ),
       rootPackageText: await readRepositoryTextFile('package.json'),
-      wizardPackageText: await readRepositoryTextFile(
-        join(starterManifest.wizardDirectory, 'package.json'),
-      ),
     }),
   );
-}
-
-async function emitDocumentation(): Promise<void> {
-  const documentationRoot = join(
-    repositoryRootDirectory,
-    starterManifest.documentationDirectory,
-  );
-  const excludedPathList = starterManifest.documentationExcludeList;
-  for (const relativePath of listFileRelativePathList(documentationRoot)) {
-    const isExcluded = excludedPathList.some(
-      (excludedPath) =>
-        relativePath === excludedPath || relativePath.startsWith(`${excludedPath}/`),
-    );
-    if (isExcluded) {
-      continue;
-    }
-    let rewrittenContent = await Bun.file(join(documentationRoot, relativePath)).text();
-    for (const rewrite of starterManifest.documentationRewriteList) {
-      rewrittenContent = rewrittenContent.replaceAll(rewrite.from, rewrite.to);
-    }
-    const keptLineList = rewrittenContent
-      .split('\n')
-      .filter(
-        (line) =>
-          !starterManifest.documentationDroppedLineMarkerList.some((marker) =>
-            line.includes(marker),
-          ),
-      );
-    await writeOutputTextFile(
-      join('documentation', relativePath),
-      keptLineList.join('\n'),
-    );
-  }
 }
 
 async function emitSkills(): Promise<void> {
@@ -115,32 +79,10 @@ async function emitSkills(): Promise<void> {
     }
     await writeOutputTextFile(
       join('.claude', 'skills', skillNameMatch[1], 'SKILL.md'),
-      skillContent,
-    );
-  }
-}
-
-// The starter maps `@/` to the agent's src/, so the wizard cannot keep its
-// alias imports there: sources stay flat and `@/x` becomes the sibling `./x`.
-async function emitWizard(): Promise<void> {
-  const wizardSourceDirectory = join(
-    repositoryRootDirectory,
-    starterManifest.wizardDirectory,
-    'src',
-  );
-  for (const entry of readdirSync(wizardSourceDirectory, { withFileTypes: true })) {
-    if (entry.isDirectory()) {
-      if (entry.name === '__tests__') {
-        continue;
-      }
-      throw new Error(
-        `wizard source must stay flat for the starter copy: unexpected directory src/${entry.name}`,
-      );
-    }
-    const sourceContent = await Bun.file(join(wizardSourceDirectory, entry.name)).text();
-    await writeOutputTextFile(
-      join(starterManifest.wizardOutputDirectory, entry.name),
-      sourceContent.replaceAll("from '@/", "from './"),
+      skillContent.replaceAll(
+        'documentation/',
+        starterManifest.skillsDocumentationLinkPrefix,
+      ),
     );
   }
 }
@@ -210,9 +152,7 @@ async function buildStarter(): Promise<void> {
   copyAgentSources();
   await applyIdentityPlaceholderSwap();
   await emitConfiguration();
-  await emitDocumentation();
   await emitSkills();
-  await emitWizard();
   await emitAssets();
   await runForbiddenPatternGuard();
   console.log(`starter generated at ${outputDirectory}`);

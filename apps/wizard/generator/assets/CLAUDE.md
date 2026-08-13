@@ -13,7 +13,7 @@ A personal desk agent: this Cloudflare Worker handles voice turns, tools, memory
 | Add/remove tools, MCP servers, enable coding | `apollo-tooling` |
 | Debug a live deployment, OTA, costs, upgrades | `apollo-operate` |
 
-For depth, the handbook at `documentation/` is meant to be read in order (start at `documentation/index.md`); `documentation/reference/mapping.md` maps each topic to its `src/` folder.
+For depth, the handbook lives in the upstream monorepo at https://github.com/galfrevn/apollo/tree/main/documentation and is meant to be read in order; its `reference/mapping.md` maps each topic to its `src/` folder.
 
 ## Commands
 

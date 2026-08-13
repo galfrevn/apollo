@@ -19,7 +19,7 @@
     Voice turns, tools, memory, reminders, and background research for an ESP32 desk companion. You bring the body.
     <br />
     <br />
-    <a href="documentation/index.md"><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/galfrevn/apollo/tree/main/documentation"><strong>Explore the docs »</strong></a>
     <br />
     <br />
     <a href="https://heyapollo.dev">heyapollo.dev</a>
@@ -93,7 +93,7 @@ bun run probe -- --url wss://apollo.<you>.workers.dev/agents/apollo/desk \
 
 ## Point a device at it
 
-Any client that can hold a WebSocket, send 16 kHz PCM up, and play 24 kHz PCM down is a full citizen. The wire contract lives in `documentation/runtime/protocol.md` and `.claude/skills/apollo-protocol`.
+Any client that can hold a WebSocket, send 16 kHz PCM up, and play 24 kHz PCM down is a full citizen. The wire contract lives in `.claude/skills/apollo-protocol` and the [handbook](https://github.com/galfrevn/apollo/tree/main/documentation).
 
 The [reference firmware](https://github.com/galfrevn/apollo-firmware) targets the Waveshare ESP32-S3 Touch LCD 1.85C V2. Point it at `wss://<your-worker>/agents/apollo/desk?token=<DEVICE_SHARED_SECRET>`. For your own hardware, start from `.claude/skills/apollo-firmware`: a screenless speaker fully converses with about six message types.
 
@@ -105,11 +105,9 @@ The hosted console at [heyapollo.dev/console](https://heyapollo.dev/console) con
 
 | Place | Purpose |
 |:--|:--|
-| `documentation/` | The handbook, meant to be read in order |
 | `.claude/skills/` | Task playbooks for coding agents: setup, protocol, firmware, persona, tooling, operations |
 | `src/configuration/identity.ts` | The owner seam: voice id, timezone, weather default, email sender |
 | `scripts/` | Bootstrap and probe, the only sanctioned way to provision, deploy, and verify |
-| `setup/` | The interactive wizard |
 
 ## License
 

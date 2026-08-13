@@ -27,12 +27,10 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
-  "dependencies": {
-    "@clack/prompts": "^0.11.0",
-    "zod": "^3.25.76"
-  },
   "devDependencies": {
     "@apollo/typescript-config": "workspace:*",
-    "typescript": "^5.9.3"
+    "@clack/prompts": "^0.11.0",
+    "typescript": "^5.9.3",
+    "zod": "^3.25.76"
   }
 }

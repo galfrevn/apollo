@@ -73,16 +73,9 @@ export function buildStarterWranglerDocument(monorepoConfigurationText: string):
 export function buildStarterPackageDocument(input: {
   readonly agentPackageText: string;
   readonly rootPackageText: string;
-  readonly wizardPackageText: string;
 }): string {
   const agentPackage = packageManifestSchema.parse(JSON.parse(input.agentPackageText));
   const rootPackage = packageManifestSchema.parse(JSON.parse(input.rootPackageText));
-  const wizardPackage = packageManifestSchema.parse(JSON.parse(input.wizardPackageText));
-  const wizardOnlyDependencyEntryList = Object.entries(
-    wizardPackage.dependencies ?? {},
-  ).filter(
-    ([dependencyName]) => agentPackage.dependencies?.[dependencyName] === undefined,
-  );
   const wranglerVersion = agentPackage.devDependencies?.wrangler;
   const typescriptVersion = rootPackage.devDependencies?.typescript;
   const bunTypesVersion = rootPackage.devDependencies?.['@types/bun'];
@@ -109,14 +102,13 @@ export function buildStarterPackageDocument(input: {
       check: 'bun run types && bun run typecheck && bun run test',
       bootstrap: 'bun scripts/bootstrap.ts',
       probe: 'bun scripts/probe.ts',
-      setup: `bun ${starterManifest.wizardOutputDirectory}/index.ts`,
+      setup: 'bunx create-heyapollo setup',
     },
     dependencies: agentPackage.dependencies,
     devDependencies: {
       '@types/bun': bunTypesVersion,
       typescript: typescriptVersion,
       wrangler: wranglerVersion,
-      ...Object.fromEntries(wizardOnlyDependencyEntryList),
     },
   };
   return `${JSON.stringify(starterPackage, null, 2)}\n`;

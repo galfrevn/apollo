@@ -13,5 +13,6 @@
     "__tests__/**/*.ts",
     "build.ts",
     "template.ts"
-  ]
+  ],
+  "exclude": ["generator/out", "template", "dist"]
 }

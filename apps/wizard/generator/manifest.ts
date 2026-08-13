@@ -1,8 +1,3 @@
-export type TextRewriteRule = {
-  readonly from: string;
-  readonly to: string;
-};
-
 export type ForbiddenPatternRule = {
   readonly pattern: string;
   readonly allowedPathPrefixList: readonly string[];
@@ -13,47 +8,10 @@ export const starterManifest = {
   agentDirectory: 'apps/agent',
   agentCopyList: ['src', 'Dockerfile', 'bunfig.toml', '.dev.vars.example'],
   rootCopyList: ['LICENSE'],
-  documentationDirectory: 'documentation',
-  // Skills are emitted to .claude/skills, not copied as handbook chapters; the
-  // console design/landing chapters and the roadmap are owner-specific.
-  documentationExcludeList: [
-    'skills',
-    'console/design.md',
-    'console/landing.md',
-    'reference/roadmap.md',
-    'reference/starter.md',
-  ],
-  documentationRewriteList: [
-    { from: 'apps/agent/src/', to: 'src/' },
-    { from: 'apps/agent/', to: '' },
-    {
-      from: 'apps/firmware/apollo-firmware',
-      to: 'https://github.com/galfrevn/apollo-firmware',
-    },
-    {
-      from: ' Discovery infrastructure — prerendered bilingual landing documents, robots/sitemap/llms.txt, structured data, real 404s — is documented in [Landing](landing.md).',
-      to: '',
-    },
-    { from: ' (see [Landing](landing.md))', to: '' },
-    {
-      from: 'Prev: [Testing](../operations/testing.md) · Next: [Design](design.md)',
-      to: 'Prev: [Testing](../operations/testing.md)',
-    },
-    { from: '[Roadmap](../reference/roadmap.md) item 6.', to: 'a roadmap item.' },
-  ] satisfies readonly TextRewriteRule[],
-  // Any line still referencing an excluded chapter after rewrites is dropped
-  // (index entries and nav links whose whole line points at excluded pages).
-  documentationDroppedLineMarkerList: [
-    'console/design.md',
-    'console/landing.md',
-    'reference/roadmap.md',
-    'reference/starter.md',
-    'apps/wizard/',
-    'documentation/skills/',
-  ],
   skillsDirectory: 'documentation/skills',
-  wizardDirectory: 'apps/wizard',
-  wizardOutputDirectory: 'setup',
+  // The handbook stays in the monorepo; skill references to it become links.
+  skillsDocumentationLinkPrefix:
+    'https://github.com/galfrevn/apollo/blob/main/documentation/',
   identityPlaceholderSwap: {
     relativePath: 'src/configuration/identity.ts',
     from: "export const APOLLO_TTS_VOICE = 'ByVRQtaK1WDOvTmP1PKO';",
@@ -63,24 +21,26 @@ export const starterManifest = {
   forbiddenPatternList: [
     { pattern: 'galfre.vn', allowedPathPrefixList: [] },
     { pattern: 'ByVRQtaK1WDOvTmP1PKO', allowedPathPrefixList: [] },
-    {
-      pattern: 'agent.heyapollo.dev',
-      allowedPathPrefixList: ['documentation/'],
-    },
+    { pattern: 'agent.heyapollo.dev', allowedPathPrefixList: [] },
     {
       pattern: 'heyapollo',
       allowedPathPrefixList: [
         'README.md',
         'CLAUDE.md',
         'AGENTS.md',
+        'package.json',
         '.claude/',
-        'documentation/',
-        'setup/',
       ],
     },
     {
       pattern: 'galfrevn',
-      allowedPathPrefixList: ['README.md', 'LICENSE', '.claude/', 'documentation/'],
+      allowedPathPrefixList: [
+        'README.md',
+        'CLAUDE.md',
+        'AGENTS.md',
+        'LICENSE',
+        '.claude/',
+      ],
     },
   ] satisfies readonly ForbiddenPatternRule[],
 } as const;

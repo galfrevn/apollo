@@ -72,13 +72,11 @@
       "bin": {
         "create-heyapollo": "dist/index.js",
       },
-      "dependencies": {
-        "@clack/prompts": "^0.11.0",
-        "zod": "^3.25.76",
-      },
       "devDependencies": {
         "@apollo/typescript-config": "workspace:*",
+        "@clack/prompts": "^0.11.0",
         "typescript": "^5.9.3",
+        "zod": "^3.25.76",
       },
     },
     "packages/typescript-config": {

@@ -26,7 +26,7 @@ Formatting is oxfmt's job; never hand-format. Note that oxfmt does *not* sort or
 - `apps/agent/` — the Cloudflare Worker (see `apps/agent/CLAUDE.md`)
 - `apps/console/` — marketing landing (`/`) + management dashboard (`/console`) (see `documentation/console/`)
 - `apps/firmware/` — ESP32 firmware, a git submodule, not a JS workspace member
-- `apps/wizard/` — the `create-heyapollo` npm package: the interactive setup wizard (flat `src/`, shipped inside the generated starter as `setup/`), the scaffolder bin (`cli/`), and the starter generator (`generator/`, builds the public `apollo-starter` snapshot from `apps/agent` + `documentation/` into the embedded `template/`)
+- `apps/wizard/` — the `create-heyapollo` npm package: the interactive setup wizard (`src/`, bundled as `dist/setup.js`, never copied into the scaffold), the scaffolder bin (`cli/`), and the starter generator (`generator/`, builds the minimal deployable snapshot from `apps/agent` + the skills into the embedded `template/`)
 - `packages/typescript-config/` — shared base tsconfig
 
 **Read `documentation/` before changing agent behavior** — it's a handbook meant to be read in order, and `documentation/reference/mapping.md` maps each topic to its `apps/agent/src/` folder. Start at `documentation/index.md`.
