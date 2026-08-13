@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useConnection } from '@/connection/context';
 import { probeWorkerHealth } from '@/connection/probe';
 import { consoleConnectionSchema } from '@/connection/schema';
+import { useDocumentMetadata } from '@/router/metadata';
 
 const PROBE_ERROR_MESSAGE_MAP = {
   unreachable: 'Worker unreachable — check the URL and that the worker is deployed.',
@@ -15,6 +16,7 @@ const PROBE_ERROR_MESSAGE_MAP = {
 } as const;
 
 export function ConnectScreen() {
+  useDocumentMetadata(null);
   const { connect } = useConnection();
   const [workerUrl, setWorkerUrl] = useState('');
   const [deviceName, setDeviceName] = useState('desk');

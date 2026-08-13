@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 
 import { Icons } from '@/components/icons';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { ROUTE_ICON_MAP, ROUTE_LABEL_MAP } from '@/layout/nav';
+import { ROUTE_ICON_MAP } from '@/layout/nav';
+import { ROUTE_LABEL_MAP } from '@/router/metadata';
 import { CONSOLE_ROUTE_LIST, navigateToRoute } from '@/router/hash';
 import type { ConsoleRoute } from '@/router/hash';
 
