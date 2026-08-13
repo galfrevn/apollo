@@ -4,6 +4,8 @@ import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { useMessages } from '@/locale/context';
+import { SCHEDULES_MESSAGE_CATALOG } from '@/schedules/copy';
 
 const MAX_DELAY_MINUTES = 1_440;
 const DELAY_PRESET_MINUTE_LIST = [5, 15, 60] as const;
@@ -21,6 +23,7 @@ export function ScheduleComposer({
     isTimer: boolean,
   ) => Promise<void>;
 }) {
+  const schedulesMessages = useMessages(SCHEDULES_MESSAGE_CATALOG);
   const [message, setMessage] = useState('');
   const [delayMinutes, setDelayMinutes] = useState('15');
   const [isTimer, setIsTimer] = useState(false);
@@ -32,7 +35,11 @@ export function ScheduleComposer({
     const trimmedMessage = message.trim();
     const parsedMinutes = Number(delayMinutes);
     if (trimmedMessage.length === 0) {
-      setErrorMessage(isTimer ? 'Give the timer a label.' : 'Write the reminder.');
+      setErrorMessage(
+        isTimer
+          ? schedulesMessages.timerLabelMissingError
+          : schedulesMessages.reminderMissingError,
+      );
       return;
     }
     if (
@@ -40,7 +47,7 @@ export function ScheduleComposer({
       parsedMinutes < 1 ||
       parsedMinutes > MAX_DELAY_MINUTES
     ) {
-      setErrorMessage(`Minutes must be between 1 and ${MAX_DELAY_MINUTES}.`);
+      setErrorMessage(schedulesMessages.minutesRangeError(MAX_DELAY_MINUTES));
       return;
     }
     setIsCreating(true);
@@ -49,7 +56,11 @@ export function ScheduleComposer({
       await onCreate(trimmedMessage, Math.round(parsedMinutes * 60), isTimer);
       setMessage('');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Scheduling failed.');
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : schedulesMessages.schedulingFallbackError,
+      );
     } finally {
       setIsCreating(false);
     }
@@ -65,8 +76,16 @@ export function ScheduleComposer({
         <Input
           value={message}
           onChange={(event) => setMessage(event.target.value)}
-          placeholder={isTimer ? 'Timer label — pasta' : 'Remind me to…'}
-          aria-label={isTimer ? 'Timer label' : 'Reminder message'}
+          placeholder={
+            isTimer
+              ? schedulesMessages.timerPlaceholder
+              : schedulesMessages.reminderPlaceholder
+          }
+          aria-label={
+            isTimer
+              ? schedulesMessages.timerInputAriaLabel
+              : schedulesMessages.reminderInputAriaLabel
+          }
           className="h-8 min-w-48 flex-1 text-sm"
         />
         <div className="flex items-center gap-1">
@@ -88,21 +107,23 @@ export function ScheduleComposer({
             max={MAX_DELAY_MINUTES}
             value={delayMinutes}
             onChange={(event) => setDelayMinutes(event.target.value)}
-            aria-label="Minutes until it fires"
+            aria-label={schedulesMessages.minutesInputAriaLabel}
             className="h-8 w-16 text-xs"
           />
-          <span className="text-xs text-dim">min</span>
+          <span className="text-xs text-dim">{schedulesMessages.minutesUnitLabel}</span>
         </div>
         <label className="flex cursor-pointer items-center gap-2">
           <Switch
             checked={isTimer}
             onCheckedChange={setIsTimer}
-            aria-label="Schedule as a timer"
+            aria-label={schedulesMessages.timerSwitchAriaLabel}
           />
-          <span className="text-xs font-medium text-muted-foreground">Timer</span>
+          <span className="text-xs font-medium text-muted-foreground">
+            {schedulesMessages.timerSwitchLabel}
+          </span>
         </label>
         <Button type="submit" size="sm" disabled={isCreating}>
-          {isCreating ? 'Adding…' : 'Add'}
+          {isCreating ? schedulesMessages.addingLabel : schedulesMessages.addLabel}
         </Button>
       </div>
       {errorMessage !== null && (

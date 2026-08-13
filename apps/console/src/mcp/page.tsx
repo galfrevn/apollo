@@ -8,7 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/components/utility';
+import { useMessages } from '@/locale/context';
 import { ConnectorCatalog } from '@/mcp/catalog';
+import { MCP_MESSAGE_CATALOG, resolveServerStateLabel } from '@/mcp/copy';
 import { InstallForm } from '@/mcp/install';
 import { ServerDetail, resolveServerTone } from '@/mcp/server';
 import type { ConsoleRpc } from '@/agent/rpc';
@@ -30,6 +32,7 @@ function ServerCard({
   readonly server: McpServer;
   readonly onOpen: () => void;
 }) {
+  const mcpMessages = useMessages(MCP_MESSAGE_CATALOG);
   const enabledCount = server.toolList.filter((tool) => tool.isEnabled).length;
   return (
     <button
@@ -39,13 +42,15 @@ function ServerCard({
     >
       <div className="flex w-full items-center justify-between gap-3">
         <span className="truncate text-sm font-medium">{server.name}</span>
-        <Chip tone={resolveServerTone(server.state)}>{server.state}</Chip>
+        <Chip tone={resolveServerTone(server.state)}>
+          {resolveServerStateLabel(server.state, mcpMessages)}
+        </Chip>
       </div>
       <div className="w-full">
         <p className="truncate text-xs text-dim">{server.url}</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          {enabledCount}/{server.toolList.length} tools on
-          {server.authUrl !== null && ' · needs authorization'}
+          {mcpMessages.toolsOnLabel(enabledCount, server.toolList.length)}
+          {server.authUrl !== null && mcpMessages.needsAuthorizationSuffix}
         </p>
       </div>
     </button>
@@ -53,6 +58,7 @@ function ServerCard({
 }
 
 export function McpPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
+  const mcpMessages = useMessages(MCP_MESSAGE_CATALOG);
   const [serverList, setServerList] = useState<readonly McpServer[] | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isInstallDialogOpen, setIsInstallDialogOpen] = useState(false);
@@ -66,10 +72,10 @@ export function McpPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
       setServerList(await consoleRpc.listMcpServers());
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'Could not list MCP servers.',
+        error instanceof Error ? error.message : mcpMessages.listServersFallbackError,
       );
     }
-  }, [consoleRpc]);
+  }, [consoleRpc, mcpMessages.listServersFallbackError]);
 
   useEffect(() => {
     void refreshServerList();
@@ -98,7 +104,7 @@ export function McpPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
       setSelectedServerId(installResult.serverId);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'Install failed — try again.',
+        error instanceof Error ? error.message : mcpMessages.installRetryFallbackError,
       );
     } finally {
       setBusyConnectorUrl(null);
@@ -113,13 +119,15 @@ export function McpPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
       )}
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <Heading description="Servers and tools the agent may use">MCP</Heading>
+        <Heading description={mcpMessages.pageDescription}>
+          {mcpMessages.pageTitle}
+        </Heading>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => void refreshServerList()}>
-            Refresh
+            {mcpMessages.refreshLabel}
           </Button>
           <Button size="sm" onClick={() => setIsInstallDialogOpen(true)}>
-            Install server
+            {mcpMessages.installServerLabel}
           </Button>
         </div>
       </div>
@@ -152,7 +160,7 @@ export function McpPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
           ))}
         </div>
       ) : serverList.length === 0 ? (
-        <Empty message="No MCP servers installed" className="min-h-40" />
+        <Empty message={mcpMessages.noServersMessage} className="min-h-40" />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {serverList.map((server) => (
@@ -182,7 +190,7 @@ export function McpPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Install a server</DialogTitle>
+            <DialogTitle>{mcpMessages.installDialogTitle}</DialogTitle>
           </DialogHeader>
           <InstallForm
             key={installPrefill?.url ?? 'blank'}

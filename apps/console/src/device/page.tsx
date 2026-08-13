@@ -4,7 +4,9 @@ import { Heading } from '@/blueprint/heading';
 import { Panel } from '@/blueprint/panel';
 import { Button } from '@/components/ui/button';
 import { DeviceControls } from '@/device/controls';
+import { DEVICE_MESSAGE_CATALOG } from '@/device/copy';
 import { WeatherPanel } from '@/device/weather';
+import { useMessages } from '@/locale/context';
 import type { ApolloAgentHandle } from '@/agent/hook';
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { ConsoleStatus } from '@/agent/schema';
@@ -24,9 +26,12 @@ export function DevicePage({
   readonly agent: ApolloAgentHandle;
   readonly consoleRpc: ConsoleRpc;
 }) {
+  const deviceMessages = useMessages(DEVICE_MESSAGE_CATALOG);
   const [status, setStatus] = useState<ConsoleStatus | null>(null);
   const [isSettingMode, setIsSettingMode] = useState(false);
-  const [modeErrorMessage, setModeErrorMessage] = useState<string | null>(null);
+  const [modeFailure, setModeFailure] = useState<{
+    readonly serverMessage: string | null;
+  } | null>(null);
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -44,13 +49,13 @@ export function DevicePage({
 
   async function handleSelectSpeechMode(speechModeId: string) {
     setIsSettingMode(true);
-    setModeErrorMessage(null);
+    setModeFailure(null);
     try {
       await consoleRpc.setSpeechMode(speechModeId);
     } catch (error) {
-      setModeErrorMessage(
-        error instanceof Error ? error.message : 'Could not change the mode.',
-      );
+      setModeFailure({
+        serverMessage: error instanceof Error ? error.message : null,
+      });
     } finally {
       setIsSettingMode(false);
     }
@@ -61,7 +66,9 @@ export function DevicePage({
 
   return (
     <div className="settle space-y-6">
-      <Heading description="Your desk, live — drag to rotate">Device</Heading>
+      <Heading description={deviceMessages.pageDescription}>
+        {deviceMessages.pageTitle}
+      </Heading>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="flex min-h-[28rem] items-center justify-center">
@@ -71,7 +78,7 @@ export function DevicePage({
         </div>
 
         <div className="space-y-3 lg:self-center">
-          <Panel title="Mode">
+          <Panel title={deviceMessages.modePanelTitle}>
             <div className="flex flex-wrap gap-2 p-4">
               {SPEECH_MODE_LIST.map((speechModeId) => (
                 <Button
@@ -85,18 +92,15 @@ export function DevicePage({
                 </Button>
               ))}
             </div>
-            <p className="px-4 pb-4 text-xs text-dim">
-              The ring on the model previews each mode's accent, exactly as the desk shows
-              it.
-            </p>
-            {modeErrorMessage !== null && (
+            <p className="px-4 pb-4 text-xs text-dim">{deviceMessages.modeHint}</p>
+            {modeFailure !== null && (
               <p role="alert" className="px-4 pb-4 text-xs text-destructive">
-                {modeErrorMessage}
+                {modeFailure.serverMessage ?? deviceMessages.modeChangeFallbackError}
               </p>
             )}
           </Panel>
 
-          <Panel title="Volume & brightness">
+          <Panel title={deviceMessages.controlsPanelTitle}>
             <DeviceControls
               consoleRpc={consoleRpc}
               isDeviceConnected={isDeviceConnected}
@@ -106,7 +110,7 @@ export function DevicePage({
             />
           </Panel>
 
-          <Panel title="Weather location">
+          <Panel title={deviceMessages.weatherPanelTitle}>
             <WeatherPanel consoleRpc={consoleRpc} />
           </Panel>
         </div>

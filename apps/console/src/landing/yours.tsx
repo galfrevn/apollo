@@ -1,38 +1,29 @@
+import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { ActHeading } from '@/landing/heading';
 import { MagneticLink } from '@/landing/magnet';
 import { LANDING_LINK_MAP } from '@/landing/metadata';
-
-const OWNERSHIP_CARD_LIST = [
-  {
-    label: 'The brain',
-    description: 'Voice turns, memory, tools, and schedules in one Durable Object.',
-    action: 'One command to deploy.',
-  },
-  {
-    label: 'The body',
-    description: 'The firmware for the device on your desk.',
-    action: 'Flash it. Set it down.',
-  },
-];
+import { warmConsoleChunk } from '@/landing/prefetch';
+import { useMessages } from '@/locale/context';
 
 export function LandingYours() {
+  const yoursMessages = useMessages(LANDING_MESSAGE_CATALOG).yours;
   return (
     <section id="yours" className="border-t py-[130px]">
       <div className="mx-auto w-full max-w-[1180px] px-8">
-        <ActHeading indexLabel="04 · Yours">
-          Runs on your account. Answers to no one else.
+        <ActHeading indexLabel={yoursMessages.actIndexLabel}>
+          {yoursMessages.actTitle}
         </ActHeading>
         <div className="mt-16 md:ml-[220px]">
           <p
             data-reveal
             className="max-w-[34ch] font-serif text-[clamp(20px,2.4vw,26px)] leading-[1.4] text-muted-foreground"
           >
-            Open source, end to end: the memory, the media, the keys.{' '}
-            <span className="text-foreground">Deploy it once and it’s yours.</span>
+            {yoursMessages.introLead}
+            <span className="text-foreground">{yoursMessages.introEmphasis}</span>
           </p>
         </div>
         <div className="mt-14 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-          {OWNERSHIP_CARD_LIST.map((ownershipCard, cardIndex) => (
+          {yoursMessages.ownershipCardList.map((ownershipCard, cardIndex) => (
             <div
               key={ownershipCard.label}
               data-reveal
@@ -51,9 +42,9 @@ export function LandingYours() {
             data-reveal-delay="0.16"
             className="flex flex-col gap-3 border bg-card p-6"
           >
-            <span className="text-xs text-dim">The docs</span>
+            <span className="text-xs text-dim">{yoursMessages.docsCardLabel}</span>
             <p className="text-sm text-muted-foreground">
-              A handbook for every part: protocol, memory, persona, operations.
+              {yoursMessages.docsCardDescription}
             </p>
             <div className="mt-auto pt-4">
               <a
@@ -62,7 +53,7 @@ export function LandingYours() {
                 rel="noreferrer"
                 className="underline-reveal text-sm"
               >
-                Read the docs →
+                {yoursMessages.docsCardAction}
               </a>
             </div>
           </div>
@@ -71,16 +62,17 @@ export function LandingYours() {
             data-reveal-delay="0.24"
             className="flex flex-col gap-3 border bg-card p-6"
           >
-            <span className="text-xs text-dim">The console</span>
+            <span className="text-xs text-dim">{yoursMessages.consoleCardLabel}</span>
             <p className="text-sm text-muted-foreground">
-              Everything it knows and plans, live from your worker.
+              {yoursMessages.consoleCardDescription}
             </p>
             <div className="mt-auto pt-4">
               <MagneticLink
                 href={LANDING_LINK_MAP.console}
+                onWarm={warmConsoleChunk}
                 className="inline-block bg-primary px-4 py-2.5 text-sm text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                Open console →
+                {yoursMessages.consoleCardAction}
               </MagneticLink>
             </div>
           </div>

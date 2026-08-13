@@ -24,7 +24,7 @@ The worker serves two surfaces: the marketing landing at `/` (see [Landing](land
 
 ## Operating Context
 
-The owner enters their worker URL, device instance name (default `desk`), and the dashboard shared secret on a connect screen; the console keeps that in localStorage only. All reads/mutations are secret-gated RPCs over the agent WebSocket; live state arrives via the agents SDK state sync. The desk device (ESP32, 1.85" round-ish display) may be online or offline while the console is open. The agent speaks Spanish to its owner; the console UI itself is English. (UI language inferred from the brief and repo docs being English.)
+The owner enters their worker URL, device instance name (default `desk`), and the dashboard shared secret on a connect screen; the console keeps that in localStorage only. All reads/mutations are secret-gated RPCs over the agent WebSocket; live state arrives via the agents SDK state sync. The desk device (ESP32, 1.85" round-ish display) may be online or offline while the console is open. The agent speaks Spanish to its owner, and both web surfaces are bilingual with Spanish as the principal language: locale is auto-detected from the browser (stored choice wins, unsupported languages fall back to Spanish), persisted in localStorage, and switchable via an es/en toggle in the landing nav, the console header, and the connect screen. Message catalogs are typed TS modules colocated per area (`src/<area>/copy.ts`, `src/landing/copy/`), with `src/locale/` providing detection, context, Intl date formatting, and the toggle. Dates follow the app locale, not the browser locale.
 
 ## Capabilities and Constraints
 

@@ -3,8 +3,10 @@ import type { IconType } from 'react-icons';
 import { Icons } from '@/components/icons';
 import { cn } from '@/components/utility';
 import { useConnection } from '@/connection/context';
+import { LAYOUT_MESSAGE_CATALOG } from '@/layout/copy';
+import { useMessages } from '@/locale/context';
 import { CONSOLE_ROUTE_LIST, navigateToRoute, useConsoleRoute } from '@/router/route';
-import { ROUTE_LABEL_MAP } from '@/router/metadata';
+import { ROUTE_LABEL_CATALOG } from '@/router/metadata';
 import type { ConsoleRoute } from '@/router/route';
 
 export const ROUTE_ICON_MAP = {
@@ -26,6 +28,8 @@ function Rail({
 }) {
   const activeRoute = useConsoleRoute();
   const { connection } = useConnection();
+  const layoutMessages = useMessages(LAYOUT_MESSAGE_CATALOG);
+  const routeLabelMap = useMessages(ROUTE_LABEL_CATALOG);
   const deviceName = connection?.deviceName ?? '';
   const workerHost = connection === null ? '' : new URL(connection.workerUrl).host;
   const revealClass = cn(
@@ -51,7 +55,10 @@ function Rail({
         <span className={cn('text-sm font-medium', revealClass)}>Apollo Console</span>
       </div>
 
-      <nav aria-label="Console sections" className="flex-1 overflow-hidden pt-4">
+      <nav
+        aria-label={layoutMessages.navigationAriaLabel}
+        className="flex-1 overflow-hidden pt-4"
+      >
         <ul className="space-y-1.5">
           {CONSOLE_ROUTE_LIST.map((route) => {
             const isActive = route === activeRoute;
@@ -74,7 +81,7 @@ function Rail({
                     <RouteIcon size={20} />
                   </span>
                   <span className={cn('text-sm font-medium', revealClass)}>
-                    {ROUTE_LABEL_MAP[route]}
+                    {routeLabelMap[route]}
                   </span>
                 </button>
               </li>
@@ -100,8 +107,10 @@ function Rail({
 
 function MobileRow() {
   const activeRoute = useConsoleRoute();
+  const layoutMessages = useMessages(LAYOUT_MESSAGE_CATALOG);
+  const routeLabelMap = useMessages(ROUTE_LABEL_CATALOG);
   return (
-    <nav aria-label="Console sections" className="md:hidden">
+    <nav aria-label={layoutMessages.navigationAriaLabel} className="md:hidden">
       <ul className="scrollbar-hide flex gap-1 overflow-x-auto px-4 pt-4">
         {CONSOLE_ROUTE_LIST.map((route) => {
           const isActive = route === activeRoute;
@@ -120,7 +129,7 @@ function MobileRow() {
                 )}
               >
                 <RouteIcon size={16} />
-                {ROUTE_LABEL_MAP[route]}
+                {routeLabelMap[route]}
               </button>
             </li>
           );

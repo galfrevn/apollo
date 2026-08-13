@@ -5,6 +5,8 @@ import { Empty } from '@/blueprint/empty';
 import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useMessages } from '@/locale/context';
+import { MEMORY_MESSAGE_CATALOG } from '@/memory/copy';
 import type { ListItem } from '@/agent/schema';
 
 function AddItemForm({
@@ -12,6 +14,7 @@ function AddItemForm({
 }: {
   readonly onAdd: (listName: string, content: string) => Promise<void>;
 }) {
+  const memoryMessages = useMessages(MEMORY_MESSAGE_CATALOG);
   const [listName, setListName] = useState('');
   const [content, setContent] = useState('');
   const [isAdding, setIsAdding] = useState(false);
@@ -39,19 +42,19 @@ function AddItemForm({
       <Input
         value={listName}
         onChange={(event) => setListName(event.target.value)}
-        placeholder="List (e.g. super)"
-        aria-label="List name"
+        placeholder={memoryMessages.listNamePlaceholder}
+        aria-label={memoryMessages.listNameAriaLabel}
         className="h-8 w-36 text-xs"
       />
       <Input
         value={content}
         onChange={(event) => setContent(event.target.value)}
-        placeholder="New item…"
-        aria-label="Item content"
+        placeholder={memoryMessages.listItemPlaceholder}
+        aria-label={memoryMessages.listItemAriaLabel}
         className="h-8 min-w-40 flex-1 text-xs"
       />
       <Button type="submit" variant="outline" size="sm" disabled={isAdding}>
-        Add
+        {memoryMessages.addLabel}
       </Button>
     </form>
   );
@@ -66,6 +69,7 @@ export function ListsBlock({
   readonly onAdd: (listName: string, content: string) => Promise<void>;
   readonly onRemove: (itemId: string) => Promise<void>;
 }) {
+  const memoryMessages = useMessages(MEMORY_MESSAGE_CATALOG);
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
 
   async function handleRemove(itemId: string) {
@@ -88,10 +92,7 @@ export function ListsBlock({
     <div>
       <AddItemForm onAdd={onAdd} />
       {itemList.length === 0 ? (
-        <Empty
-          message="No lists yet — add an item above or ask the desk"
-          className="m-3"
-        />
+        <Empty message={memoryMessages.listsEmptyMessage} className="m-3" />
       ) : (
         <div className="grid gap-px bg-border sm:grid-cols-2">
           {[...groupedListMap.entries()].map(([listName, listGroupItemList]) => (
@@ -109,7 +110,7 @@ export function ListsBlock({
                       type="button"
                       onClick={() => void handleRemove(item.id)}
                       disabled={busyItemId === item.id}
-                      aria-label={`Remove ${item.content}`}
+                      aria-label={memoryMessages.removeItemAriaLabel(item.content)}
                       className="text-dim opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100 disabled:opacity-50"
                     >
                       <Icons.Close size={14} />

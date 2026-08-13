@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 
-export const LANDING_DOCUMENT_TITLE = 'Apollo | Your personal desk agent';
-export const LANDING_DOCUMENT_DESCRIPTION =
-  'The open-source brain for physical agentic devices: voice, memory, schedules, and tools, running in your own Cloudflare account.';
+import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
+import { useLocale } from '@/locale/context';
 
 export const LANDING_LINK_MAP = {
   github: 'https://github.com/galfrevn/apollo',
@@ -11,9 +10,12 @@ export const LANDING_LINK_MAP = {
 };
 
 export function useLandingMetadata(): void {
+  const { locale } = useLocale();
+
   useEffect(() => {
-    document.title = LANDING_DOCUMENT_TITLE;
+    const landingMetadata = LANDING_MESSAGE_CATALOG[locale].metadata;
+    document.title = landingMetadata.documentTitle;
     const descriptionElement = document.querySelector('meta[name="description"]');
-    descriptionElement?.setAttribute('content', LANDING_DOCUMENT_DESCRIPTION);
-  }, []);
+    descriptionElement?.setAttribute('content', landingMetadata.documentDescription);
+  }, [locale]);
 }

@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import '@/index.css';
+import { LocaleProvider } from '@/locale/context';
 import { resolveSurfaceFromLocation } from '@/router/path';
 
 const rootElement = document.getElementById('root');
@@ -24,8 +25,10 @@ if (surface.kind === 'redirect') {
     import('@/app').then((module) => ({ default: module.App })),
   );
   createRoot(rootElement).render(
-    <Suspense fallback={null}>
-      {surface.kind === 'landing' ? <LandingPage /> : <ConsoleApp />}
-    </Suspense>,
+    <LocaleProvider>
+      <Suspense fallback={null}>
+        {surface.kind === 'landing' ? <LandingPage /> : <ConsoleApp />}
+      </Suspense>
+    </LocaleProvider>,
   );
 }

@@ -9,6 +9,7 @@ interface MagneticLinkProps {
   readonly children: ReactNode;
   readonly className?: string;
   readonly isExternal?: boolean;
+  readonly onWarm?: () => void;
 }
 
 const MAGNET_PULL_X = 6;
@@ -19,6 +20,7 @@ export function MagneticLink({
   children,
   className,
   isExternal = false,
+  onWarm,
 }: MagneticLinkProps) {
   const linkReference = useRef<HTMLAnchorElement | null>(null);
 
@@ -71,6 +73,8 @@ export function MagneticLink({
       className={className}
       target={isExternal ? '_blank' : undefined}
       rel={isExternal ? 'noreferrer' : undefined}
+      onPointerEnter={onWarm}
+      onFocus={onWarm}
     >
       {children}
     </a>

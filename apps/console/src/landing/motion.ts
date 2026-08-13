@@ -1,10 +1,11 @@
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
+import { ScrollSmoother } from 'gsap/ScrollSmoother';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 import type { RefObject } from 'react';
 
-gsap.registerPlugin(useGSAP, ScrollTrigger);
+gsap.registerPlugin(useGSAP, ScrollSmoother, ScrollTrigger);
 
 export const REDUCED_MOTION_SAFE_QUERY = '(prefers-reduced-motion: no-preference)';
 export const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
@@ -43,4 +44,18 @@ export function useScrollReveal(scopeReference: RefObject<HTMLElement | null>): 
   );
 }
 
-export { gsap, ScrollTrigger, useGSAP };
+export function useSmoothScroll(): void {
+  useGSAP(() => {
+    const responsiveMotion = gsap.matchMedia();
+    responsiveMotion.add(REDUCED_MOTION_SAFE_QUERY, () => {
+      const smoother = ScrollSmoother.create({
+        wrapper: '#smooth-wrapper',
+        content: '#smooth-content',
+        smooth: 1,
+      });
+      return () => smoother.kill();
+    });
+  });
+}
+
+export { gsap, ScrollSmoother, ScrollTrigger, useGSAP };

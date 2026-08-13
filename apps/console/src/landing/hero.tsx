@@ -1,10 +1,13 @@
 import { useRef } from 'react';
 
+import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { MagneticLink } from '@/landing/magnet';
 import { LANDING_LINK_MAP } from '@/landing/metadata';
 import { REDUCED_MOTION_SAFE_QUERY, RISE_EASE, gsap, useGSAP } from '@/landing/motion';
+import { useMessages } from '@/locale/context';
 
 export function LandingHero() {
+  const landingMessages = useMessages(LANDING_MESSAGE_CATALOG);
   const heroReference = useRef<HTMLElement | null>(null);
 
   useGSAP(
@@ -31,14 +34,15 @@ export function LandingHero() {
     >
       <div className="mx-auto w-full max-w-[1180px] px-8">
         <h1 className="font-serif text-[clamp(64px,11.5vw,156px)] leading-[0.98] tracking-[-0.02em]">
-          <span className="block overflow-hidden">
+          <span className="-mb-[0.12em] block overflow-hidden pb-[0.12em]">
             <span data-hero-line className="block">
-              Your personal
+              {landingMessages.hero.lineOne}
             </span>
           </span>
-          <span className="block overflow-hidden">
+          <span className="-mb-[0.12em] block overflow-hidden pb-[0.12em]">
             <span data-hero-line className="block">
-              desk agent<span className="text-muted-foreground">.</span>
+              {landingMessages.hero.lineTwo}
+              <span className="text-muted-foreground">.</span>
             </span>
           </span>
         </h1>
@@ -47,8 +51,7 @@ export function LandingHero() {
           className="mt-16 flex flex-wrap items-end justify-between gap-10 border-t pt-7"
         >
           <p className="max-w-[44ch] text-sm text-muted-foreground">
-            The open-source brain for physical agentic devices. It lives in your
-            Cloudflare account; the body sits on your desk.
+            {landingMessages.hero.subhead}
           </p>
           <div className="flex items-center gap-7 text-sm">
             <MagneticLink
@@ -56,21 +59,21 @@ export function LandingHero() {
               isExternal
               className="underline-reveal"
             >
-              GitHub
+              {landingMessages.nav.githubLabel}
             </MagneticLink>
             <MagneticLink
               href={LANDING_LINK_MAP.documentation}
               isExternal
               className="underline-reveal"
             >
-              Docs
+              {landingMessages.nav.docsLabel}
             </MagneticLink>
             <MagneticLink
               href={LANDING_LINK_MAP.documentation}
               isExternal
               className="border px-4 py-2.5 transition-colors hover:border-border-hover hover:bg-card"
             >
-              Getting started →
+              {landingMessages.hero.gettingStartedLabel}
             </MagneticLink>
           </div>
         </div>
