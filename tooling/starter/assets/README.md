@@ -2,6 +2,8 @@
 
 Your own Apollo: a personal desk agent that lives on a Cloudflare Worker and talks to an ESP32 device (or any hardware you build) over one WebSocket — voice turns, tools, memory, reminders, background research. This starter is the **brain**, generated from the [Apollo monorepo](https://github.com/galfrevn/apollo) with the author's personal values stripped out. You bring the body.
 
+Fastest way in from nothing: `bun create heyapollo` (or `npm create heyapollo`) — it scaffolds this project and opens the setup wizard.
+
 > Apollo speaks **Rioplatense Spanish** out of the box. Swapping language, voice, or region is a documented, mechanical change — see `.claude/skills/apollo-persona`.
 
 ## What you need

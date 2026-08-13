@@ -1,0 +1,17 @@
+{
+  "extends": "@apollo/typescript-config/base.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "types": ["bun"],
+    "lib": ["es2023"],
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["*.ts", "src/**/*.ts", "__tests__/*.ts"]
+}

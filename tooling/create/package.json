@@ -1,0 +1,31 @@
+{
+  "name": "create-heyapollo",
+  "version": "0.1.0",
+  "description": "Scaffold your own Apollo — a personal desk agent on your Cloudflare account — and walk through its setup wizard.",
+  "license": "MIT",
+  "author": "Valentín Galfre",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/galfrevn/apollo.git",
+    "directory": "tooling/create"
+  },
+  "type": "module",
+  "bin": {
+    "create-heyapollo": "dist/index.js"
+  },
+  "files": ["dist", "template"],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "template": "bun template.ts",
+    "build": "bun build.ts",
+    "prepack": "bun run template && bun run build",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@apollo/typescript-config": "workspace:*",
+    "typescript": "^5.9.3"
+  }
+}

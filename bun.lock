@@ -81,6 +81,17 @@
       "name": "@apollo/typescript-config",
       "version": "0.0.0",
     },
+    "tooling/create": {
+      "name": "create-heyapollo",
+      "version": "0.1.0",
+      "bin": {
+        "create-heyapollo": "dist/index.js",
+      },
+      "devDependencies": {
+        "@apollo/typescript-config": "workspace:*",
+        "typescript": "^5.9.3",
+      },
+    },
     "tooling/starter": {
       "name": "@apollo/starter",
       "devDependencies": {
@@ -870,6 +881,8 @@
     "cosmiconfig": ["cosmiconfig@9.0.2", "", { "dependencies": { "env-paths": "^2.2.1", "import-fresh": "^3.3.0", "js-yaml": "^4.1.0", "parse-json": "^5.2.0" }, "peerDependencies": { "typescript": ">=4.9.5" }, "optionalPeers": ["typescript"] }, "sha512-gtTZxTDau1wL7Y7zifc2dd8jHSK/k6BTx/2Xp/BpdlAdnlYWFVt7qhJqgwi7637yRwRQ3qL4ZidbB4I8tA5VOg=="],
 
     "cosmiconfig-typescript-loader": ["cosmiconfig-typescript-loader@6.3.0", "", { "dependencies": { "jiti": "2.6.1" }, "peerDependencies": { "@types/node": "*", "cosmiconfig": ">=9", "typescript": ">=5" } }, "sha512-Akr82WH1Wfqatyiqpj8HDkO2o2KmJRu1FhKfSNJP3K4IdXwHfEyL7MOb62i1AGQVLtIQM+iCE9CGOtrfhR+mmA=="],
+
+    "create-heyapollo": ["create-heyapollo@workspace:tooling/create"],
 
     "cron-schedule": ["cron-schedule@6.0.0", "", {}, "sha512-BoZaseYGXOo5j5HUwTaegIog3JJbuH4BbrY9A1ArLjXpy+RWb3mV28F/9Gv1dDA7E2L8kngWva4NWisnLTyfgQ=="],
 

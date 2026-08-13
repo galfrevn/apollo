@@ -34,6 +34,10 @@ tooling/starter/assets ┘
 - **Wizard identity anchors** (`apps/wizard/src/__tests__/identity.spec.ts`): the wizard's rewrites are tested against the real `identity.ts` with the generator's placeholder swap applied, so reshaping the identity seam without updating the wizard fails typecheck-adjacent tests, not a stranger's setup.
 - **Smoke in CI** (`.github/workflows/starter.yml`): every push or PR touching `apps/agent/**`, `documentation/**`, or `tooling/starter/**` regenerates and smoke-builds the starter.
 
+## npm distribution: `create-heyapollo`
+
+`tooling/create` publishes the one-command path — `bun create heyapollo` / `npm create heyapollo`. The package embeds the generated starter as its `template/` directory (no cloning, no network fetch at scaffold time): `prepack` regenerates the starter and copies `tooling/starter/out` in, then bundles the Node-target bin. The bin scaffolds, renames the undotted `gitignore` back (npm drops `.gitignore` files from packages), initializes git, runs `bun install`, and hands off to the wizard; `--no-install`, `--no-setup`, and `--no-git` opt out. Publishing is `cd tooling/create && npm publish` from a logged-in npm account — bump the package version alongside the starter tag so a published CLI always carries the template it was tested with.
+
 ## Releasing
 
 Push a tag `starter-v<version>` — `.github/workflows/release.yml` regenerates, smoke-builds, and force-pushes the snapshot (with a matching `v<version>` tag) to the public starter repository, stamping the originating monorepo commit in the snapshot's commit message. Users consume tagged snapshots via degit or `npm create cloudflare -- --template=...`; they are detached copies by design, and upgrades are the diff-and-merge flow documented in the `apollo-operate` skill. The push needs the `STARTER_DEPLOY_TOKEN` secret: a fine-grained PAT with Contents read/write on the starter repository.
