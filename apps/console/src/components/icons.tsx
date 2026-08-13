@@ -22,10 +22,10 @@ function LogoMark({ size = 20, ...props }: IconBaseProps) {
       aria-hidden
       {...props}
     >
-      <rect x="1" y="1" width="8.5" height="8.5" />
-      <rect x="10.5" y="1" width="8.5" height="8.5" opacity="0.45" />
-      <rect x="1" y="10.5" width="8.5" height="8.5" opacity="0.45" />
-      <rect x="10.5" y="10.5" width="8.5" height="8.5" opacity="0.18" />
+      <path
+        fillRule="evenodd"
+        d="M1 1h18v18H1Z M7.6 7.7a1.6 1.6 0 0 0 -3.2 0v3a1.6 1.6 0 0 0 3.2 0Z M15.6 7.7a1.6 1.6 0 0 0 -3.2 0v3a1.6 1.6 0 0 0 3.2 0Z"
+      />
     </svg>
   );
 }
