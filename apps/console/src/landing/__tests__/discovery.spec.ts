@@ -59,6 +59,7 @@ describe('landing discovery template', () => {
     expect(templateHtml).toContain(LANDING_SOCIAL_DESCRIPTION_MAP.es);
     expect(templateHtml).toContain(LANDING_STATIC_OPEN_MARKER);
     expect(templateHtml).toContain(LANDING_STATIC_CLOSE_MARKER);
+    expect(templateHtml).toContain("setAttribute('data-scripting', '')");
     expect(templateHtml).not.toContain('THESIS:');
   });
 
@@ -92,6 +93,7 @@ describe('landing document generation', () => {
       const staticBlock = renderLandingStaticBlock(locale);
       const landingMessages = LANDING_MESSAGE_CATALOG[locale];
       expect(staticBlock).toContain('<h1 ');
+      expect(staticBlock).toContain('data-landing-static');
       expect(staticBlock).toContain('font-serif');
       expect(staticBlock).toContain(landingMessages.hero.subhead);
       expect(staticBlock).toContain(landingMessages.showcase.actTitle);

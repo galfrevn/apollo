@@ -75,7 +75,7 @@ export function renderLandingStaticBlock(locale: Locale): string {
   const capabilitiesSection = `<section class="mt-16 border-t pt-8"><h2 class="font-serif text-2xl">${escapeHtmlText(landingMessages.capabilities.actTitle)}</h2>${renderEmphasizedParagraph(landingMessages.capabilities.intro)}${renderCapabilityList(landingMessages)}</section>`;
   const yoursSection = `<section class="mt-16 border-t pt-8"><h2 class="font-serif text-2xl">${escapeHtmlText(landingMessages.yours.actTitle)}</h2><p class="mt-4 leading-relaxed text-muted-foreground">${escapeHtmlText(landingMessages.yours.introLead)}<em class="not-italic text-foreground">${escapeHtmlText(landingMessages.yours.introEmphasis)}</em></p>${renderOwnershipList(landingMessages)}</section>`;
   const footer = `<footer class="mt-20 border-t pt-8 text-sm text-muted-foreground"><p>${escapeHtmlText(landingMessages.footer.echoWordList.join(' '))}. ${escapeHtmlText(landingMessages.footer.wakePhrase)}</p><p class="mt-2">${escapeHtmlText(landingMessages.footer.builtByPrefix)}<a class="underline underline-offset-4" href="https://github.com/galfrevn">Valentín Galfre</a></p></footer>`;
-  return `<div class="mx-auto max-w-3xl px-6 py-16">${navigation}<main>${hero}${showcaseSection}${architectureSection}${capabilitiesSection}${yoursSection}</main>${footer}</div>`;
+  return `<div data-landing-static class="mx-auto max-w-3xl px-6 py-16">${navigation}<main>${hero}${showcaseSection}${architectureSection}${capabilitiesSection}${yoursSection}</main>${footer}</div>`;
 }
 
 function replaceExactlyOnce(

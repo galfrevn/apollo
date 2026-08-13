@@ -14,13 +14,20 @@ const surface = resolveSurfaceFromLocation(
   window.location.hash,
 );
 
-// The template ships crawler-readable landing markup inside #root; mounting only
-// after the surface module resolves keeps that markup visible until React can
-// replace it with the live tree.
+// The template ships crawler-readable landing markup inside #root, hidden by
+// index.css whenever the data-scripting attribute is present; if the landing
+// chunk never arrives, dropping the attribute reveals that markup as fallback.
 if (surface.kind === 'redirect') {
   window.location.replace(surface.targetUrl);
 } else if (surface.kind === 'landing') {
-  const { LandingPage } = await import('@/landing/page');
+  let landingModule: typeof import('@/landing/page');
+  try {
+    landingModule = await import('@/landing/page');
+  } catch (importFailure) {
+    document.documentElement.removeAttribute('data-scripting');
+    throw importFailure;
+  }
+  const { LandingPage } = landingModule;
   createRoot(rootElement).render(
     <LocaleProvider
       localeOverride={surface.localeOverride}

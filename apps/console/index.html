@@ -2,6 +2,11 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
+    <!-- Stamped before first paint so the crawler-facing static block stays
+         visible only when scripting is unavailable; see index.css. -->
+    <script>
+      document.documentElement.setAttribute('data-scripting', '');
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#0d0d0d" />
