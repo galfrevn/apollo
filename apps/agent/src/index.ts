@@ -11,7 +11,7 @@ import { ApolloCoding } from '@/workflows/coding';
 
 export { Apollo, ApolloBackground, ApolloCoding, Sandbox };
 
-// The console at console.apollodevice.com probes /health cross-origin before
+// The console at heyapollo.dev/console probes /health cross-origin before
 // opening the agent WebSocket; auth is the query token, never a cookie, so a
 // wildcard origin does not widen what the token already gates.
 const CONSOLE_CORS_HEADER_MAP = {

@@ -91,19 +91,21 @@ describe('landing document generation', () => {
     for (const locale of ['es', 'en'] as const) {
       const staticBlock = renderLandingStaticBlock(locale);
       const landingMessages = LANDING_MESSAGE_CATALOG[locale];
-      expect(staticBlock).toContain('<h1>');
+      expect(staticBlock).toContain('<h1 ');
+      expect(staticBlock).toContain('font-serif');
       expect(staticBlock).toContain(landingMessages.hero.subhead);
       expect(staticBlock).toContain(landingMessages.showcase.actTitle);
       expect(staticBlock).toContain(landingMessages.architecture.actTitle);
       expect(staticBlock).toContain(landingMessages.capabilities.actTitle);
       expect(staticBlock).toContain(landingMessages.yours.actTitle);
       for (const capabilityRow of landingMessages.capabilities.capabilityRowList) {
-        expect(staticBlock).toContain(`<h3>${capabilityRow.name}</h3>`);
+        expect(staticBlock).toContain(`${capabilityRow.name}</h3>`);
         expect(staticBlock).toContain(capabilityRow.description);
       }
       for (const ownershipCard of landingMessages.yours.ownershipCardList) {
-        expect(staticBlock).toContain(`<h3>${ownershipCard.label}</h3>`);
+        expect(staticBlock).toContain(`${ownershipCard.label}</h3>`);
       }
+      expect(staticBlock).toContain('<h3 class=');
       expect(staticBlock).toContain(LANDING_REPOSITORY_URL);
     }
   });
@@ -127,7 +129,7 @@ describe('landing document generation', () => {
     const consoleDocument = buildConsoleDocument(templateHtml);
     expect(consoleDocument).toContain('<meta name="robots" content="noindex" />');
     expect(consoleDocument).not.toContain(LANDING_STATIC_OPEN_MARKER);
-    expect(consoleDocument).not.toContain('<h1>');
+    expect(consoleDocument).not.toContain('<h1');
   });
 });
 
