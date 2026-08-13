@@ -23,6 +23,7 @@ export const installMcpServerInputSchema = z.object({
   secret: z.string().min(1),
   name: z.string().min(1).max(64),
   url: mcpServerUrlSchema,
+  authToken: z.string().min(1).max(4096).optional(),
 });
 
 export type InstallMcpServerInput = z.infer<typeof installMcpServerInputSchema>;

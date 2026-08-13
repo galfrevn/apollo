@@ -191,6 +191,8 @@ export function createStubDeskToolEffects(
       timezone: 'America/Argentina/Buenos_Aires',
     }),
     persistWeatherLocation: async () => {},
+    searchThreadHistory: async () => [],
+    resumeConversationThread: async () => undefined,
     addListItem: async ({ listName, content }) => ({
       id: 'stub-item',
       listName,

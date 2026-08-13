@@ -3,7 +3,6 @@ import type { Session } from 'agents/experimental/memory/session';
 import {
   buildExtractionRetryMessageList,
   buildMemoryExtractionMessageList,
-  flattenRecentHistoryToTranscript,
   mergeOwnerFacts,
   OWNER_MEMORY_MIN_RUN_INTERVAL_MS,
   OWNER_MEMORY_TRANSCRIPT_BYTE_BUDGET,
@@ -78,6 +77,13 @@ export type OwnerMemoryConsolidationDependencies = {
   readonly deviceId: string;
   readonly nowMilliseconds: number;
   readonly createIdentifier: () => string;
+  readonly gatherTranscriptSince: (
+    sinceMilliseconds: number,
+    transcriptByteBudget: number,
+  ) => Promise<{
+    readonly transcriptText: string;
+    readonly hasNewActivity: boolean;
+  }>;
 };
 
 // Roadmap item 18: the nightly cron owns the previously append-only memory
@@ -101,15 +107,17 @@ export async function runOwnerMemoryConsolidation(
   ) {
     return;
   }
-  const latestLeaf = await session.getLatestLeaf();
-  if (latestLeaf === null || latestLeaf.id === state?.lastProcessedLeafId) {
+  // Turns spread across every thread that was active since the last run, so
+  // the transcript is gathered thread by thread instead of from one session.
+  const gatheredTranscript = await dependencies.gatherTranscriptSince(
+    state?.lastConsolidatedAtMilliseconds ?? 0,
+    OWNER_MEMORY_TRANSCRIPT_BYTE_BUDGET,
+  );
+  if (!gatheredTranscript.hasNewActivity) {
     // An idle day: nothing new happened, so the run costs zero LLM calls.
     const idleState: OwnerMemoryState = {
       factList: state?.factList ?? [],
       lastConsolidatedAtMilliseconds: nowMilliseconds,
-      ...(state?.lastProcessedLeafId !== undefined
-        ? { lastProcessedLeafId: state.lastProcessedLeafId }
-        : {}),
     };
     await setSessionPreference(
       sqlExecutor,
@@ -118,9 +126,6 @@ export async function runOwnerMemoryConsolidation(
     );
     return;
   }
-  const recentHistory = await session.getRecentHistory(
-    OWNER_MEMORY_TRANSCRIPT_BYTE_BUDGET,
-  );
   const seededFactList = seedOwnerFactsFromMemoryBlock({
     blockContent: session.getContextBlock('memory')?.content ?? '',
     knownFactList: state?.factList ?? [],
@@ -128,7 +133,7 @@ export async function runOwnerMemoryConsolidation(
     createIdentifier: dependencies.createIdentifier,
   });
   const extractionMessageList = buildMemoryExtractionMessageList({
-    transcriptText: flattenRecentHistoryToTranscript(recentHistory.messages),
+    transcriptText: gatheredTranscript.transcriptText,
     existingFactList: seededFactList,
     nowIso: new Date(nowMilliseconds).toISOString(),
   });
@@ -206,13 +211,12 @@ export async function runOwnerMemoryConsolidation(
     );
   }
   // The checkpoint is written only after every durable output above succeeded:
-  // a failure mid-run leaves lastProcessedLeafId untouched, so the next night
-  // reprocesses the same window (the content dedupe makes that idempotent)
-  // instead of silently skipping it.
+  // a failure mid-run leaves lastConsolidatedAtMilliseconds untouched, so the
+  // next night reprocesses the same window (the content dedupe makes that
+  // idempotent) instead of silently skipping it.
   const nextState: OwnerMemoryState = {
     factList: merge.nextFactList,
     lastConsolidatedAtMilliseconds: nowMilliseconds,
-    lastProcessedLeafId: latestLeaf.id,
   };
   await setSessionPreference(
     sqlExecutor,
@@ -225,7 +229,6 @@ export async function runOwnerMemoryConsolidation(
       message: 'owner_memory_consolidated',
       factCount: merge.nextFactList.length,
       newFactCount: merge.genuinelyNewFactList.length,
-      transcriptTruncated: recentHistory.truncated,
     }),
   );
 }

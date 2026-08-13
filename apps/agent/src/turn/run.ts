@@ -83,6 +83,10 @@ export type TurnOutput = {
   readonly focusState: DeskFocusState;
   readonly memoryContentList: readonly string[];
   readonly toolResultList: readonly ToolExecutionResult[];
+  readonly executedToolCallList: readonly {
+    readonly name: string;
+    readonly summary: string;
+  }[];
   // Whether the reply asks the user for something, so the device should
   // reopen the mic after speaking instead of returning to idle.
   readonly expectsReply: boolean;
@@ -138,6 +142,7 @@ function buildToolResultMessage(
 export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
   const uiEventList: DeskUiEventName[] = ['START_THINK'];
   const toolResultList: ToolExecutionResult[] = [];
+  const executedToolCallList: { name: string; summary: string }[] = [];
   let pendingConfirmation = input.pendingConfirmation;
   let resolvedConfirmation: PendingToolConfirmation | undefined;
   let resolvedConfirmationResult: ToolExecutionResult | undefined;
@@ -157,6 +162,10 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
     if (!('cancelled' in resolved)) {
       resolvedConfirmation = pendingConfirmation;
       resolvedConfirmationResult = resolved;
+      executedToolCallList.push({
+        name: pendingConfirmation.toolName,
+        summary: resolved.summary,
+      });
     }
     pendingConfirmation = undefined;
     if ('cancelled' in resolved) {
@@ -169,6 +178,7 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
         focusState: input.focusState,
         memoryContentList: [],
         toolResultList,
+        executedToolCallList,
         expectsReply: false,
       };
     }
@@ -189,6 +199,7 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
       focusState: input.focusState,
       memoryContentList: [],
       toolResultList,
+      executedToolCallList,
       expectsReply: false,
     };
   }
@@ -316,10 +327,15 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
           focusState: input.focusState,
           memoryContentList,
           toolResultList,
+          executedToolCallList,
           expectsReply: false,
         };
       }
       toolResultList.push(outcome.result);
+      executedToolCallList.push({
+        name: toolCall.name,
+        summary: outcome.result.summary,
+      });
       messageList.push(buildToolResultMessage(toolCall.id, outcome.result));
     }
 
@@ -362,6 +378,7 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
     focusState: input.focusState,
     memoryContentList,
     toolResultList,
+    executedToolCallList,
     expectsReply,
   };
 }

@@ -68,6 +68,23 @@ export type DeskToolEffects = {
     readonly removedCount: number;
     readonly removedContentList: readonly string[];
   }>;
+  readonly searchThreadHistory: (input: {
+    readonly query: string;
+    readonly limit: number;
+  }) => Promise<
+    readonly {
+      readonly id: string;
+      readonly role: string;
+      readonly content: string;
+    }[]
+  >;
+  readonly resumeConversationThread: (input: { readonly query: string }) => Promise<
+    | {
+        readonly title: string;
+        readonly summary: string | null;
+      }
+    | undefined
+  >;
   readonly callDeviceTool: (input: {
     readonly deviceToolName: string;
     readonly argumentRecord: Record<string, unknown>;
