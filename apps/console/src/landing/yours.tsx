@@ -1,9 +1,23 @@
+import type { MouseEvent } from 'react';
+
 import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { ActHeading } from '@/landing/heading';
 import { MagneticLink } from '@/landing/magnet';
 import { LANDING_LINK_MAP } from '@/landing/metadata';
+import { ScrollSmoother } from '@/landing/motion';
 import { warmConsoleChunk, warmDocsChunk } from '@/landing/prefetch';
+import { LandingStart } from '@/landing/start';
 import { useMessages } from '@/locale/context';
+
+// ScrollSmoother transforms the pinned content instead of scrolling the page,
+// so native hash navigation lands at the wrong position while it is active.
+function handleAnchorActivation(clickEvent: MouseEvent<HTMLAnchorElement>): void {
+  const smoother = ScrollSmoother.get();
+  if (smoother) {
+    clickEvent.preventDefault();
+    smoother.scrollTo(clickEvent.currentTarget.hash, true);
+  }
+}
 
 export function LandingYours() {
   const yoursMessages = useMessages(LANDING_MESSAGE_CATALOG).yours;
@@ -22,6 +36,7 @@ export function LandingYours() {
             <span className="text-foreground">{yoursMessages.introEmphasis}</span>
           </p>
         </div>
+        <LandingStart />
         <div className="mt-14 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           {yoursMessages.ownershipCardList.map((ownershipCard, cardIndex) => (
             <div
@@ -33,7 +48,17 @@ export function LandingYours() {
               <h3 className="text-xs font-normal text-dim">{ownershipCard.label}</h3>
               <p className="text-sm text-muted-foreground">{ownershipCard.description}</p>
               <div className="mt-auto pt-4">
-                <p className="text-sm">{ownershipCard.action}</p>
+                {ownershipCard.actionTargetId === null ? (
+                  <p className="text-sm">{ownershipCard.action}</p>
+                ) : (
+                  <a
+                    href={`#${ownershipCard.actionTargetId}`}
+                    onClick={handleAnchorActivation}
+                    className="underline-reveal text-sm"
+                  >
+                    {ownershipCard.action}
+                  </a>
+                )}
               </div>
             </div>
           ))}

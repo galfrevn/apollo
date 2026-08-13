@@ -107,6 +107,12 @@ describe('landing document generation', () => {
       for (const ownershipCard of landingMessages.yours.ownershipCardList) {
         expect(staticBlock).toContain(`${ownershipCard.label}</h3>`);
       }
+      expect(staticBlock).toContain(`${landingMessages.start.title}</h3>`);
+      expect(staticBlock).toContain('$ bun create heyapollo');
+      expect(staticBlock).toContain('$ npm create heyapollo');
+      expect(staticBlock).toContain(landingMessages.start.terminalCaption);
+      expect(staticBlock).toContain(landingMessages.start.agentPrompt);
+      expect(staticBlock).toContain(landingMessages.start.agentCaption);
       expect(staticBlock).toContain('<h3 class=');
       expect(staticBlock).toContain(LANDING_REPOSITORY_URL);
     }
