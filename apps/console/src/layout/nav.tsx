@@ -4,17 +4,8 @@ import { Icons } from '@/components/icons';
 import { cn } from '@/components/utility';
 import { useConnection } from '@/connection/context';
 import { CONSOLE_ROUTE_LIST, navigateToRoute, useConsoleRoute } from '@/router/hash';
+import { ROUTE_LABEL_MAP } from '@/router/metadata';
 import type { ConsoleRoute } from '@/router/hash';
-
-export const ROUTE_LABEL_MAP: Record<ConsoleRoute, string> = {
-  status: 'Status',
-  device: 'Device',
-  mcp: 'MCP',
-  memory: 'Memory',
-  schedules: 'Schedules',
-  history: 'History',
-  jobs: 'Jobs',
-};
 
 export const ROUTE_ICON_MAP: Record<ConsoleRoute, IconType> = {
   status: Icons.Status,
