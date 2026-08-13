@@ -43,10 +43,15 @@ This handbook is meant to be read in order. Later chapters assume the concepts i
 24. [Auth](operations/auth.md) — Device and dashboard credentials
 25. [Testing](operations/testing.md) — How this repo verifies behavior
 
-### Part V — Reference
+### Part V — Console
 
-26. [Mapping](reference/mapping.md) — Handbook topics to `apps/agent/src/` folders
-27. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
+26. [Product](console/product.md) — What the console is for and who it serves
+27. [Design](console/design.md) — The console's visual system, documented from the code as built
+
+### Part VI — Reference
+
+28. [Mapping](reference/mapping.md) — Handbook topics to `apps/agent/src/` folders
+29. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
 
 ## The firmware
 
