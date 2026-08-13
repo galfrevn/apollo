@@ -78,7 +78,7 @@ export function renderLandingStaticBlock(locale: Locale): string {
   return `<div data-landing-static class="mx-auto max-w-3xl px-6 py-16">${navigation}<main>${hero}${showcaseSection}${architectureSection}${capabilitiesSection}${yoursSection}</main>${footer}</div>`;
 }
 
-function replaceExactlyOnce(
+export function replaceExactlyOnce(
   documentHtml: string,
   searchValue: string,
   replacementValue: string,
@@ -107,7 +107,7 @@ function injectLandingStaticBlock(documentHtml: string, locale: Locale): string 
   return `${beforeBlock}${renderLandingStaticBlock(locale)}${afterBlock}`;
 }
 
-function stripLandingStaticBlock(documentHtml: string): string {
+export function stripLandingStaticBlock(documentHtml: string): string {
   const openIndex = documentHtml.indexOf(LANDING_STATIC_OPEN_MARKER);
   const closeIndex = documentHtml.indexOf(LANDING_STATIC_CLOSE_MARKER);
   if (openIndex === -1 || closeIndex === -1 || closeIndex < openIndex) {

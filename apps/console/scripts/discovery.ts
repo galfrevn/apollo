@@ -1,5 +1,7 @@
 import { mkdir, rm } from 'node:fs/promises';
 
+import { DOCS_CHAPTER_LIST } from '@/docs/catalog';
+import { buildDocsDocument } from '@/docs/static';
 import {
   collectLandingPreloadPathList,
   injectModulePreloadLinkList,
@@ -8,6 +10,8 @@ import {
 } from '@/landing/preload';
 import { buildConsoleDocument, buildLandingDocument } from '@/landing/static';
 import { CONSOLE_ROUTE_LIST } from '@/router/route';
+
+const DOCS_PAGE_MANIFEST_KEY = 'src/docs/page.tsx';
 
 const distDirectoryUrl = new URL('../dist/', import.meta.url);
 const templateFileUrl = new URL('index.html', distDirectoryUrl);
@@ -47,8 +51,27 @@ for (const consoleRoute of CONSOLE_ROUTE_LIST) {
   );
 }
 
+const docsPreloadPathList = collectLandingPreloadPathList(
+  buildManifest,
+  DOCS_PAGE_MANIFEST_KEY,
+);
+await mkdir(new URL('docs/', distDirectoryUrl), { recursive: true });
+await Bun.write(
+  new URL('docs.html', distDirectoryUrl),
+  injectModulePreloadLinkList(buildDocsDocument(templateHtml, null), docsPreloadPathList),
+);
+for (const chapterEntry of DOCS_CHAPTER_LIST) {
+  await Bun.write(
+    new URL(`docs/${chapterEntry.slug}.html`, distDirectoryUrl),
+    injectModulePreloadLinkList(
+      buildDocsDocument(templateHtml, chapterEntry),
+      docsPreloadPathList,
+    ),
+  );
+}
+
 await rm(manifestDirectoryUrl, { recursive: true, force: true });
 
 process.stdout.write(
-  `discovery: wrote index.html, en.html, and ${CONSOLE_ROUTE_LIST.length + 1} console shells\n`,
+  `discovery: wrote index.html, en.html, ${CONSOLE_ROUTE_LIST.length + 1} console shells, and ${DOCS_CHAPTER_LIST.length + 1} docs documents\n`,
 );

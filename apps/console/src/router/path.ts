@@ -1,3 +1,4 @@
+import { DOCS_BASE_PATH } from '@/docs/route';
 import { CONSOLE_BASE_PATH, CONSOLE_ROUTE_LIST } from '@/router/route';
 
 import type { Locale } from '@/locale/detect';
@@ -6,6 +7,7 @@ import type { ConsoleRoute } from '@/router/route';
 export type SurfaceResolution =
   | { readonly kind: 'landing'; readonly localeOverride: Locale | null }
   | { readonly kind: 'console' }
+  | { readonly kind: 'docs' }
   | { readonly kind: 'redirect'; readonly targetUrl: string };
 
 export function resolveSurfaceFromLocation(
@@ -23,6 +25,11 @@ export function resolveSurfaceFromLocation(
       };
     }
     return { kind: 'console' };
+  }
+  const isDocsPath =
+    pathname === DOCS_BASE_PATH || pathname.startsWith(`${DOCS_BASE_PATH}/`);
+  if (isDocsPath) {
+    return { kind: 'docs' };
   }
   if (pathname === '/' && legacyHashRoute !== null) {
     return {

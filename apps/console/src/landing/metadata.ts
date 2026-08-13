@@ -5,7 +5,7 @@ import { useLocale } from '@/locale/context';
 
 export const LANDING_LINK_MAP = {
   github: 'https://github.com/galfrevn/apollo',
-  documentation: 'https://github.com/galfrevn/apollo/tree/main/documentation',
+  documentation: '/docs',
   console: '/console',
 };
 

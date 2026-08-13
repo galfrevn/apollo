@@ -41,4 +41,28 @@
       href="https://heyapollo.dev/"
     />
   </url>
+  <url>
+    <loc>https://heyapollo.dev/docs</loc>
+    <lastmod>2026-08-13</lastmod>
+  </url>
+  <url>
+    <loc>https://heyapollo.dev/docs/purpose</loc>
+    <lastmod>2026-08-13</lastmod>
+  </url>
+  <url>
+    <loc>https://heyapollo.dev/docs/concepts</loc>
+    <lastmod>2026-08-13</lastmod>
+  </url>
+  <url>
+    <loc>https://heyapollo.dev/docs/loop</loc>
+    <lastmod>2026-08-13</lastmod>
+  </url>
+  <url>
+    <loc>https://heyapollo.dev/docs/protocol</loc>
+    <lastmod>2026-08-13</lastmod>
+  </url>
+  <url>
+    <loc>https://heyapollo.dev/docs/setup</loc>
+    <lastmod>2026-08-13</lastmod>
+  </url>
 </urlset>

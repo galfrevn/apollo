@@ -36,6 +36,13 @@ if (surface.kind === 'redirect') {
       <LandingPage />
     </LocaleProvider>,
   );
+} else if (surface.kind === 'docs') {
+  const { DocsPage } = await import('@/docs/page');
+  createRoot(rootElement).render(
+    <LocaleProvider>
+      <DocsPage />
+    </LocaleProvider>,
+  );
 } else {
   const { App } = await import('@/app');
   createRoot(rootElement).render(

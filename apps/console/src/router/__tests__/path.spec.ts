@@ -32,6 +32,19 @@ describe('resolveSurfaceFromLocation', () => {
     });
   });
 
+  it('resolves docs paths to the docs surface', () => {
+    expect(resolveSurfaceFromLocation('/docs', '')).toEqual({ kind: 'docs' });
+    expect(resolveSurfaceFromLocation('/docs/', '')).toEqual({ kind: 'docs' });
+    expect(resolveSurfaceFromLocation('/docs/loop', '')).toEqual({ kind: 'docs' });
+  });
+
+  it('does not treat path prefixes of /docs as the docs surface', () => {
+    expect(resolveSurfaceFromLocation('/docsy', '')).toEqual({
+      kind: 'landing',
+      localeOverride: null,
+    });
+  });
+
   it('redirects legacy root hash routes into console paths', () => {
     expect(resolveSurfaceFromLocation('/', '#/device')).toEqual({
       kind: 'redirect',
