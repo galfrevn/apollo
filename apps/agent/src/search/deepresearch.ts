@@ -5,6 +5,8 @@ import { chatWithOpenRouter } from '@/voice/llm';
 // executes its own multi-source web searches and returns a cited report in one
 // call, replacing the old plan-queries → fetch-pages → synthesize pipeline
 // (which sat on the now-disabled Cloudflare Web Search binding).
+type DeepResearchChatRequest = Parameters<typeof chatWithOpenRouter>[0];
+
 export async function runDeepResearchWithPerplexity(input: {
   readonly openRouterApiKey: string;
   readonly modelId: string;
@@ -12,7 +14,7 @@ export async function runDeepResearchWithPerplexity(input: {
   readonly nowMilliseconds: number;
   readonly fetchImplementation?: typeof fetch;
 }): Promise<string> {
-  const chatResult = await chatWithOpenRouter({
+  let chatRequest: DeepResearchChatRequest = {
     openRouterApiKey: input.openRouterApiKey,
     modelId: input.modelId,
     messageList: [
@@ -24,9 +26,10 @@ export async function runDeepResearchWithPerplexity(input: {
       },
       { role: 'user', content: input.prompt },
     ],
-    ...(input.fetchImplementation !== undefined
-      ? { fetchImplementation: input.fetchImplementation }
-      : {}),
-  });
+  };
+  if (input.fetchImplementation !== undefined) {
+    chatRequest = { ...chatRequest, fetchImplementation: input.fetchImplementation };
+  }
+  const chatResult = await chatWithOpenRouter(chatRequest);
   return chatResult.text.trim();
 }

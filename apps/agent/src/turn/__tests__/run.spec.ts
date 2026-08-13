@@ -14,11 +14,8 @@ function createInMemorySqlExecutor(): MemorySqlExecutor {
     content: string;
     created_at: number;
   }> = [];
-  return {
-    execute<Row extends Record<string, unknown>>(
-      query: string,
-      ...bindValues: unknown[]
-    ): readonly Row[] {
+  const inMemorySqlExecutor = {
+    execute(query: string, ...bindValues: unknown[]) {
       if (query.startsWith('INSERT INTO memories')) {
         memoryRowList.push({
           id: String(bindValues[0]),
@@ -32,17 +29,28 @@ function createInMemorySqlExecutor(): MemorySqlExecutor {
         const limit = Number(bindValues[1]);
         return memoryRowList
           .filter((row) => row.content.toLowerCase().includes(likePattern.toLowerCase()))
-          .slice(0, limit) as unknown as readonly Row[];
+          .slice(0, limit);
       }
       if (query.startsWith('SELECT id, content')) {
         const limit = Number(bindValues[0]);
         return [...memoryRowList]
           .toSorted((left, right) => right.created_at - left.created_at)
-          .slice(0, limit) as unknown as readonly Row[];
+          .slice(0, limit);
       }
       return [];
     },
   };
+  // SAFETY: every query the memory store issues selects id, content, and
+  // created_at — exactly the row shape this fake stores — so the caller's
+  // Row type parameter always matches the rows returned here.
+  return inMemorySqlExecutor as MemorySqlExecutor;
+}
+
+function encodeTextAsFakeAudio(text: string): ArrayBuffer {
+  const encodedByteArray = new TextEncoder().encode(text);
+  const fakeAudioBuffer = new ArrayBuffer(encodedByteArray.byteLength);
+  new Uint8Array(fakeAudioBuffer).set(encodedByteArray);
+  return fakeAudioBuffer;
 }
 
 const fakeEnvironment = createFakeApolloEnvironment();
@@ -73,7 +81,7 @@ describe('runDeskTurn', () => {
             toolCallList: [],
           };
         },
-        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
+        tts: async (text) => encodeTextAsFakeAudio(text),
       },
     });
 
@@ -89,7 +97,7 @@ describe('runDeskTurn', () => {
     let capturedSystemPrompt = '';
 
     const output = await runDeskTurn({
-      audioBuffer: new TextEncoder().encode('audio-crudo').buffer as ArrayBuffer,
+      audioBuffer: encodeTextAsFakeAudio('audio-crudo'),
       speechMode: 'default',
       focusState: createInactiveDeskFocusState(),
       sqlExecutor: createInMemorySqlExecutor(),
@@ -109,7 +117,7 @@ describe('runDeskTurn', () => {
             systemMessage?.role === 'system' ? systemMessage.content : '';
           return { text: 'Café cargado.', toolCallList: [] };
         },
-        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
+        tts: async (text) => encodeTextAsFakeAudio(text),
       },
     });
 
@@ -139,7 +147,7 @@ describe('runDeskTurn', () => {
           capturedMessageList = messageList;
           return { text: 'Listo, te las mando.', toolCallList: [] };
         },
-        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
+        tts: async (text) => encodeTextAsFakeAudio(text),
       },
     });
 
@@ -167,7 +175,7 @@ describe('runDeskTurn', () => {
     let didRecallSemanticMemory = false;
 
     const output = await runDeskTurn({
-      audioBuffer: new TextEncoder().encode('ruido').buffer as ArrayBuffer,
+      audioBuffer: encodeTextAsFakeAudio('ruido'),
       speechMode: 'default',
       focusState: createInactiveDeskFocusState(),
       sqlExecutor: createInMemorySqlExecutor(),
@@ -194,7 +202,7 @@ describe('runDeskTurn', () => {
     const semanticQueryTextList: string[] = [];
 
     const output = await runDeskTurn({
-      audioBuffer: new TextEncoder().encode('audio').buffer as ArrayBuffer,
+      audioBuffer: encodeTextAsFakeAudio('audio'),
       speechMode: 'default',
       focusState: createInactiveDeskFocusState(),
       sqlExecutor: createInMemorySqlExecutor(),
@@ -208,7 +216,7 @@ describe('runDeskTurn', () => {
       adapters: {
         stt: async () => '\n  qué hora es  \n',
         llm: async () => ({ text: 'Son las tres.', toolCallList: [] }),
-        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
+        tts: async (text) => encodeTextAsFakeAudio(text),
       },
     });
 
@@ -220,7 +228,7 @@ describe('runDeskTurn', () => {
     let didRecallSemanticMemory = false;
 
     const output = await runDeskTurn({
-      audioBuffer: new TextEncoder().encode('silencio').buffer as ArrayBuffer,
+      audioBuffer: encodeTextAsFakeAudio('silencio'),
       speechMode: 'default',
       focusState: createInactiveDeskFocusState(),
       sqlExecutor: createInMemorySqlExecutor(),
@@ -318,7 +326,7 @@ describe('runDeskTurn', () => {
           capturedMessageList = messageList;
           return { text: 'Listo, ya arranqué con apollo.', toolCallList: [] };
         },
-        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
+        tts: async (text) => encodeTextAsFakeAudio(text),
       },
     });
 
@@ -375,7 +383,7 @@ describe('runDeskTurn', () => {
           }
           return { text: 'Hay 18 grados.', toolCallList: [] };
         },
-        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
+        tts: async (text) => encodeTextAsFakeAudio(text),
       },
     });
     expect(captionList[0]).toBe('Pensando…');
@@ -418,7 +426,7 @@ describe('runDeskTurn', () => {
             toolCallList: [],
           };
         },
-        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
+        tts: async (text) => encodeTextAsFakeAudio(text),
       },
     });
     expect(callCount).toBe(2);
@@ -449,7 +457,7 @@ describe('runDeskTurn', () => {
         },
         tts: async (text) => {
           synthesizedTextList.push(text);
-          return new TextEncoder().encode(text).buffer as ArrayBuffer;
+          return encodeTextAsFakeAudio(text);
         },
       },
     });
@@ -500,7 +508,7 @@ describe('runDeskTurn', () => {
         },
         tts: async (text) => {
           synthesizedTextList.push(text);
-          return new TextEncoder().encode(text).buffer as ArrayBuffer;
+          return encodeTextAsFakeAudio(text);
         },
       },
     });
@@ -532,7 +540,7 @@ describe('runDeskTurn', () => {
         llm: async () => ({ text: longReply, toolCallList: [] }),
         tts: async (text) => {
           synthesizedTextList.push(text);
-          return new TextEncoder().encode(text).buffer as ArrayBuffer;
+          return encodeTextAsFakeAudio(text);
         },
       },
     });

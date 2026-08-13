@@ -19,7 +19,7 @@ const stubMcpEffect: DeskToolEffects['callInstalledMcpTool'] = async () => ({
   summary: 'done',
 });
 
-const githubServerRecordMap: Record<string, unknown> = {
+const githubServerRecordMap = {
   github: {
     name: 'GitHub',
     server_url: 'https://mcp.github.example',

@@ -1,9 +1,6 @@
 import { z } from 'zod';
 
-import {
-  truncateSandboxOutputForToolResult,
-  type SandboxCodeLanguage,
-} from '@/sandbox/helpers';
+import { truncateSandboxOutputForToolResult } from '@/sandbox/helpers';
 import type { ToolDefinition } from '@/tools/types';
 
 const sandboxRunCodeArgsSchema = z.object({
@@ -44,7 +41,7 @@ export const sandboxRunCodeTool: ToolDefinition = {
       environment: context.environment,
       deviceId,
       code: parsedArgs.code,
-      language: parsedArgs.language as SandboxCodeLanguage,
+      language: parsedArgs.language,
     });
     return {
       ok: result.ok,

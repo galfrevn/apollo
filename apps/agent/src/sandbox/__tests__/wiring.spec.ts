@@ -14,16 +14,16 @@ import { createBuiltinToolDefinitionMap } from '@/tools/catalog';
 import { executeToolByName, resolvePendingToolConfirmation } from '@/tools/router';
 
 type CapturedSandboxCall = {
-  readonly sandboxId: string;
-  readonly code?: string;
-  readonly command?: string;
-  readonly timeoutMilliseconds?: number;
+  sandboxId: string;
+  code?: string;
+  command?: string;
+  timeoutMilliseconds?: number;
 };
 
 const capturedSandboxCallList: CapturedSandboxCall[] = [];
 
 mock.module('@cloudflare/sandbox', () => ({
-  getSandbox: (_namespace: unknown, sandboxId: string) => ({
+  getSandbox: (_sandboxNamespace: Env['Sandbox'], sandboxId: string) => ({
     createCodeContext: async () => ({ id: 'context-1' }),
     runCode: async (code: string) => {
       capturedSandboxCallList.push({ sandboxId, code });
@@ -34,13 +34,11 @@ mock.module('@cloudflare/sandbox', () => ({
       };
     },
     exec: async (command: string, options?: { timeout?: number }) => {
-      capturedSandboxCallList.push({
-        sandboxId,
-        command,
-        ...(options?.timeout !== undefined
-          ? { timeoutMilliseconds: options.timeout }
-          : {}),
-      });
+      const capturedCall: CapturedSandboxCall = { sandboxId, command };
+      if (options?.timeout !== undefined) {
+        capturedCall.timeoutMilliseconds = options.timeout;
+      }
+      capturedSandboxCallList.push(capturedCall);
       return {
         success: true,
         exitCode: 0,

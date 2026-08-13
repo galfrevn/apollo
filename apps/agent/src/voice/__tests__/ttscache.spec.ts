@@ -8,27 +8,34 @@ function buildArrayBuffer(byteList: readonly number[]): ArrayBuffer {
   return arrayBuffer;
 }
 
-function createFakeMediaBucket(): {
-  readonly bucket: R2Bucket;
-  readonly storedKeyList: string[];
-  readonly store: Map<string, ArrayBuffer>;
-} {
+const rejectCacheRead: R2Bucket['get'] = async () => {
+  throw new Error('R2 caído');
+};
+const rejectCacheWrite: R2Bucket['put'] = async () => {
+  throw new Error('R2 sin espacio');
+};
+const resolveCacheMiss: R2Bucket['get'] = async () => null;
+
+function createFakeMediaBucket() {
   const store = new Map<string, ArrayBuffer>();
   const storedKeyList: string[] = [];
+  // SAFETY: synthesizeSpeechThroughCache only calls get and put on the R2
+  // binding and only reads arrayBuffer from the stored object; the double
+  // covers exactly that surface.
   const bucket = {
-    get: async (key: string) => {
-      const stored = store.get(key);
+    get: async (objectKey: string) => {
+      const stored = store.get(objectKey);
       if (stored === undefined) {
         return null;
       }
       return { arrayBuffer: async () => stored };
     },
-    put: async (key: string, body: ArrayBuffer) => {
-      store.set(key, body);
-      storedKeyList.push(key);
+    put: async (objectKey: string, audioBody: ArrayBuffer) => {
+      store.set(objectKey, audioBody);
+      storedKeyList.push(objectKey);
       return {};
     },
-  } as unknown as R2Bucket;
+  } as R2Bucket;
   return { bucket, storedKeyList, store };
 }
 
@@ -79,14 +86,12 @@ describe('synthesizeSpeechThroughCache', () => {
   });
 
   it('degrades to direct synthesis when the cache read fails', async () => {
+    // SAFETY: synthesizeSpeechThroughCache only calls get and put on the R2
+    // binding; both members carry the real binding's signatures.
     const bucket = {
-      get: async () => {
-        throw new Error('R2 caído');
-      },
-      put: async () => {
-        throw new Error('R2 caído');
-      },
-    } as unknown as R2Bucket;
+      get: rejectCacheRead,
+      put: rejectCacheWrite,
+    } as R2Bucket;
 
     const audioBuffer = await synthesizeSpeechThroughCache({
       mediaBucket: bucket,
@@ -100,12 +105,12 @@ describe('synthesizeSpeechThroughCache', () => {
   });
 
   it('still returns audio when only the cache write fails', async () => {
+    // SAFETY: synthesizeSpeechThroughCache only calls get and put on the R2
+    // binding; both members carry the real binding's signatures.
     const bucket = {
-      get: async () => null,
-      put: async () => {
-        throw new Error('R2 sin espacio');
-      },
-    } as unknown as R2Bucket;
+      get: resolveCacheMiss,
+      put: rejectCacheWrite,
+    } as R2Bucket;
 
     const audioBuffer = await synthesizeSpeechThroughCache({
       mediaBucket: bucket,

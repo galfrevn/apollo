@@ -8,11 +8,10 @@ import { recallConversationTool, resumeConversationTool } from '@/tools/history'
 import type { ToolExecutionContext } from '@/tools/types';
 
 function buildContext(effects: ToolExecutionContext['effects']): ToolExecutionContext {
-  return {
-    environment: createFakeApolloEnvironment(),
-    nowMilliseconds: 1,
-    ...(effects === undefined ? {} : { effects }),
-  };
+  if (effects === undefined) {
+    return { environment: createFakeApolloEnvironment(), nowMilliseconds: 1 };
+  }
+  return { environment: createFakeApolloEnvironment(), nowMilliseconds: 1, effects };
 }
 
 describe('recall_conversation', () => {

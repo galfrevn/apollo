@@ -24,7 +24,7 @@ describe('builtin tool catalog', () => {
     expect(nameList).not.toContain('gmail_send');
     for (const tool of listBuiltinToolDefinitionList()) {
       expect(tool.parameters).toBeDefined();
-      expect(typeof tool.parameters).toBe('object');
+      expect(tool.parameters).toBeInstanceOf(Object);
     }
   });
 

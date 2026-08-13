@@ -11,19 +11,14 @@ function buildAudioBuffer(byteLength: number): ArrayBuffer {
   return new ArrayBuffer(byteLength);
 }
 
-function createRecordingSink(): {
-  readonly send: (chunk: ArrayBuffer) => void;
-  readonly wait: (milliseconds: number) => Promise<void>;
-  readonly sentByteLengthList: number[];
-  readonly waitMillisecondsList: number[];
-} {
+function createRecordingSink() {
   const sentByteLengthList: number[] = [];
   const waitMillisecondsList: number[] = [];
   return {
-    send: (chunk) => {
+    send: (chunk: ArrayBuffer): void => {
       sentByteLengthList.push(chunk.byteLength);
     },
-    wait: async (milliseconds) => {
+    wait: async (milliseconds: number): Promise<void> => {
       waitMillisecondsList.push(milliseconds);
     },
     sentByteLengthList,

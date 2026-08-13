@@ -4,14 +4,41 @@ import type { MemorySqlExecutor } from '@/memory/store';
 
 export type PendingDeviceMessageType = 'background_result' | 'reminder';
 
+export type PendingDeviceMessagePayloadValue =
+  | string
+  | number
+  | boolean
+  | null
+  | PendingDeviceMessagePayloadValue[]
+  | { [fieldName: string]: PendingDeviceMessagePayloadValue };
+
+export type PendingDeviceMessagePayload = Record<
+  string,
+  PendingDeviceMessagePayloadValue
+>;
+
 const pendingDeviceMessageTypeSchema = z.enum(['background_result', 'reminder']);
-const pendingDeviceMessagePayloadSchema = z.record(z.string(), z.unknown());
+const pendingDeviceMessagePayloadValueSchema: z.ZodType<PendingDeviceMessagePayloadValue> =
+  z.lazy(() =>
+    z.union([
+      z.string(),
+      z.number(),
+      z.boolean(),
+      z.null(),
+      z.array(pendingDeviceMessagePayloadValueSchema),
+      z.record(z.string(), pendingDeviceMessagePayloadValueSchema),
+    ]),
+  );
+const pendingDeviceMessagePayloadSchema = z.record(
+  z.string(),
+  pendingDeviceMessagePayloadValueSchema,
+);
 
 export async function enqueuePendingDeviceMessage(
   sqlExecutor: MemorySqlExecutor,
   input: {
     readonly type: PendingDeviceMessageType;
-    readonly payload: Record<string, unknown>;
+    readonly payload: PendingDeviceMessagePayload;
     readonly nowMilliseconds?: number;
     readonly createIdentifier?: () => string;
   },
@@ -31,7 +58,7 @@ export async function listPendingDeviceMessages(sqlExecutor: MemorySqlExecutor):
   readonly {
     id: string;
     type: PendingDeviceMessageType;
-    payload: Record<string, unknown>;
+    payload: PendingDeviceMessagePayload;
   }[]
 > {
   const rows = sqlExecutor.execute<{

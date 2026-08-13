@@ -19,13 +19,17 @@ type ThreadMetaRow = {
   last_turn_at: number;
 };
 
+type ThreadSessionIdRow = {
+  session_id: string;
+};
+
 function createInMemoryThreadSqlExecutor(): ThreadSqlExecutor {
   const rowMap = new Map<string, ThreadMetaRow>();
-  return {
-    execute<Row extends Record<string, unknown>>(
+  const inMemoryExecutor = {
+    execute(
       query: string,
       ...bindValues: unknown[]
-    ): readonly Row[] {
+    ): ReadonlyArray<ThreadMetaRow | ThreadSessionIdRow> {
       if (query.includes("VALUES (?, 'pending', NULL, ?)")) {
         const sessionId = String(bindValues[0]);
         const lastTurnAt = Number(bindValues[1]);
@@ -80,26 +84,28 @@ function createInMemoryThreadSqlExecutor(): ThreadSqlExecutor {
               row.last_turn_at > 0 &&
               row.last_turn_at < beforeMilliseconds,
           )
-          .map((row) => ({ session_id: row.session_id })) as unknown as readonly Row[];
+          .map((row) => ({ session_id: row.session_id }));
       }
       if (query.includes('WHERE last_turn_at >=')) {
         const sinceMilliseconds = Number(bindValues[0]);
         return [...rowMap.values()]
           .filter((row) => row.last_turn_at >= sinceMilliseconds)
           .toSorted((left, right) => right.last_turn_at - left.last_turn_at)
-          .map((row) => ({ session_id: row.session_id })) as unknown as readonly Row[];
+          .map((row) => ({ session_id: row.session_id }));
       }
       if (query.includes('WHERE session_id = ? LIMIT 1')) {
         const targetRow = rowMap.get(String(bindValues[0]));
-        return (targetRow === undefined
-          ? []
-          : [{ ...targetRow }]) as unknown as readonly Row[];
+        return targetRow === undefined ? [] : [{ ...targetRow }];
       }
       return [...rowMap.values()]
         .toSorted((left, right) => right.last_turn_at - left.last_turn_at)
-        .map((row) => ({ ...row })) as unknown as readonly Row[];
+        .map((row) => ({ ...row }));
     },
   };
+  // SAFETY: each branch of the double returns rows shaped exactly like the
+  // columns the matched production query selects, so the Row type each store
+  // function requests always describes the rows it receives.
+  return inMemoryExecutor as ThreadSqlExecutor;
 }
 
 describe('thread meta store', () => {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { z } from 'zod';
 
 import { synthesizeSpeechWithElevenLabs } from '@/voice/elevenlabs';
 
@@ -7,13 +8,17 @@ type CapturedFetchCall = {
   readonly init: RequestInit;
 };
 
-function createCapturingFetchMock(
-  audioArrayBuffer: ArrayBuffer,
-  status = 200,
-): {
-  readonly fetchImplementation: typeof fetch;
-  readonly callList: CapturedFetchCall[];
-} {
+const capturedSynthesisRequestBodySchema = z
+  .object({ text: z.string(), model_id: z.string() })
+  .passthrough();
+
+function parseCapturedSynthesisRequestBody(capturedCall: CapturedFetchCall) {
+  return capturedSynthesisRequestBodySchema.parse(
+    JSON.parse(String(capturedCall.init.body)),
+  );
+}
+
+function createCapturingFetchMock(audioArrayBuffer: ArrayBuffer, status = 200) {
   const callList: CapturedFetchCall[] = [];
   const fetchHandler = async (
     input: string | URL | Request,
@@ -25,7 +30,7 @@ function createCapturingFetchMock(
   return {
     fetchImplementation: Object.assign(fetchHandler, {
       preconnect: () => {},
-    }) as typeof fetch,
+    }),
     callList,
   };
 }
@@ -55,10 +60,7 @@ describe('synthesizeSpeechWithElevenLabs', () => {
       'https://api.elevenlabs.io/v1/text-to-speech/voz-rioplatense?output_format=pcm_24000',
     );
     expect(callList[0].init.headers).toMatchObject({ 'xi-api-key': 'key-123' });
-    const requestBody = JSON.parse(callList[0].init.body as string) as Record<
-      string,
-      unknown
-    >;
+    const requestBody = parseCapturedSynthesisRequestBody(callList[0]);
     expect(requestBody).toEqual({
       text: 'hola mundo',
       model_id: 'eleven_multilingual_v2',

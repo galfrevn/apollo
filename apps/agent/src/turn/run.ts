@@ -15,6 +15,7 @@ import {
   buildOpenRouterSystemPrompt,
   buildSemanticMemoryPromptNote,
   type OpenRouterChatMessage,
+  type OpenRouterToolCall,
 } from '@/voice/llm';
 import { sanitizeTextForSpeech } from '@/voice/sanitize';
 import {
@@ -24,25 +25,23 @@ import {
 
 const DEFAULT_MAX_TOOL_ROUND_COUNT = 3;
 
+export type LanguageModelToolDescriptor = {
+  readonly name: string;
+  readonly description: string;
+  readonly parameters: ToolDefinition['parameters'];
+};
+
 export type VoiceAdapters = {
   readonly stt: (audioBuffer: ArrayBuffer) => Promise<string>;
   readonly llm: (input: {
     readonly messageList: readonly OpenRouterChatMessage[];
-    readonly toolDefinitionList: readonly {
-      readonly name: string;
-      readonly description: string;
-      readonly parameters: Record<string, unknown>;
-    }[];
+    readonly toolDefinitionList: readonly LanguageModelToolDescriptor[];
     // Optional streaming hook: adapters that support it push content deltas
     // as they arrive so the turn can start synthesizing speech early.
     readonly onTextDelta?: (deltaText: string) => void;
   }) => Promise<{
     readonly text: string;
-    readonly toolCallList: readonly {
-      readonly id: string;
-      readonly name: string;
-      readonly args: unknown;
-    }[];
+    readonly toolCallList: readonly OpenRouterToolCall[];
   }>;
   readonly tts: (text: string, voiceId: string) => Promise<ArrayBuffer>;
 };
@@ -94,11 +93,7 @@ export type TurnOutput = {
 
 function buildToolDefinitionListFromMap(
   toolDefinitionMap: ReadonlyMap<string, ToolDefinition>,
-): readonly {
-  readonly name: string;
-  readonly description: string;
-  readonly parameters: Record<string, unknown>;
-}[] {
+): readonly LanguageModelToolDescriptor[] {
   return [...toolDefinitionMap.values()].map((toolDefinition) => ({
     name: toolDefinition.name,
     description: toolDefinition.description,
@@ -108,11 +103,7 @@ function buildToolDefinitionListFromMap(
 
 function buildAssistantToolCallMessage(
   llmText: string,
-  toolCallList: readonly {
-    readonly id: string;
-    readonly name: string;
-    readonly args: unknown;
-  }[],
+  toolCallList: readonly OpenRouterToolCall[],
 ): OpenRouterChatMessage {
   return {
     role: 'assistant',
@@ -247,7 +238,7 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
         {
           id: resolvedConfirmation.id,
           name: resolvedConfirmation.toolName,
-          args: resolvedConfirmation.args,
+          args: resolvedConfirmation.args ?? null,
         },
       ]),
       buildToolResultMessage(resolvedConfirmation.id, resolvedConfirmationResult),

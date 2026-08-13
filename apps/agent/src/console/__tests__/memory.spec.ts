@@ -2,56 +2,78 @@ import { describe, expect, it } from 'bun:test';
 
 import { browseConsoleMemory, deleteConsoleMemory } from '@/console/memory';
 import { addMemoryRecord, setSessionPreference } from '@/memory/store';
-import type { MemorySqlExecutor } from '@/memory/store';
+import type { MemorySqlExecutor, MemorySqlRow } from '@/memory/store';
+
+type StoredMemoryRow = {
+  readonly id: string;
+  readonly content: string;
+  readonly created_at: number;
+};
+
+type StoredPreferenceRow = {
+  readonly value: string;
+};
 
 function createInMemoryConsoleSqlExecutor(): MemorySqlExecutor {
-  const memoryRowList: Array<{ id: string; content: string; created_at: number }> = [];
+  const memoryRowList: StoredMemoryRow[] = [];
   const preferenceMap = new Map<string, string>();
-  return {
-    execute<Row extends Record<string, unknown>>(
-      query: string,
-      ...bindValues: unknown[]
-    ): readonly Row[] {
-      if (query.startsWith('INSERT INTO memories')) {
-        memoryRowList.push({
-          id: String(bindValues[0]),
-          content: String(bindValues[1]),
-          created_at: Number(bindValues[2]),
-        });
-        return [];
+  function executeConsoleQuery<Row extends MemorySqlRow>(
+    query: string,
+    ...bindValues: unknown[]
+  ): readonly Row[] {
+    if (query.startsWith('INSERT INTO memories')) {
+      memoryRowList.push({
+        id: String(bindValues[0]),
+        content: String(bindValues[1]),
+        created_at: Number(bindValues[2]),
+      });
+      return [];
+    }
+    if (query.startsWith('DELETE FROM memories')) {
+      const targetId = String(bindValues[0]);
+      const targetIndex = memoryRowList.findIndex((row) => row.id === targetId);
+      if (targetIndex >= 0) {
+        memoryRowList.splice(targetIndex, 1);
       }
-      if (query.startsWith('DELETE FROM memories')) {
-        const targetId = String(bindValues[0]);
-        const targetIndex = memoryRowList.findIndex((row) => row.id === targetId);
-        if (targetIndex >= 0) {
-          memoryRowList.splice(targetIndex, 1);
-        }
-        return [];
-      }
-      if (query.startsWith('INSERT INTO session_prefs')) {
-        preferenceMap.set(String(bindValues[0]), String(bindValues[1]));
-        return [];
-      }
-      if (query.startsWith('SELECT value FROM session_prefs')) {
-        const storedValue = preferenceMap.get(String(bindValues[0]));
-        return (storedValue === undefined
+      return [];
+    }
+    if (query.startsWith('INSERT INTO session_prefs')) {
+      preferenceMap.set(String(bindValues[0]), String(bindValues[1]));
+      return [];
+    }
+    if (query.startsWith('SELECT value FROM session_prefs')) {
+      const storedValue = preferenceMap.get(String(bindValues[0]));
+      const preferenceRowList: readonly MemorySqlRow[] =
+        storedValue === undefined
           ? []
-          : [{ value: storedValue }]) as unknown as readonly Row[];
-      }
-      if (query.includes('WHERE content LIKE')) {
-        const likePattern = String(bindValues[0]).replaceAll('%', '').toLowerCase();
-        const limit = Number(bindValues[1]);
-        return memoryRowList
-          .filter((row) => row.content.toLowerCase().includes(likePattern))
-          .toSorted((left, right) => right.created_at - left.created_at)
-          .slice(0, limit) as unknown as readonly Row[];
-      }
-      const limit = Number(bindValues[0]);
-      return memoryRowList
+          : [{ value: storedValue } satisfies StoredPreferenceRow];
+      // SAFETY: the session_prefs SELECT is only issued by getSessionPreference,
+      // which requests rows shaped StoredPreferenceRow — exactly what this
+      // branch returns.
+      return preferenceRowList as readonly Row[];
+    }
+    if (query.includes('WHERE content LIKE')) {
+      const likePattern = String(bindValues[0]).replaceAll('%', '').toLowerCase();
+      const limit = Number(bindValues[1]);
+      const matchingRowList: readonly MemorySqlRow[] = memoryRowList
+        .filter((row) => row.content.toLowerCase().includes(likePattern))
         .toSorted((left, right) => right.created_at - left.created_at)
-        .slice(0, limit) as unknown as readonly Row[];
-    },
-  };
+        .slice(0, limit);
+      // SAFETY: the LIKE recall query is only issued by recallMemoryRecords,
+      // which requests rows shaped StoredMemoryRow — exactly what this branch
+      // returns.
+      return matchingRowList as readonly Row[];
+    }
+    const limit = Number(bindValues[0]);
+    const recentRowList: readonly MemorySqlRow[] = memoryRowList
+      .toSorted((left, right) => right.created_at - left.created_at)
+      .slice(0, limit);
+    // SAFETY: the remaining query is the recent-memories listing issued by
+    // listRecentMemoryRecords, which requests rows shaped StoredMemoryRow —
+    // exactly what this branch returns.
+    return recentRowList as readonly Row[];
+  }
+  return { execute: executeConsoleQuery };
 }
 
 describe('console memory browse', () => {
@@ -115,7 +137,12 @@ describe('console memory browse', () => {
 
     await deleteConsoleMemory(
       sqlExecutor,
-      { deleteByIds: async (idList) => deletedVectorIdList.push(...idList) },
+      {
+        deleteByIds: async (idList) => {
+          deletedVectorIdList.push(...idList);
+          return { ids: idList, count: idList.length };
+        },
+      },
       addedRecord.id,
     );
 

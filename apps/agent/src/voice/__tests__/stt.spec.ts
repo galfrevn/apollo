@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { z } from 'zod';
 
 import { transcribeAudioWithOpenRouter } from '@/voice/stt';
 
@@ -7,13 +8,25 @@ type CapturedFetchCall = {
   readonly init: RequestInit;
 };
 
+type TranscriptionResponseFixture = {
+  readonly text?: string | number;
+};
+
+const capturedTranscriptionRequestBodySchema = z.object({
+  language: z.string(),
+  input_audio: z.object({ data: z.string(), format: z.string() }),
+});
+
+function parseCapturedTranscriptionRequestBody(capturedCall: CapturedFetchCall) {
+  return capturedTranscriptionRequestBodySchema.parse(
+    JSON.parse(String(capturedCall.init.body)),
+  );
+}
+
 function createCapturingFetchMock(
-  responseBody: unknown,
+  responseBody: TranscriptionResponseFixture,
   status = 200,
-): {
-  readonly fetchImplementation: typeof fetch;
-  readonly callList: CapturedFetchCall[];
-} {
+) {
   const callList: CapturedFetchCall[] = [];
   const fetchHandler = async (
     input: string | URL | Request,
@@ -25,7 +38,7 @@ function createCapturingFetchMock(
   return {
     fetchImplementation: Object.assign(fetchHandler, {
       preconnect: () => {},
-    }) as typeof fetch,
+    }),
     callList,
   };
 }
@@ -45,10 +58,7 @@ describe('transcribeAudioWithOpenRouter', () => {
 
     expect(transcript).toBe('hola apolo');
     expect(callList[0].url).toBe('https://openrouter.ai/api/v1/audio/transcriptions');
-    const requestBody = JSON.parse(callList[0].init.body as string) as {
-      language: string;
-      input_audio: { data: string; format: string };
-    };
+    const requestBody = parseCapturedTranscriptionRequestBody(callList[0]);
     expect(requestBody.language).toBe('es');
     expect(requestBody.input_audio.format).toBe('wav');
     expect(requestBody.input_audio.data).toBe(btoa('\x01\x02\x03'));
@@ -66,10 +76,7 @@ describe('transcribeAudioWithOpenRouter', () => {
       fetchImplementation,
     });
 
-    const requestBody = JSON.parse(callList[0].init.body as string) as {
-      language: string;
-      input_audio: { format: string };
-    };
+    const requestBody = parseCapturedTranscriptionRequestBody(callList[0]);
     expect(requestBody.language).toBe('en');
     expect(requestBody.input_audio.format).toBe('mp3');
   });

@@ -19,10 +19,14 @@ const mcpToolSettingSqlRowSchema = z.object({
   safety: z.enum(['safe', 'unsafe']),
 });
 
+// Stored rows can predate the current schema, so any column may be missing or
+// corrupt until the schema re-validates each row.
+type McpToolSettingSqlRowCandidate = Partial<z.input<typeof mcpToolSettingSqlRowSchema>>;
+
 export async function listMcpToolSettings(
   sqlExecutor: MemorySqlExecutor,
 ): Promise<readonly McpToolSettingRow[]> {
-  const rows = sqlExecutor.execute<Record<string, unknown>>(
+  const rows = sqlExecutor.execute<McpToolSettingSqlRowCandidate>(
     'SELECT namespaced_name, server_id, tool_name, is_enabled, safety FROM mcp_tool_settings',
   );
   // Dropped rather than repaired: a corrupt safety level would otherwise decide

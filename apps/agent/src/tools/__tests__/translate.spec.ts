@@ -15,7 +15,7 @@ describe('translateTool', () => {
           { status: 200 },
         ),
       { preconnect: () => {} },
-    ) as typeof fetch;
+    );
 
     try {
       const result = await translateTool.handler(
@@ -49,7 +49,7 @@ describe('translateTool', () => {
           { status: 200 },
         ),
       { preconnect: () => {} },
-    ) as typeof fetch;
+    );
 
     try {
       const result = await translateTool.handler(

@@ -1,7 +1,11 @@
 import { z } from 'zod';
 
 import type { MemorySqlExecutor } from '@/memory/store';
-import type { PendingToolConfirmation } from '@/tools/types';
+import {
+  jsonSerializableValueSchema,
+  type JsonSerializableValue,
+  type PendingToolConfirmation,
+} from '@/tools/types';
 
 const pendingToolConfirmationRowSchema = z.object({
   id: z.string().min(1),
@@ -32,7 +36,7 @@ export async function savePendingToolConfirmation(
 export async function readPendingToolConfirmation(
   sqlExecutor: MemorySqlExecutor,
 ): Promise<PendingToolConfirmation | undefined> {
-  const rows = sqlExecutor.execute<Record<string, unknown>>(
+  const rows = sqlExecutor.execute(
     'SELECT id, tool_name, args_json, summary, expires_at FROM pending_confirmations LIMIT 1',
   );
   const firstRow = rows[0];
@@ -46,9 +50,11 @@ export async function readPendingToolConfirmation(
   if (!parsedRow.success) {
     return undefined;
   }
-  let storedArguments: unknown;
+  let storedArguments: JsonSerializableValue;
   try {
-    storedArguments = JSON.parse(parsedRow.data.args_json);
+    storedArguments = jsonSerializableValueSchema.parse(
+      JSON.parse(parsedRow.data.args_json),
+    );
   } catch {
     return undefined;
   }

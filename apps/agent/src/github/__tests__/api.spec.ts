@@ -18,7 +18,7 @@ function createFetchMock(
     readonly status: number;
     readonly body: unknown;
   }[],
-): { readonly fetchImplementation: typeof fetch; readonly callList: CapturedRequest[] } {
+) {
   const callList: CapturedRequest[] = [];
   const fetchHandler = async (
     input: string | URL | Request,
@@ -34,12 +34,13 @@ function createFetchMock(
     }
     return new Response(JSON.stringify(matched.body), { status: matched.status });
   };
-  return {
-    fetchImplementation: Object.assign(fetchHandler, {
-      preconnect: () => {},
-    }) as typeof fetch,
-    callList,
-  };
+  // SAFETY: the code under test only invokes fetch's call signature and never
+  // touches other members, so the handler plus a preconnect stub covers the
+  // whole surface this suite exercises.
+  const fetchImplementation = Object.assign(fetchHandler, {
+    preconnect: () => {},
+  }) as typeof fetch;
+  return { fetchImplementation, callList };
 }
 
 const apolloRepository = parseGithubRepositoryReference('galfrevn/apollo');

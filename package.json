@@ -20,14 +20,15 @@
     "check": "bun run lint && bun run format:check && turbo run typecheck test"
   },
   "devDependencies": {
-    "turbo": "^2.5.0",
-    "typescript": "^5.9.3",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
+    "@oxlint/plugins": "1.78.0",
     "@types/bun": "latest",
     "@types/node": "^25.9.5",
     "lefthook": "^2.1.10",
     "oxfmt": "^0.47.0",
-    "oxlint": "^1.77.0"
+    "oxlint": "1.78.0",
+    "turbo": "^2.5.0",
+    "typescript": "^5.9.3"
   }
 }

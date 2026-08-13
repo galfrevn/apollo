@@ -27,6 +27,10 @@ export const FIRMWARE_PUSH_STATE_PREFERENCE_KEY = 'firmwarePushState';
 export const FIRMWARE_CHANGELOG_STATE_PREFERENCE_KEY = 'firmwareChangelogState';
 export const PUBLIC_ORIGIN_PREFERENCE_KEY = 'publicOrigin';
 
+export type FirmwareUpgradeArgumentRecord = {
+  readonly url: string;
+};
+
 export type FirmwareLifecycleDependencies = {
   readonly sqlExecutor: MemorySqlExecutor;
   readonly mediaBucket: R2Bucket;
@@ -43,7 +47,7 @@ export type FirmwareLifecycleDependencies = {
   readonly hasScheduledInitiativeRetry: (source: InitiativeSource) => Promise<boolean>;
   readonly callDeviceTool: (
     deviceToolName: string,
-    argumentRecord: Record<string, unknown>,
+    argumentRecord: FirmwareUpgradeArgumentRecord,
   ) => Promise<ToolExecutionResult>;
 };
 
@@ -124,13 +128,14 @@ export async function runFirmwareLifecycle(
         manifest !== undefined && manifest.version === pendingVersion
           ? manifest.changelog
           : undefined;
+      const changelogMessage =
+        changelogText !== undefined
+          ? buildFirmwareChangelogMessage({ toVersion: pendingVersion, changelogText })
+          : buildFirmwareChangelogMessage({ toVersion: pendingVersion });
       const deliveryOutcome = await dependencies.deliverInitiativeUtterance({
         source: 'firmware_changelog',
         priority: 'normal',
-        message: buildFirmwareChangelogMessage({
-          toVersion: pendingVersion,
-          ...(changelogText !== undefined ? { changelogText } : {}),
-        }),
+        message: changelogMessage,
         earconName: 'chime',
         utteranceKey: `firmware-changelog-${pendingVersion}`,
       });

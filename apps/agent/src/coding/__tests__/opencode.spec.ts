@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { z } from 'zod';
 
 import {
   buildOpencodeConfig,
@@ -9,30 +10,29 @@ import {
 } from '@/coding/opencode';
 import type { SandboxLike } from '@/coding/run';
 
+type RecordedExecutionOptions = {
+  readonly cwd?: string;
+  readonly env?: Record<string, string>;
+  readonly timeout?: number;
+};
+
+type RecordedExecutionCall = {
+  readonly command: string;
+  readonly options?: RecordedExecutionOptions;
+};
+
+type FakeOpencodeSandboxHarness = {
+  readonly sandbox: SandboxLike;
+  readonly writtenFileByPath: Record<string, string>;
+  readonly execCallList: RecordedExecutionCall[];
+};
+
 function createFakeSandbox(input: {
   readonly execResult?: { stdout: string; stderr: string; exitCode: number };
   readonly summaryContent?: string;
-}): {
-  readonly sandbox: SandboxLike;
-  readonly writtenFileByPath: Record<string, string>;
-  readonly execCallList: {
-    readonly command: string;
-    readonly options?: {
-      readonly cwd?: string;
-      readonly env?: Record<string, string>;
-      readonly timeout?: number;
-    };
-  }[];
-} {
+}): FakeOpencodeSandboxHarness {
   const writtenFileByPath: Record<string, string> = {};
-  const execCallList: {
-    command: string;
-    options?: {
-      readonly cwd?: string;
-      readonly env?: Record<string, string>;
-      readonly timeout?: number;
-    };
-  }[] = [];
+  const execCallList: RecordedExecutionCall[] = [];
   return {
     writtenFileByPath,
     execCallList,
@@ -55,13 +55,15 @@ function createFakeSandbox(input: {
   };
 }
 
+const opencodeConfigModelSchema = z.object({ model: z.string() });
+
 describe('buildOpencodeConfig', () => {
   it('points the provider at the worker proxy with the token as env reference', () => {
     const configText = buildOpencodeConfig({
       proxyOrigin: 'https://apollo.example',
       modelId: 'moonshotai/kimi-k3',
     });
-    const config = JSON.parse(configText) as Record<string, unknown>;
+    const config = opencodeConfigModelSchema.parse(JSON.parse(configText));
 
     expect(configText).toContain('https://apollo.example/coding-llm/v1');
     expect(configText).toContain('{env:APOLLO_LLM_TOKEN}');

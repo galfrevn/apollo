@@ -9,12 +9,26 @@ import {
   savePendingToolConfirmation,
 } from '@/tools/pending';
 
-function createSingleRowSqlExecutor(row: Record<string, unknown>): MemorySqlExecutor {
-  const rowList: readonly Record<string, unknown>[] = [row];
+type StoredPendingConfirmationRow = {
+  readonly id?: string;
+  readonly tool_name?: string;
+  readonly args_json?: string;
+  readonly summary?: string;
+  readonly expires_at?: number;
+};
+
+function createSingleRowSqlExecutor(
+  row: StoredPendingConfirmationRow,
+): MemorySqlExecutor {
+  const rowList: readonly StoredPendingConfirmationRow[] = [row];
+  // SAFETY: the fake answers every select with the same canned row list no
+  // matter which row type the caller requests; the code under test validates
+  // every row with zod before trusting it, which is exactly what these tests
+  // exercise.
   return {
-    execute: <Row extends Record<string, unknown>>(query: string): readonly Row[] =>
-      query.includes('FROM pending_confirmations') ? (rowList as readonly Row[]) : [],
-  };
+    execute: (query: string) =>
+      query.includes('FROM pending_confirmations') ? rowList : [],
+  } as MemorySqlExecutor;
 }
 
 describe('pending tool confirmation store', () => {
@@ -96,12 +110,14 @@ describe('pending tool confirmation store', () => {
   });
 
   it('treats a row of the wrong shape as nothing pending', async () => {
-    const wrongShapeSqlExecutor = createSingleRowSqlExecutor({
+    const sqlExecutorReturningMalformedRows = createSingleRowSqlExecutor({
       id: 'confirm-1',
       summary: 'incompleto',
     });
 
-    expect(await readPendingToolConfirmation(wrongShapeSqlExecutor)).toBeUndefined();
+    expect(
+      await readPendingToolConfirmation(sqlExecutorReturningMalformedRows),
+    ).toBeUndefined();
   });
 });
 

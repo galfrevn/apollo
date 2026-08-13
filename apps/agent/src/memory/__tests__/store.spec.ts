@@ -7,6 +7,7 @@ import {
   recallMemoryRecords,
   setSessionPreference,
   type MemorySqlExecutor,
+  type MemorySqlRow,
 } from '@/memory/store';
 
 function createInMemorySqlExecutor(): MemorySqlExecutor {
@@ -17,44 +18,47 @@ function createInMemorySqlExecutor(): MemorySqlExecutor {
   }> = [];
   const preferenceMap = new Map<string, string>();
 
-  return {
-    execute<Row extends Record<string, unknown>>(
-      query: string,
-      ...bindValues: unknown[]
-    ): readonly Row[] {
-      if (query.startsWith('INSERT INTO memories')) {
-        memoryRowList.push({
-          id: String(bindValues[0]),
-          content: String(bindValues[1]),
-          created_at: Number(bindValues[2]),
-        });
-        return [];
-      }
-      if (query.startsWith('SELECT id, content, created_at FROM memories WHERE')) {
-        const likePattern = String(bindValues[0]).replaceAll('%', '');
-        const limit = Number(bindValues[1]);
-        return memoryRowList
-          .filter((row) => row.content.includes(likePattern))
-          .toSorted((left, right) => right.created_at - left.created_at)
-          .slice(0, limit) as unknown as readonly Row[];
-      }
-      if (query.startsWith('SELECT id, content, created_at FROM memories')) {
-        const limit = Number(bindValues[0]);
-        return [...memoryRowList]
-          .toSorted((left, right) => right.created_at - left.created_at)
-          .slice(0, limit) as unknown as readonly Row[];
-      }
-      if (query.startsWith('SELECT value FROM session_prefs')) {
-        const value = preferenceMap.get(String(bindValues[0]));
-        return value === undefined ? [] : ([{ value }] as unknown as readonly Row[]);
-      }
-      if (query.startsWith('INSERT INTO session_prefs')) {
-        preferenceMap.set(String(bindValues[0]), String(bindValues[1]));
-        return [];
-      }
-      throw new Error(`Unsupported query in fake: ${query}`);
-    },
-  };
+  function executeFakeQuery(
+    query: string,
+    ...bindValues: unknown[]
+  ): readonly MemorySqlRow[] {
+    if (query.startsWith('INSERT INTO memories')) {
+      memoryRowList.push({
+        id: String(bindValues[0]),
+        content: String(bindValues[1]),
+        created_at: Number(bindValues[2]),
+      });
+      return [];
+    }
+    if (query.startsWith('SELECT id, content, created_at FROM memories WHERE')) {
+      const likePattern = String(bindValues[0]).replaceAll('%', '');
+      const limit = Number(bindValues[1]);
+      return memoryRowList
+        .filter((row) => row.content.includes(likePattern))
+        .toSorted((left, right) => right.created_at - left.created_at)
+        .slice(0, limit);
+    }
+    if (query.startsWith('SELECT id, content, created_at FROM memories')) {
+      const limit = Number(bindValues[0]);
+      return [...memoryRowList]
+        .toSorted((left, right) => right.created_at - left.created_at)
+        .slice(0, limit);
+    }
+    if (query.startsWith('SELECT value FROM session_prefs')) {
+      const value = preferenceMap.get(String(bindValues[0]));
+      return value === undefined ? [] : [{ value }];
+    }
+    if (query.startsWith('INSERT INTO session_prefs')) {
+      preferenceMap.set(String(bindValues[0]), String(bindValues[1]));
+      return [];
+    }
+    throw new Error(`Unsupported query in fake: ${query}`);
+  }
+
+  // SAFETY: every branch of the fake returns rows carrying exactly the columns
+  // the matched production query selects, so the caller's Row type argument
+  // always matches the rows handed back.
+  return { execute: executeFakeQuery as MemorySqlExecutor['execute'] };
 }
 
 describe('memory store', () => {

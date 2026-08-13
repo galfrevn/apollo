@@ -54,19 +54,28 @@ export function buildAgentSandboxPort(sandbox: SandboxLike): CodingSandboxPort {
   };
 }
 
+type GitCommandExecutionOptions = {
+  cwd?: string;
+  env?: Record<string, string>;
+  timeout: number;
+};
+
 async function runGitCommand(input: {
   readonly sandbox: SandboxLike;
   readonly command: string;
   readonly installationToken?: string;
   readonly cwd?: string;
 }): Promise<SandboxExecResult> {
-  const result = await input.sandbox.exec(input.command, {
-    ...(input.cwd !== undefined ? { cwd: input.cwd } : {}),
-    ...(input.installationToken !== undefined
-      ? { env: { [CODING_TOKEN_ENVIRONMENT_NAME]: input.installationToken } }
-      : {}),
+  const executionOptions: GitCommandExecutionOptions = {
     timeout: GIT_COMMAND_TIMEOUT_MILLISECONDS,
-  });
+  };
+  if (input.cwd !== undefined) {
+    executionOptions.cwd = input.cwd;
+  }
+  if (input.installationToken !== undefined) {
+    executionOptions.env = { [CODING_TOKEN_ENVIRONMENT_NAME]: input.installationToken };
+  }
+  const result = await input.sandbox.exec(input.command, executionOptions);
   if (result.exitCode !== 0) {
     const failureText = redactSecretsFromText(
       `${result.stderr}\n${result.stdout}`.trim(),

@@ -8,18 +8,17 @@ import {
 } from '@/lists/store';
 import type { MemorySqlExecutor } from '@/memory/store';
 
+type ListItemRow = {
+  id: string;
+  list_name: string;
+  content: string;
+  created_at: number;
+};
+
 function createInMemoryListSqlExecutor(): MemorySqlExecutor {
-  const rowList: Array<{
-    id: string;
-    list_name: string;
-    content: string;
-    created_at: number;
-  }> = [];
-  return {
-    execute<Row extends Record<string, unknown>>(
-      query: string,
-      ...bindValues: unknown[]
-    ): readonly Row[] {
+  const rowList: ListItemRow[] = [];
+  const inMemoryExecutor = {
+    execute(query: string, ...bindValues: unknown[]): readonly ListItemRow[] {
       if (query.startsWith('INSERT INTO list_items')) {
         rowList.push({
           id: String(bindValues[0]),
@@ -43,17 +42,19 @@ function createInMemoryListSqlExecutor(): MemorySqlExecutor {
         return rowList.filter(
           (row) =>
             row.list_name === listName && row.content.toLowerCase().includes(likePattern),
-        ) as unknown as readonly Row[];
+        );
       }
       if (query.includes('WHERE list_name = ?')) {
         const listName = String(bindValues[0]);
-        return rowList.filter(
-          (row) => row.list_name === listName,
-        ) as unknown as readonly Row[];
+        return rowList.filter((row) => row.list_name === listName);
       }
-      return [...rowList] as unknown as readonly Row[];
+      return [...rowList];
     },
   };
+  // SAFETY: the double stores full list_items rows and every branch returns
+  // them unchanged, so the Row type each store function requests always
+  // describes the rows it receives.
+  return inMemoryExecutor as MemorySqlExecutor;
 }
 
 describe('list store', () => {
@@ -115,10 +116,16 @@ describe('list store', () => {
     await addListItemRecord(sqlExecutor, { listName: 'super', content: 'yerba' }, 1);
     await addListItemRecord(sqlExecutor, { listName: 'super', content: 'pan' }, 2);
 
-    for (const contentQuery of [undefined, '', '   ']) {
+    const omittedQueryRemoval = await removeListItemRecords(sqlExecutor, {
+      listName: 'super',
+      clearAll: false,
+    });
+    expect(omittedQueryRemoval.removedCount).toBe(0);
+
+    for (const blankContentQuery of ['', '   ']) {
       const removal = await removeListItemRecords(sqlExecutor, {
         listName: 'super',
-        ...(contentQuery === undefined ? {} : { contentQuery }),
+        contentQuery: blankContentQuery,
         clearAll: false,
       });
       expect(removal.removedCount).toBe(0);

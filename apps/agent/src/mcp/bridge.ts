@@ -1,13 +1,20 @@
-import { summarizeMcpCallToolResult } from '@/mcp/result';
-import type { ToolExecutionResult } from '@/tools/types';
+import { mcpCallToolResultSchema, summarizeMcpCallToolResult } from '@/mcp/result';
+import type { DeskToolEffects, ToolExecutionResult } from '@/tools/types';
 
 export const DEVICE_TOOL_CALL_TIMEOUT_MILLISECONDS = 5_000;
+
+export type DeviceToolArgumentRecord = Parameters<
+  DeskToolEffects['callDeviceTool']
+>[0]['argumentRecord'];
 
 export type DeviceMcpRequestPayload = {
   readonly jsonrpc: '2.0';
   readonly id: number;
   readonly method: string;
-  readonly params?: Record<string, unknown>;
+  readonly params?: {
+    readonly name: string;
+    readonly arguments: DeviceToolArgumentRecord;
+  };
 };
 
 export type DeviceMcpResponsePayload = {
@@ -78,7 +85,7 @@ export function createDeviceMcpRequestRegistry(): DeviceMcpRequestRegistry {
 export function buildDeviceToolCallPayload(
   requestId: number,
   deviceToolName: string,
-  argumentRecord: Record<string, unknown>,
+  argumentRecord: DeviceToolArgumentRecord,
 ): DeviceMcpRequestPayload {
   return {
     jsonrpc: '2.0',
@@ -101,7 +108,7 @@ export function summarizeDeviceToolResult(
     };
   }
   return summarizeMcpCallToolResult(
-    responsePayload.result,
+    mcpCallToolResultSchema.safeParse(responsePayload.result),
     'Hecho.',
     'El dispositivo devolvió un error.',
   );

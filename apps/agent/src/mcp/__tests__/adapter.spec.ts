@@ -260,7 +260,10 @@ describe('installed mcp tool definitions', () => {
       settingList: [buildSettingRow({ safety: 'unsafe' })],
       callInstalledMcpTool,
     });
-    const circularArguments: Record<string, unknown> = {};
+    type SelfReferencingArgumentRecord = {
+      self?: SelfReferencingArgumentRecord;
+    };
+    const circularArguments: SelfReferencingArgumentRecord = {};
     circularArguments.self = circularArguments;
     expect(() => definition?.buildConfirmSummary?.(circularArguments)).not.toThrow();
     expect(() => definition?.buildConfirmSummary?.(undefined)).not.toThrow();

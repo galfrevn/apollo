@@ -4,8 +4,12 @@ export type MemoryRecord = {
   readonly createdAt: number;
 };
 
+export type MemorySqlValue = ArrayBuffer | string | number | null;
+
+export type MemorySqlRow = Record<string, MemorySqlValue>;
+
 export type MemorySqlExecutor = {
-  execute<Row extends Record<string, unknown>>(
+  execute<Row extends MemorySqlRow>(
     query: string,
     ...bindValues: unknown[]
   ): readonly Row[];

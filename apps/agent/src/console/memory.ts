@@ -17,7 +17,7 @@ export type ConsoleMemoryBrowseResult = {
 };
 
 type MemoryVectorIndexLike = {
-  deleteByIds(idList: string[]): Promise<unknown>;
+  deleteByIds(idList: string[]): Promise<VectorizeVectorMutation>;
 };
 
 // The Vectorize entry shares the memory record's UUID, so both stores are

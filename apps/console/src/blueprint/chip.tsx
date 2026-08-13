@@ -2,7 +2,7 @@ import { cn } from '@/components/utility';
 
 export type ChipTone = 'live' | 'idle' | 'busy' | 'down';
 
-const CHIP_TONE_CLASS_MAP: Record<ChipTone, { frame: string; dot: string }> = {
+const CHIP_TONE_CLASS_MAP = {
   live: {
     frame: 'border-border bg-accent text-foreground',
     dot: 'bg-foreground animate-[signal_2s_ease-in-out_infinite]',
@@ -19,7 +19,7 @@ const CHIP_TONE_CLASS_MAP: Record<ChipTone, { frame: string; dot: string }> = {
     frame: 'border-destructive/40 bg-transparent text-destructive',
     dot: 'bg-destructive',
   },
-};
+} satisfies Record<ChipTone, { readonly frame: string; readonly dot: string }>;
 
 export function Chip({
   tone,

@@ -15,6 +15,8 @@ export type ConsoleThreadSummary = {
   readonly lastTurnAtIso: string | null;
 };
 
+type SessionMessageTimestamp = Date | string;
+
 type SessionMessageLike = {
   readonly id: string;
   readonly role: string;
@@ -23,7 +25,7 @@ type SessionMessageLike = {
     readonly text?: string;
     readonly toolName?: string;
   }[];
-  readonly createdAt?: unknown;
+  readonly createdAt?: SessionMessageTimestamp;
 };
 
 type SessionInfoLike = {
@@ -38,12 +40,14 @@ type ThreadMetaLike = {
   readonly lastTurnAtMilliseconds: number;
 };
 
-function normalizeMessageCreatedAt(rawCreatedAt: unknown): string | null {
-  if (rawCreatedAt instanceof Date) {
-    return rawCreatedAt.toISOString();
+function normalizeMessageCreatedAt(
+  createdAtValue: SessionMessageTimestamp | undefined,
+): string | null {
+  if (createdAtValue instanceof Date) {
+    return createdAtValue.toISOString();
   }
-  if (typeof rawCreatedAt === 'string' && rawCreatedAt.length > 0) {
-    return rawCreatedAt;
+  if (createdAtValue !== undefined && createdAtValue.length > 0) {
+    return createdAtValue;
   }
   return null;
 }
@@ -54,12 +58,12 @@ export function mapSessionMessagesToConsoleHistory(
   const turnList: ConsoleHistoryTurn[] = [];
   for (const message of messageList) {
     const text = message.parts
-      .filter((part) => part.type === 'text' && typeof part.text === 'string')
+      .filter((part) => part.type === 'text' && part.text !== undefined)
       .map((part) => part.text)
       .join('\n')
       .trim();
     const toolNameList = message.parts
-      .filter((part) => part.type === 'tool-call' && typeof part.toolName === 'string')
+      .filter((part) => part.type === 'tool-call' && part.toolName !== undefined)
       .map((part) => part.toolName)
       .filter((toolName): toolName is string => toolName !== undefined);
     if (text.length === 0 && toolNameList.length === 0) {

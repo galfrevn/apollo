@@ -3,12 +3,20 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import type { Mesh } from 'three';
 
-const SPEECH_MODE_ACCENT_MAP: Record<string, string> = {
+const SPEECH_MODE_ACCENT_MAP = {
   default: '#FFFFFF',
   nerd: '#F5C518',
   playful: '#C45C26',
   warm: '#B56B7A',
-};
+} satisfies Record<string, string>;
+
+type KnownSpeechModeId = keyof typeof SPEECH_MODE_ACCENT_MAP;
+
+function isKnownSpeechModeId(
+  candidateSpeechModeId: string,
+): candidateSpeechModeId is KnownSpeechModeId {
+  return candidateSpeechModeId in SPEECH_MODE_ACCENT_MAP;
+}
 
 const DEVICE_RADIUS = 1;
 const DEVICE_HEIGHT = 2;
@@ -238,7 +246,9 @@ export function DeviceModel({
   readonly speechModeId: string | undefined;
 }) {
   const accentColorHex =
-    SPEECH_MODE_ACCENT_MAP[speechModeId ?? 'default'] ?? SPEECH_MODE_ACCENT_MAP.default;
+    speechModeId !== undefined && isKnownSpeechModeId(speechModeId)
+      ? SPEECH_MODE_ACCENT_MAP[speechModeId]
+      : SPEECH_MODE_ACCENT_MAP.default;
   const prefersReducedMotion = useMemo(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     [],
