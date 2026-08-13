@@ -1,7 +1,32 @@
+import { z } from 'zod';
+
 import type { ListItemRecord } from '@/lists/store';
 import type { ScheduledReminderRow } from '@/reminders/logic';
 
 export type ToolSafetyLevel = 'safe' | 'unsafe';
+
+export type JsonSerializableValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly JsonSerializableValue[]
+  | { readonly [propertyName: string]: JsonSerializableValue };
+
+export type ToolArgumentRecord = {
+  readonly [argumentName: string]: JsonSerializableValue;
+};
+
+export const jsonSerializableValueSchema: z.ZodType<JsonSerializableValue> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(jsonSerializableValueSchema),
+    z.record(jsonSerializableValueSchema),
+  ]),
+);
 
 export type ToolExecutionResult = {
   readonly ok: boolean;
@@ -12,7 +37,7 @@ export type ToolExecutionResult = {
 export type PendingToolConfirmation = {
   readonly id: string;
   readonly toolName: string;
-  readonly args: unknown;
+  readonly args: JsonSerializableValue | undefined;
   readonly summary: string;
   readonly expiresAt: number;
 };
@@ -87,12 +112,12 @@ export type DeskToolEffects = {
   >;
   readonly callDeviceTool: (input: {
     readonly deviceToolName: string;
-    readonly argumentRecord: Record<string, unknown>;
+    readonly argumentRecord: ToolArgumentRecord;
   }) => Promise<ToolExecutionResult>;
   readonly callInstalledMcpTool: (input: {
     readonly serverId: string;
     readonly toolName: string;
-    readonly argumentRecord: Record<string, unknown>;
+    readonly argumentRecord: ToolArgumentRecord;
   }) => Promise<ToolExecutionResult>;
 };
 
@@ -104,7 +129,7 @@ export type ToolExecutionContext = {
 };
 
 export type ToolHandler = (
-  args: unknown,
+  args: JsonSerializableValue | undefined,
   context: ToolExecutionContext,
 ) => Promise<ToolExecutionResult>;
 
@@ -112,9 +137,9 @@ export type ToolDefinition = {
   readonly name: string;
   readonly safety: ToolSafetyLevel;
   readonly description: string;
-  readonly parameters: Record<string, unknown>;
+  readonly parameters: ToolArgumentRecord;
   readonly handler: ToolHandler;
-  readonly buildConfirmSummary?: (args: unknown) => string;
+  readonly buildConfirmSummary?: (args: JsonSerializableValue | undefined) => string;
 };
 
 export const CONFIRM_TIMEOUT_MILLISECONDS = 30_000;

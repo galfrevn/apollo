@@ -20,11 +20,12 @@ function areByteArraysEqualTimingSafe(
 
 export async function isDeviceSharedSecretValid(
   presentedSecret: string | null,
-  expectedSecret: string,
+  // The generated Env type claims the Worker secret is always a string, but an
+  // unset secret arrives as undefined at runtime: accept that honestly and
+  // reject the connection instead of throwing a 500.
+  expectedSecret: string | undefined,
 ): Promise<boolean> {
-  // `expectedSecret` is typed as a string, but an unset Worker secret arrives
-  // as undefined at runtime: reject the connection instead of throwing a 500.
-  if (typeof expectedSecret !== 'string' || expectedSecret.length === 0) {
+  if (expectedSecret === undefined || expectedSecret.length === 0) {
     return false;
   }
   if (presentedSecret === null) {

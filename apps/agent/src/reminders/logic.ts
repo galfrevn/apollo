@@ -30,14 +30,14 @@ export function mapAgentScheduleListToReminderList(
     if (!parsedPayload.success) {
       continue;
     }
-    const reminderRow: ScheduledReminderRow = {
+    let reminderRow: ScheduledReminderRow = {
       id: schedule.id,
       message: parsedPayload.data.message,
       firesAtIso: new Date(schedule.time * 1000).toISOString(),
-      ...(typeof schedule.delayInSeconds === 'number'
-        ? { delayInSeconds: schedule.delayInSeconds }
-        : {}),
     };
+    if (schedule.delayInSeconds !== undefined) {
+      reminderRow = { ...reminderRow, delayInSeconds: schedule.delayInSeconds };
+    }
     reminderList.push(reminderRow);
   }
   return reminderList;

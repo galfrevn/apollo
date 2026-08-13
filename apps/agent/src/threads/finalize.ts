@@ -21,8 +21,9 @@ export type ThreadDigestResult = z.infer<typeof threadDigestResultSchema>;
 
 function extractSpokenText(message: SessionMessage): string {
   return message.parts
-    .filter((part) => part.type === 'text' && typeof part.text === 'string')
-    .map((part) => part.text)
+    .flatMap((part) =>
+      part.type === 'text' && part.text !== undefined ? [part.text] : [],
+    )
     .join(' ')
     .trim();
 }

@@ -11,24 +11,28 @@ export const mcpCallToolResultSchema = z.object({
 
 export type McpCallToolResult = z.infer<typeof mcpCallToolResultSchema>;
 
+export type McpCallToolResultParseOutcome = ReturnType<
+  typeof mcpCallToolResultSchema.safeParse
+>;
+
 export function readMcpCallToolResultText(parsedResult: McpCallToolResult): string {
   return (parsedResult.content ?? [])
-    .map((contentEntry) => contentEntry.text)
-    .filter((text): text is string => typeof text === 'string')
+    .flatMap((contentEntry) =>
+      contentEntry.text === undefined ? [] : [contentEntry.text],
+    )
     .join('\n');
 }
 
 export function summarizeMcpCallToolResult(
-  rawResult: unknown,
+  parseOutcome: McpCallToolResultParseOutcome,
   fallbackSummary: string,
   errorSummary: string,
 ): ToolExecutionResult {
-  const parsedResult = mcpCallToolResultSchema.safeParse(rawResult);
-  if (!parsedResult.success) {
+  if (!parseOutcome.success) {
     return { ok: true, summary: fallbackSummary };
   }
-  const textContent = readMcpCallToolResultText(parsedResult.data);
-  if (parsedResult.data.isError === true) {
+  const textContent = readMcpCallToolResultText(parseOutcome.data);
+  if (parseOutcome.data.isError === true) {
     return {
       ok: false,
       summary: textContent === '' ? errorSummary : textContent,

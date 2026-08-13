@@ -16,13 +16,23 @@ import {
   weatherLocationSchema,
 } from '@/agent/schema';
 
-type AgentCall = (method: string, args?: unknown[]) => Promise<unknown>;
+type AgentWireValue =
+  | string
+  | number
+  | boolean
+  | null
+  | AgentWireValue[]
+  | { [key: string]: AgentWireValue | undefined };
+
+type AgentCall = (method: string, args?: AgentWireValue[]) => Promise<AgentWireValue>;
+
+type ConsoleCallPayload = Record<string, string | number | boolean | undefined>;
 
 export function createConsoleRpc(call: AgentCall, secret: string) {
   const invoke = async <Result>(
     method: string,
     resultSchema: z.ZodType<Result>,
-    payload?: Record<string, unknown>,
+    payload?: ConsoleCallPayload,
   ): Promise<Result> => {
     const rawResult = await call(method, [{ secret, ...payload }]);
     return resultSchema.parse(rawResult);

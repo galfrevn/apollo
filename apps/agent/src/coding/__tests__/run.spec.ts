@@ -11,14 +11,20 @@ import {
 import { parseGithubRepositoryReference } from '@/github/repository';
 
 type RecordedExec = {
-  readonly command: string;
-  readonly cwd?: string;
-  readonly env?: Record<string, string>;
+  command: string;
+  cwd?: string;
+  env?: Record<string, string>;
 };
 
 type RecordedWrite = {
   readonly path: string;
   readonly content: string;
+};
+
+type FakeSandboxHarness = {
+  readonly sandbox: SandboxLike;
+  readonly execList: RecordedExec[];
+  readonly writeList: RecordedWrite[];
 };
 
 function createFakeSandbox(
@@ -27,11 +33,7 @@ function createFakeSandbox(
     readonly result: { stdout: string; stderr: string; exitCode: number };
   }[] = [],
   fileContentByPath: Readonly<Record<string, string>> = {},
-): {
-  readonly sandbox: SandboxLike;
-  readonly execList: RecordedExec[];
-  readonly writeList: RecordedWrite[];
-} {
+): FakeSandboxHarness {
   const execList: RecordedExec[] = [];
   const writeList: RecordedWrite[] = [];
   return {
@@ -39,11 +41,14 @@ function createFakeSandbox(
     writeList,
     sandbox: {
       exec: async (command, options) => {
-        execList.push({
-          command,
-          ...(options?.cwd !== undefined ? { cwd: options.cwd } : {}),
-          ...(options?.env !== undefined ? { env: options.env } : {}),
-        });
+        const recordedExec: RecordedExec = { command };
+        if (options?.cwd !== undefined) {
+          recordedExec.cwd = options.cwd;
+        }
+        if (options?.env !== undefined) {
+          recordedExec.env = options.env;
+        }
+        execList.push(recordedExec);
         const matched = execResultByFragment.find((candidate) =>
           command.includes(candidate.fragment),
         );
@@ -95,16 +100,21 @@ describe('prepareCodingWorkspace', () => {
       },
     ]);
 
-    const failure = await prepareCodingWorkspace({
-      sandbox,
-      repository: apolloRepository,
-      baseBranch: 'main',
-      installationToken: 'ghs_secrettoken',
-    }).catch((error: unknown) => error);
+    let caughtFailure: unknown;
+    try {
+      await prepareCodingWorkspace({
+        sandbox,
+        repository: apolloRepository,
+        baseBranch: 'main',
+        installationToken: 'ghs_secrettoken',
+      });
+    } catch (error) {
+      caughtFailure = error;
+    }
 
-    expect(failure).toBeInstanceOf(Error);
-    expect(String(failure)).not.toContain('ghs_secrettoken');
-    expect(String(failure)).toContain('***');
+    expect(caughtFailure).toBeInstanceOf(Error);
+    expect(String(caughtFailure)).not.toContain('ghs_secrettoken');
+    expect(String(caughtFailure)).toContain('***');
   });
 });
 

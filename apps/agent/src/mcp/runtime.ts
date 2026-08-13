@@ -4,10 +4,15 @@ import {
   resolveDiscoveredMcpToolSafety,
   type DiscoveredMcpTool,
 } from '@/mcp/adapter';
-import { summarizeMcpCallToolResult } from '@/mcp/result';
+import {
+  mcpCallToolResultSchema,
+  summarizeMcpCallToolResult,
+  type McpCallToolResult,
+} from '@/mcp/result';
 import {
   buildMcpServerSummaryList,
   mcpServerRecordSchema,
+  type McpServerRecordCandidateMap,
   type McpServerSummary,
 } from '@/mcp/servers';
 import type { McpToolSettingRow } from '@/mcp/settings';
@@ -25,12 +30,14 @@ export type McpToolDiscoverySource = {
   readonly listTools: () => readonly unknown[];
 };
 
+type InstalledMcpToolCallInput = Parameters<DeskToolEffects['callInstalledMcpTool']>[0];
+
 export type McpToolCallSource = {
   readonly callTool: (params: {
     readonly serverId: string;
     readonly name: string;
-    readonly arguments: Record<string, unknown>;
-  }) => Promise<unknown>;
+    readonly arguments: InstalledMcpToolCallInput['argumentRecord'];
+  }) => Promise<McpCallToolResult>;
 };
 
 // Waking from hibernation restores MCP connections asynchronously, so listTools()
@@ -57,7 +64,7 @@ export async function discoverInstalledMcpToolList(
 }
 
 export function buildMcpServerLabelMap(
-  serverRecordMap: Record<string, unknown>,
+  serverRecordMap: McpServerRecordCandidateMap,
 ): ReadonlyMap<string, string> {
   return new Map(
     Object.entries(serverRecordMap).flatMap(([serverId, rawRecord]) => {
@@ -70,7 +77,7 @@ export function buildMcpServerLabelMap(
 export function buildTurnToolDefinitionMap(input: {
   readonly discoveredToolList: readonly DiscoveredMcpTool[];
   readonly settingList: readonly McpToolSettingRow[];
-  readonly serverRecordMap: Record<string, unknown>;
+  readonly serverRecordMap: McpServerRecordCandidateMap;
   readonly callInstalledMcpTool: DeskToolEffects['callInstalledMcpTool'];
 }): ReadonlyMap<string, ToolDefinition> {
   const installedToolList = buildInstalledMcpToolDefinitionList({
@@ -88,7 +95,7 @@ export function buildTurnToolDefinitionMap(input: {
 }
 
 export function buildInstalledMcpServerSummaryList(input: {
-  readonly serverRecordMap: Record<string, unknown>;
+  readonly serverRecordMap: McpServerRecordCandidateMap;
   readonly discoveredToolList: readonly DiscoveredMcpTool[];
   readonly settingList: readonly McpToolSettingRow[];
 }): readonly McpServerSummary[] {
@@ -102,11 +109,7 @@ export function buildInstalledMcpServerSummaryList(input: {
 
 export async function callInstalledMcpTool(
   mcpClientManager: McpToolCallSource,
-  input: {
-    readonly serverId: string;
-    readonly toolName: string;
-    readonly argumentRecord: Record<string, unknown>;
-  },
+  input: InstalledMcpToolCallInput,
 ): Promise<ToolExecutionResult> {
   try {
     const callResult = await mcpClientManager.callTool({
@@ -115,7 +118,7 @@ export async function callInstalledMcpTool(
       arguments: input.argumentRecord,
     });
     return summarizeMcpCallToolResult(
-      callResult,
+      mcpCallToolResultSchema.safeParse(callResult),
       'Hecho.',
       `El servidor rechazó ${input.toolName}.`,
     );

@@ -13,7 +13,10 @@ import { recallSemanticMemoryContent } from '@/memory/vector';
 import { resolveDeskSpeechMode } from '@/persona/catalog';
 import { resolveDeskFaceEmotion } from '@/persona/face';
 import { APOLLO_TTS_VOICE, buildInstalledToolPromptNote } from '@/persona/soul';
-import { encodeServerToDeviceMessage } from '@/protocol/schema';
+import {
+  encodeServerToDeviceMessage,
+  type ServerToDeviceMessage,
+} from '@/protocol/schema';
 import type { DeskUiMachine } from '@/session/machine';
 import { buildTelemetryPromptNote, type DeskTelemetrySnapshot } from '@/telemetry/logic';
 import { createBuiltinToolDefinitionMap } from '@/tools/catalog';
@@ -22,7 +25,7 @@ import type {
   PendingToolConfirmation,
   ToolDefinition,
 } from '@/tools/types';
-import { runDeskTurn, type VoiceAdapters } from '@/turn/run';
+import { runDeskTurn, type TurnInput, type VoiceAdapters } from '@/turn/run';
 import { TTS_PCM_CHANNEL_COUNT, TTS_PCM_SAMPLE_RATE_HZ } from '@/voice/elevenlabs';
 import { chatWithOpenRouter } from '@/voice/llm';
 import { transcribeAudioWithOpenRouter } from '@/voice/stt';
@@ -32,6 +35,15 @@ import {
 } from '@/voice/stream';
 import { synthesizeApolloSpeech } from '@/voice/synthesize';
 import { wrapPcmAsWavBuffer } from '@/voice/wav';
+
+type DeskUiStateDeviceMessage = Extract<ServerToDeviceMessage, { type: 'ui_state' }>;
+type TtsStartDeviceMessage = Extract<ServerToDeviceMessage, { type: 'tts_start' }>;
+
+type PlaybackPacingOptions = {
+  prebufferMilliseconds?: number;
+  shouldStop?: () => boolean;
+  getPlaybackAck?: () => PlaybackAckSnapshot | null;
+};
 
 export type ApolloTurnRuntimeDependencies = {
   readonly environment: Env;
@@ -115,7 +127,7 @@ export async function executeApolloTurn(
             toolCallList: [],
           };
         },
-        tts: async (text) => new TextEncoder().encode(text).buffer as ArrayBuffer,
+        tts: async (text) => encodeMockSpeechAudio(text),
       }
     : {
         stt: async (audioBuffer) =>
@@ -124,14 +136,19 @@ export async function executeApolloTurn(
             openRouterApiKey: dependencies.environment.OPENROUTER_API_KEY,
             modelId: dependencies.environment.OPENROUTER_STT_MODEL,
           }),
-        llm: async ({ messageList, toolDefinitionList, onTextDelta }) =>
-          chatWithOpenRouter({
+        llm: async ({ messageList, toolDefinitionList, onTextDelta }) => {
+          const baseChatRequest = {
             openRouterApiKey: dependencies.environment.OPENROUTER_API_KEY,
             modelId: dependencies.environment.OPENROUTER_MODEL,
             messageList,
             toolDefinitionList,
-            ...(onTextDelta !== undefined ? { onTextDelta } : {}),
-          }),
+          };
+          return chatWithOpenRouter(
+            onTextDelta === undefined
+              ? baseChatRequest
+              : { ...baseChatRequest, onTextDelta },
+          );
+        },
         tts: async (text, voiceId) =>
           synthesizeApolloSpeech({
             environment: dependencies.environment,
@@ -140,7 +157,7 @@ export async function executeApolloTurn(
           }),
       };
 
-  const turnOutput = await runDeskTurn({
+  const baseTurnInput: TurnInput = {
     text: turnPart.text,
     audioBuffer: turnPart.audioBuffer,
     speechMode: dependencies.currentState.speechMode,
@@ -154,7 +171,6 @@ export async function executeApolloTurn(
     deviceId: dependencies.deviceId,
     systemPromptOverride: `${sessionSystemPrompt}${focusNote}${telemetryNote}${installedToolNote}`,
     recentHistoryMessageList,
-    ...(isMockVoice ? {} : { recallSemanticMemoryContentList }),
     effects: dependencies.effects,
     onThinkingCaption: async (caption) => {
       const liveState = dependencies.getCurrentState();
@@ -163,31 +179,33 @@ export async function executeApolloTurn(
         uiState: 'thinking',
         caption,
       });
-      connection.send(
-        encodeServerToDeviceMessage({
-          type: 'ui_state',
-          state: 'thinking',
-          speechMode: liveState.speechMode,
-          caption,
-          emotion: resolveDeskFaceEmotion('thinking'),
-          accentColor: resolveDeskSpeechMode(liveState.speechMode).accentColor,
-          ...(liveState.focusEndsAt !== null
-            ? {
-                focusRemainingSec: Math.max(
-                  0,
-                  Math.ceil((liveState.focusEndsAt - Date.now()) / 1000),
-                ),
-                focusEndsAt: Math.floor(liveState.focusEndsAt / 1000),
-                ...(liveState.focusStartedAt !== null
-                  ? { focusStartedAt: Math.floor(liveState.focusStartedAt / 1000) }
-                  : {}),
-              }
-            : {}),
-        }),
-      );
+      const thinkingUiStateMessage: DeskUiStateDeviceMessage = {
+        type: 'ui_state',
+        state: 'thinking',
+        speechMode: liveState.speechMode,
+        caption,
+        emotion: resolveDeskFaceEmotion('thinking'),
+        accentColor: resolveDeskSpeechMode(liveState.speechMode).accentColor,
+      };
+      if (liveState.focusEndsAt !== null) {
+        thinkingUiStateMessage.focusRemainingSec = Math.max(
+          0,
+          Math.ceil((liveState.focusEndsAt - Date.now()) / 1000),
+        );
+        thinkingUiStateMessage.focusEndsAt = Math.floor(liveState.focusEndsAt / 1000);
+        if (liveState.focusStartedAt !== null) {
+          thinkingUiStateMessage.focusStartedAt = Math.floor(
+            liveState.focusStartedAt / 1000,
+          );
+        }
+      }
+      connection.send(encodeServerToDeviceMessage(thinkingUiStateMessage));
     },
     adapters: voiceAdapters,
-  });
+  };
+  const turnOutput = await runDeskTurn(
+    isMockVoice ? baseTurnInput : { ...baseTurnInput, recallSemanticMemoryContentList },
+  );
 
   for (const uiEventName of turnOutput.uiEventList) {
     dependencies.uiMachine.transition(uiEventName);
@@ -251,40 +269,66 @@ export async function executeApolloTurn(
     let followUpIndex = 0;
     let wasAborted = false;
 
+    const synthesizeFollowUpSegmentAudio = async (
+      segmentText: string,
+    ): Promise<ArrayBuffer | undefined> => {
+      try {
+        return await voiceAdapters.tts(segmentText, APOLLO_TTS_VOICE);
+      } catch (synthesisError) {
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            message: 'apollo_tts_follow_up_segment_failed',
+            error:
+              synthesisError instanceof Error
+                ? synthesisError.message
+                : String(synthesisError),
+          }),
+        );
+        return undefined;
+      }
+    };
+
     while (currentAudioBuffer !== undefined) {
       // The next segment renders while this one plays, so synthesis latency
       // hides behind the paced stream instead of gapping the speech. A failed
       // follow-up just ends the reply early — the turn already committed.
-      const nextAudioBufferPromise: Promise<ArrayBuffer | undefined> | undefined =
+      const nextAudioBufferPromise =
         followUpIndex < followUpSegmentTextList.length
-          ? voiceAdapters
-              .tts(followUpSegmentTextList[followUpIndex], APOLLO_TTS_VOICE)
-              .catch((error: unknown): undefined => {
-                console.error(
-                  JSON.stringify({
-                    level: 'error',
-                    message: 'apollo_tts_follow_up_segment_failed',
-                    error: error instanceof Error ? error.message : String(error),
-                  }),
-                );
-                return undefined;
-              })
+          ? synthesizeFollowUpSegmentAudio(followUpSegmentTextList[followUpIndex])
           : undefined;
       const isFirstSegment = followUpIndex === 0;
       followUpIndex += 1;
       const ttsSequence = dependencies.allocateTtsSequence?.();
 
-      connection.send(
-        encodeServerToDeviceMessage({
-          type: 'tts_start',
-          format: 'pcm',
-          bytes: currentAudioBuffer.byteLength,
-          ...(ttsSequence !== undefined ? { sequence: ttsSequence } : {}),
-          sampleRate: TTS_PCM_SAMPLE_RATE_HZ,
-          channels: TTS_PCM_CHANNEL_COUNT,
-        }),
-      );
+      const ttsStartMessage: TtsStartDeviceMessage = {
+        type: 'tts_start',
+        format: 'pcm',
+        bytes: currentAudioBuffer.byteLength,
+        sampleRate: TTS_PCM_SAMPLE_RATE_HZ,
+        channels: TTS_PCM_CHANNEL_COUNT,
+      };
+      if (ttsSequence !== undefined) {
+        ttsStartMessage.sequence = ttsSequence;
+      }
+      connection.send(encodeServerToDeviceMessage(ttsStartMessage));
+
       const getPlaybackAckForSequence = dependencies.getPlaybackAckForSequence;
+      const playbackPacingOptions: PlaybackPacingOptions = {};
+      if (!isFirstSegment) {
+        // Follow-up segments land on a device that is still draining the
+        // previous one, so the full 2 s burst would risk the same queue
+        // overflow the pacing exists to avoid; a small allowance only
+        // covers network jitter.
+        playbackPacingOptions.prebufferMilliseconds = 500;
+      }
+      if (dependencies.isSpeechAborted !== undefined) {
+        playbackPacingOptions.shouldStop = dependencies.isSpeechAborted;
+      }
+      if (ttsSequence !== undefined && getPlaybackAckForSequence !== undefined) {
+        playbackPacingOptions.getPlaybackAck = () =>
+          getPlaybackAckForSequence(ttsSequence);
+      }
       await streamAudioChunksAtPlaybackPace({
         audioBuffer: currentAudioBuffer,
         sampleRateHz: TTS_PCM_SAMPLE_RATE_HZ,
@@ -292,17 +336,7 @@ export async function executeApolloTurn(
         send: (audioChunk) => {
           connection.send(audioChunk);
         },
-        // Follow-up segments land on a device that is still draining the
-        // previous one, so the full 2 s burst would risk the same queue
-        // overflow the pacing exists to avoid; a small allowance only
-        // covers network jitter.
-        ...(isFirstSegment ? {} : { prebufferMilliseconds: 500 }),
-        ...(dependencies.isSpeechAborted !== undefined
-          ? { shouldStop: dependencies.isSpeechAborted }
-          : {}),
-        ...(ttsSequence !== undefined && getPlaybackAckForSequence !== undefined
-          ? { getPlaybackAck: () => getPlaybackAckForSequence(ttsSequence) }
-          : {}),
+        ...playbackPacingOptions,
       });
 
       if (dependencies.isSpeechAborted?.() === true) {
@@ -350,6 +384,13 @@ export async function executeApolloTurn(
       createdAt: new Date(),
     });
   }
+}
+
+function encodeMockSpeechAudio(spokenText: string): ArrayBuffer {
+  const encodedSpokenTextBytes = new TextEncoder().encode(spokenText);
+  const mockSpeechAudioBuffer = new ArrayBuffer(encodedSpokenTextBytes.byteLength);
+  new Uint8Array(mockSpeechAudioBuffer).set(encodedSpokenTextBytes);
+  return mockSpeechAudioBuffer;
 }
 
 export function concatenateArrayBufferList(

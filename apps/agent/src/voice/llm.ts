@@ -1,9 +1,15 @@
 import { z } from 'zod';
 
+import {
+  jsonSerializableValueSchema,
+  type JsonSerializableValue,
+  type ToolDefinition,
+} from '@/tools/types';
+
 export type OpenRouterToolCall = {
   readonly id: string;
   readonly name: string;
-  readonly args: unknown;
+  readonly args: JsonSerializableValue;
 };
 
 export type OpenRouterChatMessage =
@@ -185,26 +191,34 @@ async function consumeOpenRouterStream(
 
   const toolCallList = [...partialToolCallMap.entries()]
     .toSorted(([leftIndex], [rightIndex]) => leftIndex - rightIndex)
-    .map(([, partial]) => ({
-      id: partial.id,
-      name: partial.name,
-      args: JSON.parse(
-        partial.argumentsText === '' ? '{}' : partial.argumentsText,
-      ) as unknown,
-    }));
+    .map(([, partial]) => {
+      const parsedArguments = jsonSerializableValueSchema.parse(
+        JSON.parse(partial.argumentsText === '' ? '{}' : partial.argumentsText),
+      );
+      return { id: partial.id, name: partial.name, args: parsedArguments };
+    });
 
   return { text: fullText.trim(), toolCallList };
 }
+
+type OpenRouterChatRequestPayload = {
+  readonly model: string;
+  readonly messages: readonly OpenRouterChatMessage[];
+  tools?: readonly {
+    readonly type: 'function';
+    readonly function: Pick<ToolDefinition, 'name' | 'description' | 'parameters'>;
+  }[];
+  stream?: boolean;
+};
 
 export async function chatWithOpenRouter(input: {
   readonly openRouterApiKey: string;
   readonly modelId: string;
   readonly messageList: readonly OpenRouterChatMessage[];
-  readonly toolDefinitionList?: readonly {
-    readonly name: string;
-    readonly description: string;
-    readonly parameters: Record<string, unknown>;
-  }[];
+  readonly toolDefinitionList?: readonly Pick<
+    ToolDefinition,
+    'name' | 'description' | 'parameters'
+  >[];
   // When given, the request streams over SSE and every content delta lands here
   // as it arrives, so the caller can start speaking the first sentence while
   // the model is still writing the rest.
@@ -223,6 +237,17 @@ export async function chatWithOpenRouter(input: {
         }))
       : undefined;
 
+  const requestPayload: OpenRouterChatRequestPayload = {
+    model: input.modelId,
+    messages: input.messageList,
+  };
+  if (toolDefinitionPayloadList !== undefined) {
+    requestPayload.tools = toolDefinitionPayloadList;
+  }
+  if (input.onTextDelta !== undefined) {
+    requestPayload.stream = true;
+  }
+
   const fetchImplementation = input.fetchImplementation ?? globalThis.fetch;
   const response = await fetchImplementation(
     'https://openrouter.ai/api/v1/chat/completions',
@@ -232,14 +257,7 @@ export async function chatWithOpenRouter(input: {
         Authorization: `Bearer ${input.openRouterApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: input.modelId,
-        messages: input.messageList,
-        ...(toolDefinitionPayloadList !== undefined
-          ? { tools: toolDefinitionPayloadList }
-          : {}),
-        ...(input.onTextDelta !== undefined ? { stream: true } : {}),
-      }),
+      body: JSON.stringify(requestPayload),
     },
   );
 
@@ -254,11 +272,12 @@ export async function chatWithOpenRouter(input: {
   const payload = openRouterChatResponseSchema.parse(await response.json());
   const message = payload.choices[0].message;
   const toolCallList =
-    message.tool_calls?.map((toolCall) => ({
-      id: toolCall.id,
-      name: toolCall.function.name,
-      args: JSON.parse(toolCall.function.arguments) as unknown,
-    })) ?? [];
+    message.tool_calls?.map((toolCall) => {
+      const parsedArguments = jsonSerializableValueSchema.parse(
+        JSON.parse(toolCall.function.arguments),
+      );
+      return { id: toolCall.id, name: toolCall.function.name, args: parsedArguments };
+    }) ?? [];
 
   return {
     text: message.content?.trim() ?? '',

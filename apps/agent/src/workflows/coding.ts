@@ -4,6 +4,7 @@ import {
   type WorkflowStep,
 } from 'cloudflare:workers';
 import { getAgentByName } from 'agents';
+import type { z } from 'zod';
 
 import { runCodingAgent } from '@/coding/agent';
 import { buildCodingBranchName } from '@/coding/git';
@@ -35,6 +36,7 @@ import {
   redactSecretsFromText,
 } from '@/github/repository';
 import { chatWithOpenRouter } from '@/voice/llm';
+import type { notifyBackgroundResultInputSchema } from '@/agents/rpc';
 
 export type ApolloCodingParams = {
   readonly repository: string;
@@ -311,11 +313,16 @@ export class ApolloCoding extends WorkflowEntrypoint<Env, ApolloCodingParams> {
     documentKey?: string,
   ): Promise<void> {
     const apollo = await getAgentByName(this.env.Apollo, deviceId);
-    await apollo.notifyBackgroundResult({
+    const backgroundResultNotification: z.infer<
+      typeof notifyBackgroundResultInputSchema
+    > = {
       prompt: taskText,
       summary,
-      ...(documentKey !== undefined ? { documentKey } : {}),
-    });
+    };
+    if (documentKey !== undefined) {
+      backgroundResultNotification.documentKey = documentKey;
+    }
+    await apollo.notifyBackgroundResult(backgroundResultNotification);
   }
 }
 

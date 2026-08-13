@@ -15,12 +15,14 @@ type BucketListingLike = {
   readonly cursor?: string;
 };
 
+type BucketListingOptions = {
+  prefix: string;
+  limit?: number;
+  cursor?: string;
+};
+
 export type ConsoleDocumentBucket = {
-  list(options: {
-    prefix: string;
-    limit?: number;
-    cursor?: string;
-  }): Promise<BucketListingLike>;
+  list(options: BucketListingOptions): Promise<BucketListingLike>;
   get(key: string): Promise<{ text(): Promise<string> } | null>;
 };
 
@@ -37,11 +39,14 @@ export async function listConsoleJobDocuments(
     let cursor: string | undefined;
     let collectedCount = 0;
     do {
-      const listing = await bucket.list({
+      const listingOptions: BucketListingOptions = {
         prefix: `${kind}/${deviceId}/`,
         limit: JOB_LISTING_PAGE_SIZE,
-        ...(cursor === undefined ? {} : { cursor }),
-      });
+      };
+      if (cursor !== undefined) {
+        listingOptions.cursor = cursor;
+      }
+      const listing = await bucket.list(listingOptions);
       for (const object of listing.objects) {
         documentList.push({
           documentKey: object.key,

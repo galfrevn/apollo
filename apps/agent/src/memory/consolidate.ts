@@ -70,8 +70,9 @@ export function flattenRecentHistoryToTranscript(
   const lineList: string[] = [];
   for (const message of messageList) {
     const spokenText = message.parts
-      .filter((part) => part.type === 'text' && typeof part.text === 'string')
-      .map((part) => part.text)
+      .flatMap((part) =>
+        part.type === 'text' && part.text !== undefined ? [part.text] : [],
+      )
       .join(' ')
       .trim();
     if (spokenText.length === 0) {
@@ -202,15 +203,17 @@ export function seedOwnerFactsFromMemoryBlock(input: {
   return seededFactList;
 }
 
+export type OwnerFactMergeResult = {
+  readonly nextFactList: readonly OwnerFact[];
+  readonly genuinelyNewFactList: readonly OwnerFact[];
+};
+
 export function mergeOwnerFacts(input: {
   readonly existingFactList: readonly OwnerFact[];
   readonly extraction: MemoryExtractionResult;
   readonly nowMilliseconds: number;
   readonly createIdentifier: () => string;
-}): {
-  readonly nextFactList: readonly OwnerFact[];
-  readonly genuinelyNewFactList: readonly OwnerFact[];
-} {
+}): OwnerFactMergeResult {
   const reinforcedIdSet = new Set(input.extraction.reinforcedFactIdList);
   const staleIdSet = new Set(input.extraction.staleFactIdList);
   const decayCutoffMilliseconds =

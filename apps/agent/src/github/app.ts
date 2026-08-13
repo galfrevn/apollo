@@ -200,9 +200,7 @@ export async function listGithubAppRepositoryFullNameList(input: {
     const installationToken = await createGithubInstallationToken({
       installationId: installation.id,
       appJsonWebToken,
-      ...(input.fetchImplementation !== undefined
-        ? { fetchImplementation: input.fetchImplementation }
-        : {}),
+      fetchImplementation,
     });
     for (let pageNumber = 1; ; pageNumber += 1) {
       const repositoriesResponse = await fetchImplementation(
@@ -238,6 +236,7 @@ export async function createGithubInstallationTokenForRepository(input: {
   if (input.appId.length === 0 || input.privateKeyPem.length === 0) {
     throw new Error('Faltan GITHUB_APP_ID o GITHUB_APP_PRIVATE_KEY');
   }
+  const fetchImplementation = input.fetchImplementation ?? globalThis.fetch;
   const appJsonWebToken = await signGithubAppJsonWebToken({
     appId: input.appId,
     privateKeyPem: input.privateKeyPem,
@@ -246,15 +245,11 @@ export async function createGithubInstallationTokenForRepository(input: {
   const installationId = await resolveGithubInstallationId({
     repository: input.repository,
     appJsonWebToken,
-    ...(input.fetchImplementation !== undefined
-      ? { fetchImplementation: input.fetchImplementation }
-      : {}),
+    fetchImplementation,
   });
   return createGithubInstallationToken({
     installationId,
     appJsonWebToken,
-    ...(input.fetchImplementation !== undefined
-      ? { fetchImplementation: input.fetchImplementation }
-      : {}),
+    fetchImplementation,
   });
 }

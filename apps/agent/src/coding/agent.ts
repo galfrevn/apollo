@@ -3,7 +3,11 @@ import { z } from 'zod';
 import { CODING_WORKSPACE_PATH } from '@/coding/git';
 import { resolveWorkspaceFilePath } from '@/coding/workspace';
 import { truncateSandboxOutputForToolResult } from '@/sandbox/helpers';
-import type { OpenRouterChatMessage, OpenRouterChatResult } from '@/voice/llm';
+import type {
+  OpenRouterChatMessage,
+  OpenRouterChatResult,
+  OpenRouterToolCall,
+} from '@/voice/llm';
 
 export const DEFAULT_CODING_ROUND_LIMIT = 24;
 // Two rounds with identical calls and identical results get the model a
@@ -29,13 +33,26 @@ export type CodingSandboxPort = {
   }>;
 };
 
+export type CodingToolParameterFieldSchema = {
+  readonly type: 'string';
+};
+
+export type CodingToolParameterSchema = {
+  readonly type: 'object';
+  readonly properties: Readonly<Record<string, CodingToolParameterFieldSchema>>;
+  readonly required?: readonly string[];
+  readonly additionalProperties: false;
+};
+
+export type CodingToolDefinition = {
+  readonly name: string;
+  readonly description: string;
+  readonly parameters: CodingToolParameterSchema;
+};
+
 export type CodingLlmCaller = (input: {
   readonly messageList: readonly OpenRouterChatMessage[];
-  readonly toolDefinitionList: readonly {
-    readonly name: string;
-    readonly description: string;
-    readonly parameters: Record<string, unknown>;
-  }[];
+  readonly toolDefinitionList: readonly CodingToolDefinition[];
 }) => Promise<OpenRouterChatResult>;
 
 export type CodingAgentOutcome = {
@@ -52,12 +69,6 @@ const writeFileArgsSchema = z.object({
   content: z.string(),
 });
 const runCommandArgsSchema = z.object({ command: z.string().min(1).max(2000) });
-
-type CodingToolDefinition = {
-  readonly name: string;
-  readonly description: string;
-  readonly parameters: Record<string, unknown>;
-};
 
 const codingToolDefinitionList: readonly CodingToolDefinition[] = [
   {
@@ -127,17 +138,14 @@ export function buildCodingSystemPrompt(input: {
 
 // The transcript is persisted to R2 and emailed, so a write_file call records
 // what changed rather than the whole file it wrote.
-export function summarizeToolCallForTranscript(
-  toolName: string,
-  toolArgs: unknown,
-): string {
-  if (toolName === 'write_file') {
-    const parsedArgs = writeFileArgsSchema.safeParse(toolArgs);
+export function summarizeToolCallForTranscript(toolCall: OpenRouterToolCall): string {
+  if (toolCall.name === 'write_file') {
+    const parsedArgs = writeFileArgsSchema.safeParse(toolCall.args);
     if (parsedArgs.success) {
       return `write_file ${parsedArgs.data.path} (${parsedArgs.data.content.length} caracteres)`;
     }
   }
-  return `${toolName} ${JSON.stringify(toolArgs)}`;
+  return `${toolCall.name} ${JSON.stringify(toolCall.args)}`;
 }
 
 async function executeCodingTool(input: {
@@ -294,7 +302,7 @@ export async function runCodingAgent(input: {
 
     const toolOutputList: string[] = [];
     for (const toolCall of llmResult.toolCallList) {
-      transcript.push(summarizeToolCallForTranscript(toolCall.name, toolCall.args));
+      transcript.push(summarizeToolCallForTranscript(toolCall));
       let toolOutput: string;
       try {
         toolOutput = await executeCodingTool({

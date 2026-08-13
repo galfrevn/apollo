@@ -7,7 +7,7 @@ import { CONSOLE_ROUTE_LIST, navigateToRoute, useConsoleRoute } from '@/router/h
 import { ROUTE_LABEL_MAP } from '@/router/metadata';
 import type { ConsoleRoute } from '@/router/hash';
 
-export const ROUTE_ICON_MAP: Record<ConsoleRoute, IconType> = {
+export const ROUTE_ICON_MAP = {
   status: Icons.Status,
   device: Icons.Device,
   mcp: Icons.Mcp,
@@ -15,7 +15,7 @@ export const ROUTE_ICON_MAP: Record<ConsoleRoute, IconType> = {
   schedules: Icons.Schedules,
   history: Icons.History,
   jobs: Icons.Jobs,
-};
+} satisfies Record<ConsoleRoute, IconType>;
 
 function Rail({
   isExpanded,

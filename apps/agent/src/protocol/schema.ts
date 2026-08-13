@@ -215,11 +215,10 @@ export const serverToDeviceMessageSchema = z.discriminatedUnion('type', [
 
 export type ServerToDeviceMessage = z.infer<typeof serverToDeviceMessageSchema>;
 
-export function parseDeviceToServerMessage(rawPayload: unknown): DeviceToServerMessage {
-  if (typeof rawPayload === 'string') {
-    return deviceToServerMessageSchema.parse(JSON.parse(rawPayload));
-  }
-  return deviceToServerMessageSchema.parse(rawPayload);
+export function parseDeviceToServerMessage(
+  rawMessageText: string,
+): DeviceToServerMessage {
+  return deviceToServerMessageSchema.parse(JSON.parse(rawMessageText));
 }
 
 export function encodeServerToDeviceMessage(message: ServerToDeviceMessage): string {

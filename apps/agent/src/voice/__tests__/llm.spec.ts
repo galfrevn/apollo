@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { z } from 'zod';
 
 import { buildOpenRouterSystemPrompt, chatWithOpenRouter } from '@/voice/llm';
 
@@ -7,13 +8,35 @@ type CapturedFetchCall = {
   readonly init: RequestInit;
 };
 
+type OpenRouterChatResponseFixture = {
+  readonly choices?: readonly {
+    readonly message: {
+      readonly content?: string | null;
+      readonly tool_calls?: readonly {
+        readonly id: string;
+        readonly function: {
+          readonly name: string;
+          readonly arguments: string;
+        };
+      }[];
+    };
+  }[];
+};
+
+const capturedChatRequestBodySchema = z.object({
+  model: z.string(),
+  stream: z.boolean().optional(),
+  tools: z.array(z.object({ function: z.object({ name: z.string() }) })).optional(),
+});
+
+function parseCapturedChatRequestBody(capturedCall: CapturedFetchCall) {
+  return capturedChatRequestBodySchema.parse(JSON.parse(String(capturedCall.init.body)));
+}
+
 function createCapturingFetchMock(
-  responseBody: unknown,
+  responseBody: OpenRouterChatResponseFixture,
   status = 200,
-): {
-  readonly fetchImplementation: typeof fetch;
-  readonly callList: CapturedFetchCall[];
-} {
+) {
   const callList: CapturedFetchCall[] = [];
   const fetchHandler = async (
     input: string | URL | Request,
@@ -25,7 +48,24 @@ function createCapturingFetchMock(
   return {
     fetchImplementation: Object.assign(fetchHandler, {
       preconnect: () => {},
-    }) as typeof fetch,
+    }),
+    callList,
+  };
+}
+
+function createStreamingFetchMock(serverSentEventBody: string) {
+  const callList: CapturedFetchCall[] = [];
+  const fetchHandler = async (
+    input: string | URL | Request,
+    init?: RequestInit,
+  ): Promise<Response> => {
+    callList.push({ url: String(input), init: init ?? {} });
+    return new Response(serverSentEventBody, { status: 200 });
+  };
+  return {
+    fetchImplementation: Object.assign(fetchHandler, {
+      preconnect: () => {},
+    }),
     callList,
   };
 }
@@ -71,10 +111,7 @@ describe('chatWithOpenRouter', () => {
     expect(callList).toHaveLength(1);
     expect(callList[0].url).toBe('https://openrouter.ai/api/v1/chat/completions');
     expect(callList[0].init.headers).toMatchObject({ Authorization: 'Bearer key-123' });
-    const requestBody = JSON.parse(callList[0].init.body as string) as Record<
-      string,
-      unknown
-    >;
+    const requestBody = parseCapturedChatRequestBody(callList[0]);
     expect(requestBody.model).toBe('deepseek/deepseek-v4-flash-0731');
     expect(requestBody.tools).toBeUndefined();
   });
@@ -94,9 +131,7 @@ describe('chatWithOpenRouter', () => {
       fetchImplementation,
     });
 
-    const requestBody = JSON.parse(callList[0].init.body as string) as {
-      tools?: readonly { function: { name: string } }[];
-    };
+    const requestBody = parseCapturedChatRequestBody(callList[0]);
     expect(requestBody.tools?.[0]?.function.name).toBe('weather_now');
   });
 
@@ -154,14 +189,7 @@ describe('chatWithOpenRouter', () => {
       'data: [DONE]',
       '',
     ].join('\n');
-    const callList: CapturedFetchCall[] = [];
-    const fetchImplementation = Object.assign(
-      async (input: string | URL | Request, init?: RequestInit) => {
-        callList.push({ url: String(input), init: init ?? {} });
-        return new Response(sseBody, { status: 200 });
-      },
-      { preconnect: () => {} },
-    ) as typeof fetch;
+    const { fetchImplementation, callList } = createStreamingFetchMock(sseBody);
 
     const deltaList: string[] = [];
     const result = await chatWithOpenRouter({
@@ -174,9 +202,7 @@ describe('chatWithOpenRouter', () => {
       fetchImplementation,
     });
 
-    const requestBody = JSON.parse(callList[0].init.body as string) as {
-      stream?: boolean;
-    };
+    const requestBody = parseCapturedChatRequestBody(callList[0]);
     expect(requestBody.stream).toBe(true);
     expect(deltaList).toEqual(['Hola ', 'mundo.']);
     expect(result.text).toBe('Hola mundo.');
@@ -189,10 +215,7 @@ describe('chatWithOpenRouter', () => {
       '',
       'data: {"choices":[{"delta":{"content":"mundo."}}]}',
     ].join('\n');
-    const fetchImplementation = Object.assign(
-      async () => new Response(sseBody, { status: 200 }),
-      { preconnect: () => {} },
-    ) as typeof fetch;
+    const { fetchImplementation } = createStreamingFetchMock(sseBody);
 
     const result = await chatWithOpenRouter({
       openRouterApiKey: 'key-123',
@@ -214,10 +237,7 @@ describe('chatWithOpenRouter', () => {
       'data: [DONE]',
       '',
     ].join('\n');
-    const fetchImplementation = Object.assign(
-      async () => new Response(sseBody, { status: 200 }),
-      { preconnect: () => {} },
-    ) as typeof fetch;
+    const { fetchImplementation } = createStreamingFetchMock(sseBody);
 
     const result = await chatWithOpenRouter({
       openRouterApiKey: 'key-123',

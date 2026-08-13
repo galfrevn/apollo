@@ -1,5 +1,6 @@
 import {
   CONFIRM_TIMEOUT_MILLISECONDS,
+  type JsonSerializableValue,
   type PendingToolConfirmation,
   type ToolDefinition,
   type ToolExecutionContext,
@@ -23,7 +24,7 @@ export function isPendingConfirmationExpired(
 export async function executeToolByName(
   toolDefinitionMap: ReadonlyMap<string, ToolDefinition>,
   toolName: string,
-  toolArgs: unknown,
+  toolArgs: JsonSerializableValue | undefined,
   context: ToolExecutionContext,
   createConfirmationId: () => string = () => crypto.randomUUID(),
 ): Promise<ToolRouterOutcome> {

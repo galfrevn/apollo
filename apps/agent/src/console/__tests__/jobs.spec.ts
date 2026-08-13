@@ -23,12 +23,11 @@ function createFakeDocumentBucket(
       const startIndex = cursor === undefined ? 0 : Number(cursor);
       const endIndex =
         pageSize === undefined ? matchingObjectList.length : startIndex + pageSize;
-      const isTruncated = endIndex < matchingObjectList.length;
-      return {
-        objects: matchingObjectList.slice(startIndex, endIndex),
-        truncated: isTruncated,
-        ...(isTruncated ? { cursor: String(endIndex) } : {}),
-      };
+      const pageObjectList = matchingObjectList.slice(startIndex, endIndex);
+      if (endIndex < matchingObjectList.length) {
+        return { objects: pageObjectList, truncated: true, cursor: String(endIndex) };
+      }
+      return { objects: pageObjectList, truncated: false };
     },
     async get(key) {
       const object = objectMap[key];

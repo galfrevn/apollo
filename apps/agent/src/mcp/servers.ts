@@ -77,8 +77,16 @@ export const mcpServerRecordSchema = z.object({
   error: z.string().nullable().optional(),
 });
 
+// The SDK's server registry survives hibernation, so a stored record may be
+// null or miss any field; every record is re-validated with the schema before use.
+export type McpServerRecordCandidate = Partial<
+  z.input<typeof mcpServerRecordSchema>
+> | null;
+
+export type McpServerRecordCandidateMap = Record<string, McpServerRecordCandidate>;
+
 export function buildMcpServerSummaryList(input: {
-  readonly serverRecordMap: Record<string, unknown>;
+  readonly serverRecordMap: McpServerRecordCandidateMap;
   readonly discoveredToolList: readonly DiscoveredMcpTool[];
   readonly settingList: readonly McpToolSettingRow[];
   readonly defaultSafetyResolver: (discoveredTool: DiscoveredMcpTool) => ToolSafetyLevel;

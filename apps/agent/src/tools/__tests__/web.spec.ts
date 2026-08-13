@@ -3,18 +3,16 @@ import { describe, expect, it } from 'bun:test';
 import { createFakeApolloEnvironment } from '@/configuration/testing';
 import { webSearchTool } from '@/tools/web';
 
-function withMockedFetch(handler: (requestUrl: string) => Response): {
-  restore: () => void;
-} {
+function withMockedFetch(handler: (requestUrl: string) => Response) {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = Object.assign(
     async (input: RequestInfo | URL) => {
       const requestUrl =
-        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        input instanceof URL ? input.href : input instanceof Request ? input.url : input;
       return handler(requestUrl);
     },
     { preconnect: () => {} },
-  ) as typeof fetch;
+  );
   return {
     restore: () => {
       globalThis.fetch = originalFetch;

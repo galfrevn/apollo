@@ -4,12 +4,22 @@ import { navigateToRoute } from '@/router/hash';
 import type { ApolloAgentState, ConsoleStatus } from '@/agent/schema';
 import type { ConsoleRoute } from '@/router/hash';
 
-type InsightSegment = string | { readonly label: string; readonly route?: ConsoleRoute };
+type InsightSegment =
+  | { readonly kind: 'plain'; readonly text: string }
+  | { readonly kind: 'highlight'; readonly label: string; readonly route?: ConsoleRoute };
 
 type Insight = {
   readonly id: string;
   readonly segmentList: readonly InsightSegment[];
 };
+
+function buildPlainSegment(text: string): InsightSegment {
+  return { kind: 'plain', text };
+}
+
+function buildHighlightSegment(label: string, route?: ConsoleRoute): InsightSegment {
+  return { kind: 'highlight', label, route };
+}
 
 function resolveGreetingLabel(hourOfDay: number): string {
   if (hourOfDay < 12) {
@@ -28,19 +38,24 @@ function buildInsightList(
   const insightList: Insight[] = [];
 
   if (status.isDeviceConnected) {
-    const deviceSegmentList: InsightSegment[] = ['The desk is ', { label: 'online' }];
+    const deviceSegmentList: InsightSegment[] = [
+      buildPlainSegment('The desk is '),
+      buildHighlightSegment('online'),
+    ];
     if (status.deviceConnectionCount > 1) {
-      deviceSegmentList.push(` with ${status.deviceConnectionCount} device links`);
+      deviceSegmentList.push(
+        buildPlainSegment(` with ${status.deviceConnectionCount} device links`),
+      );
     }
-    deviceSegmentList.push('.');
+    deviceSegmentList.push(buildPlainSegment('.'));
     insightList.push({ id: 'device', segmentList: deviceSegmentList });
   } else {
     insightList.push({
       id: 'device',
       segmentList: [
-        'The desk is ',
-        { label: 'offline' },
-        ' — telemetry pauses until it reconnects.',
+        buildPlainSegment('The desk is '),
+        buildHighlightSegment('offline'),
+        buildPlainSegment(' — telemetry pauses until it reconnects.'),
       ],
     });
   }
@@ -51,9 +66,11 @@ function buildInsightList(
     insightList.push({
       id: 'battery',
       segmentList: [
-        'Battery at ',
-        { label: `${batteryLevel}%` },
-        isCharging === undefined ? '.' : isCharging ? ', charging.' : ', on battery.',
+        buildPlainSegment('Battery at '),
+        buildHighlightSegment(`${batteryLevel}%`),
+        buildPlainSegment(
+          isCharging === undefined ? '.' : isCharging ? ', charging.' : ', on battery.',
+        ),
       ],
     });
   }
@@ -63,26 +80,34 @@ function buildInsightList(
     insightList.push({
       id: 'reminders',
       segmentList: [
-        'There ',
-        status.pendingReminderCount === 1 ? 'is ' : 'are ',
-        {
-          label: `${status.pendingReminderCount} ${reminderNoun}`,
-          route: 'schedules',
-        },
-        ' waiting to fire.',
+        buildPlainSegment('There '),
+        buildPlainSegment(status.pendingReminderCount === 1 ? 'is ' : 'are '),
+        buildHighlightSegment(
+          `${status.pendingReminderCount} ${reminderNoun}`,
+          'schedules',
+        ),
+        buildPlainSegment(' waiting to fire.'),
       ],
     });
   } else {
     insightList.push({
       id: 'reminders',
-      segmentList: ['Nothing on the ', { label: 'schedule', route: 'schedules' }, '.'],
+      segmentList: [
+        buildPlainSegment('Nothing on the '),
+        buildHighlightSegment('schedule', 'schedules'),
+        buildPlainSegment('.'),
+      ],
     });
   }
 
   if (agentState !== undefined && agentState.uiState !== 'idle') {
     insightList.push({
       id: 'agent',
-      segmentList: ['The agent is ', { label: agentState.uiState }, ' right now.'],
+      segmentList: [
+        buildPlainSegment('The agent is '),
+        buildHighlightSegment(agentState.uiState),
+        buildPlainSegment(' right now.'),
+      ],
     });
   }
 
@@ -90,8 +115,8 @@ function buildInsightList(
 }
 
 function InsightFragment({ segment }: { readonly segment: InsightSegment }) {
-  if (typeof segment === 'string') {
-    return segment;
+  if (segment.kind === 'plain') {
+    return segment.text;
   }
   const fragmentClass =
     'border-b border-dashed border-muted-foreground/40 text-foreground';

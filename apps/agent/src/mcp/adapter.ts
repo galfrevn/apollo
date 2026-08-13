@@ -2,7 +2,14 @@ import { z } from 'zod';
 
 import { buildNamespacedMcpToolName } from '@/mcp/naming';
 import { findMcpToolSetting, type McpToolSettingRow } from '@/mcp/settings';
-import type { DeskToolEffects, ToolDefinition, ToolSafetyLevel } from '@/tools/types';
+import {
+  jsonSerializableValueSchema,
+  type DeskToolEffects,
+  type JsonSerializableValue,
+  type ToolArgumentRecord,
+  type ToolDefinition,
+  type ToolSafetyLevel,
+} from '@/tools/types';
 
 // Descriptions are authored by the installed server and land in the system
 // prompt verbatim.
@@ -10,18 +17,24 @@ export const MCP_TOOL_DESCRIPTION_MAX_LENGTH = 400;
 
 const MCP_CONFIRM_SUMMARY_ARGUMENT_MAX_LENGTH = 160;
 
-const EMPTY_MCP_TOOL_PARAMETERS: Record<string, unknown> = {
+const EMPTY_MCP_TOOL_PARAMETERS = {
   type: 'object',
   properties: {},
 };
 
-const mcpToolArgumentRecordSchema = z.record(z.unknown());
+// Every caller hands this schema a value that is already statically
+// JsonSerializableValue, so only the record shape needs checking at runtime;
+// recursing into values would blow the stack on the self-referencing records
+// the JSON.stringify guard below exists to survive.
+const mcpToolArgumentRecordSchema: z.ZodType<ToolArgumentRecord> = z.record(
+  z.custom<JsonSerializableValue>(() => true),
+);
 
 export const discoveredMcpToolSchema = z.object({
   serverId: z.string().min(1),
   name: z.string().min(1),
   description: z.string().optional(),
-  inputSchema: z.record(z.unknown()).optional(),
+  inputSchema: z.record(jsonSerializableValueSchema).optional(),
   annotations: z
     .object({
       readOnlyHint: z.boolean().optional(),
@@ -56,11 +69,6 @@ export function truncateMcpText(text: string, maxLength: number): string {
   return text.length <= maxLength ? text : `${text.slice(0, maxLength - 1)}…`;
 }
 
-function readMcpToolArgumentRecord(toolArgs: unknown): Record<string, unknown> {
-  const parsedArguments = mcpToolArgumentRecordSchema.safeParse(toolArgs);
-  return parsedArguments.success ? parsedArguments.data : {};
-}
-
 function buildInstalledMcpToolDescription(
   discoveredTool: DiscoveredMcpTool,
   serverLabel: string,
@@ -91,9 +99,12 @@ function buildInstalledMcpToolDefinition(input: {
     // The router reads a throw here as arguments the tool cannot accept, and an
     // installed server owns its own schema, so this renders without validating.
     buildConfirmSummary(toolArgs) {
+      const parsedArgumentRecord = mcpToolArgumentRecordSchema.safeParse(toolArgs);
       let renderedArguments: string;
       try {
-        renderedArguments = JSON.stringify(readMcpToolArgumentRecord(toolArgs)) ?? '{}';
+        renderedArguments =
+          JSON.stringify(parsedArgumentRecord.success ? parsedArgumentRecord.data : {}) ??
+          '{}';
       } catch {
         renderedArguments = '{}';
       }
@@ -105,11 +116,12 @@ function buildInstalledMcpToolDefinition(input: {
     // executeToolByName does not wrap safe handlers, so an escaping network
     // error would fail the whole turn instead of this one call.
     async handler(toolArgs) {
+      const parsedArgumentRecord = mcpToolArgumentRecordSchema.safeParse(toolArgs);
       try {
         return await input.callInstalledMcpTool({
           serverId: discoveredTool.serverId,
           toolName: discoveredTool.name,
-          argumentRecord: readMcpToolArgumentRecord(toolArgs),
+          argumentRecord: parsedArgumentRecord.success ? parsedArgumentRecord.data : {},
         });
       } catch (error) {
         return {

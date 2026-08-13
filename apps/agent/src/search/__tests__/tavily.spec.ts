@@ -7,13 +7,21 @@ type CapturedFetchCall = {
   readonly init: RequestInit;
 };
 
+type TavilySearchResultFixture = {
+  readonly url: string;
+  readonly title: string;
+  readonly content: string;
+  readonly raw_content: string | null;
+};
+
+type TavilySearchResponseFixture = {
+  readonly results?: readonly TavilySearchResultFixture[];
+};
+
 function createCapturingFetchMock(
-  responseBody: unknown,
+  responseBody: TavilySearchResponseFixture,
   status = 200,
-): {
-  readonly fetchImplementation: typeof fetch;
-  readonly callList: CapturedFetchCall[];
-} {
+) {
   const callList: CapturedFetchCall[] = [];
   const fetchHandler = async (
     input: string | URL | Request,
@@ -22,12 +30,10 @@ function createCapturingFetchMock(
     callList.push({ url: String(input), init: init ?? {} });
     return new Response(JSON.stringify(responseBody), { status });
   };
-  return {
-    fetchImplementation: Object.assign(fetchHandler, {
-      preconnect: () => {},
-    }) as typeof fetch,
-    callList,
-  };
+  const fetchImplementation: typeof fetch = Object.assign(fetchHandler, {
+    preconnect: () => {},
+  });
+  return { fetchImplementation, callList };
 }
 
 describe('searchWebSourcesWithTavily', () => {
@@ -59,11 +65,8 @@ describe('searchWebSourcesWithTavily', () => {
     expect(callList[0].init.headers).toMatchObject({
       Authorization: 'Bearer tvly-key',
     });
-    const requestBody = JSON.parse(callList[0].init.body as string) as Record<
-      string,
-      unknown
-    >;
-    expect(requestBody).toEqual({
+    const capturedRequestBody: unknown = JSON.parse(String(callList[0].init.body));
+    expect(capturedRequestBody).toEqual({
       query: 'capital de Francia',
       max_results: 5,
       include_raw_content: true,

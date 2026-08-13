@@ -14,7 +14,9 @@ describe('protocol schema', () => {
   });
 
   it('parses audio_end', () => {
-    const message = parseDeviceToServerMessage({ type: 'audio_end', ts: 2 });
+    const message = parseDeviceToServerMessage(
+      JSON.stringify({ type: 'audio_end', ts: 2 }),
+    );
     expect(message.type).toBe('audio_end');
   });
 
@@ -23,15 +25,17 @@ describe('protocol schema', () => {
   });
 
   it('parses telemetry with every field', () => {
-    const message = parseDeviceToServerMessage({
-      type: 'telemetry',
-      battery: 87,
-      charging: false,
-      volume: 70,
-      wifiRssi: -52,
-      firmwareVersion: '2.4.2',
-      ts: 3,
-    });
+    const message = parseDeviceToServerMessage(
+      JSON.stringify({
+        type: 'telemetry',
+        battery: 87,
+        charging: false,
+        volume: 70,
+        wifiRssi: -52,
+        firmwareVersion: '2.4.2',
+        ts: 3,
+      }),
+    );
     expect(message).toEqual({
       type: 'telemetry',
       battery: 87,
@@ -44,16 +48,22 @@ describe('protocol schema', () => {
   });
 
   it('parses telemetry with only type and ts', () => {
-    const message = parseDeviceToServerMessage({ type: 'telemetry', ts: 4 });
+    const message = parseDeviceToServerMessage(
+      JSON.stringify({ type: 'telemetry', ts: 4 }),
+    );
     expect(message).toEqual({ type: 'telemetry', ts: 4 });
   });
 
   it('rejects telemetry with battery out of range', () => {
     expect(() =>
-      parseDeviceToServerMessage({ type: 'telemetry', battery: -1, ts: 5 }),
+      parseDeviceToServerMessage(
+        JSON.stringify({ type: 'telemetry', battery: -1, ts: 5 }),
+      ),
     ).toThrow();
     expect(() =>
-      parseDeviceToServerMessage({ type: 'telemetry', battery: 101, ts: 5 }),
+      parseDeviceToServerMessage(
+        JSON.stringify({ type: 'telemetry', battery: 101, ts: 5 }),
+      ),
     ).toThrow();
   });
 
@@ -158,6 +168,7 @@ describe('protocol schema', () => {
         reason: 'expired',
       }),
     ).toThrow();
+    // SAFETY: forges a reason the union forbids, to prove the runtime schema rejects it.
     expect(() =>
       encodeServerToDeviceMessage({
         type: 'confirm_close',
@@ -178,6 +189,7 @@ describe('protocol schema', () => {
   });
 
   it('rejects play_effect with an unknown name', () => {
+    // SAFETY: forges an effect name outside the catalog, to prove the runtime schema rejects it.
     expect(() =>
       encodeServerToDeviceMessage({
         type: 'play_effect',
@@ -188,38 +200,46 @@ describe('protocol schema', () => {
 
   it('parses mcp responses with result or error', () => {
     expect(
-      parseDeviceToServerMessage({
-        type: 'mcp',
-        payload: {
-          jsonrpc: '2.0',
-          id: 3,
-          result: { content: [{ type: 'text', text: 'true' }], isError: false },
-        },
-        ts: 6,
-      }).type,
+      parseDeviceToServerMessage(
+        JSON.stringify({
+          type: 'mcp',
+          payload: {
+            jsonrpc: '2.0',
+            id: 3,
+            result: { content: [{ type: 'text', text: 'true' }], isError: false },
+          },
+          ts: 6,
+        }),
+      ).type,
     ).toBe('mcp');
     expect(
-      parseDeviceToServerMessage({
-        type: 'mcp',
-        payload: { jsonrpc: '2.0', id: 4, error: { message: 'Unknown tool' } },
-        ts: 7,
-      }).type,
+      parseDeviceToServerMessage(
+        JSON.stringify({
+          type: 'mcp',
+          payload: { jsonrpc: '2.0', id: 4, error: { message: 'Unknown tool' } },
+          ts: 7,
+        }),
+      ).type,
     ).toBe('mcp');
   });
 
   it('rejects mcp responses without an integer id or without ts', () => {
     expect(() =>
-      parseDeviceToServerMessage({
-        type: 'mcp',
-        payload: { jsonrpc: '2.0', id: 'abc', result: {} },
-        ts: 8,
-      }),
+      parseDeviceToServerMessage(
+        JSON.stringify({
+          type: 'mcp',
+          payload: { jsonrpc: '2.0', id: 'abc', result: {} },
+          ts: 8,
+        }),
+      ),
     ).toThrow();
     expect(() =>
-      parseDeviceToServerMessage({
-        type: 'mcp',
-        payload: { jsonrpc: '2.0', id: 5, result: {} },
-      }),
+      parseDeviceToServerMessage(
+        JSON.stringify({
+          type: 'mcp',
+          payload: { jsonrpc: '2.0', id: 5, result: {} },
+        }),
+      ),
     ).toThrow();
   });
 
@@ -248,6 +268,7 @@ describe('protocol schema', () => {
   });
 
   it('rejects outbound mcp calls with a string id', () => {
+    // SAFETY: forges a string id the contract forbids, to prove the runtime schema rejects it.
     expect(() =>
       encodeServerToDeviceMessage({
         type: 'mcp',

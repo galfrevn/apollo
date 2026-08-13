@@ -12,19 +12,14 @@ import {
   setBrightnessTool,
   setVolumeTool,
 } from '@/tools/device';
-import type { ToolExecutionContext } from '@/tools/types';
+import type { DeskToolEffects, ToolExecutionContext } from '@/tools/types';
+
+type DeviceToolCallInput = Parameters<DeskToolEffects['callDeviceTool']>[0];
 
 function createContextWithDeviceCallRecorder(
   deviceResponse = { ok: true, summary: 'true' },
-): {
-  context: ToolExecutionContext;
-  readCallList: () => readonly {
-    deviceToolName: string;
-    argumentRecord: Record<string, unknown>;
-  }[];
-} {
-  const callList: { deviceToolName: string; argumentRecord: Record<string, unknown> }[] =
-    [];
+) {
+  const callList: DeviceToolCallInput[] = [];
   const context: ToolExecutionContext = {
     environment: createFakeApolloEnvironment(),
     nowMilliseconds: 0,
@@ -35,7 +30,7 @@ function createContextWithDeviceCallRecorder(
       },
     }),
   };
-  return { context, readCallList: () => callList };
+  return { context, readCallList: (): readonly DeviceToolCallInput[] => callList };
 }
 
 describe('set_volume', () => {

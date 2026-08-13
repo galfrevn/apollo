@@ -6,11 +6,11 @@ import { setWeatherLocationTool } from '@/tools/location';
 import { rememberFactTool } from '@/tools/memory';
 import { cancelReminderTool, listRemindersTool, setReminderTool } from '@/tools/reminder';
 import { startResearchTool } from '@/tools/research';
-import type { DeskToolEffects } from '@/tools/types';
+import type { DeskToolEffects, JsonSerializableValue } from '@/tools/types';
 import { weatherNowTool } from '@/tools/weather';
 import { clearDeskWeatherCache } from '@/weather/cache';
 
-function createTypedFetchMock(responseBody: unknown): typeof fetch {
+function createTypedFetchMock(responseBody: JsonSerializableValue): typeof fetch {
   const fetchHandler = async (
     _input: RequestInfo | URL,
     _init?: RequestInit,
@@ -18,7 +18,7 @@ function createTypedFetchMock(responseBody: unknown): typeof fetch {
 
   return Object.assign(fetchHandler, {
     preconnect: () => {},
-  }) as typeof fetch;
+  });
 }
 
 function createTypedFetchMockWithStatus(
@@ -32,7 +32,7 @@ function createTypedFetchMockWithStatus(
 
   return Object.assign(fetchHandler, {
     preconnect: () => {},
-  }) as typeof fetch;
+  });
 }
 
 function createRejectingFetchMock(error: Error): typeof fetch {
@@ -45,7 +45,7 @@ function createRejectingFetchMock(error: Error): typeof fetch {
 
   return Object.assign(fetchHandler, {
     preconnect: () => {},
-  }) as typeof fetch;
+  });
 }
 
 function createRecordingEffects(): DeskToolEffects & {
@@ -274,7 +274,7 @@ describe('intent tools', () => {
         );
       },
       { preconnect: () => {} },
-    ) as typeof fetch;
+    );
     try {
       const result = await weatherNowTool.handler(
         { locationQuery: 'Rosario' },

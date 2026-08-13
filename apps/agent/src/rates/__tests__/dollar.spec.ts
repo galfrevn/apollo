@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 
 import {
   type DollarHttpFetchImplementation,
+  type DollarRate,
   fetchDollarRate,
   fetchDollarRateList,
 } from '@/rates/dollar';
@@ -15,20 +16,15 @@ const blueRate = {
 };
 
 function createCapturingFetchMock(
-  payload: unknown,
+  payload: DollarRate | readonly DollarRate[],
   status = 200,
-): {
-  readonly fetchImpl: DollarHttpFetchImplementation;
-  readonly requestedUrlList: string[];
-} {
+) {
   const requestedUrlList: string[] = [];
-  return {
-    requestedUrlList,
-    fetchImpl: async (url) => {
-      requestedUrlList.push(url);
-      return new Response(JSON.stringify(payload), { status });
-    },
+  const fetchImpl: DollarHttpFetchImplementation = async (url) => {
+    requestedUrlList.push(url);
+    return new Response(JSON.stringify(payload), { status });
   };
+  return { fetchImpl, requestedUrlList };
 }
 
 describe('fetchDollarRate', () => {
@@ -43,7 +39,7 @@ describe('fetchDollarRate', () => {
   });
 
   it('throws on a non-ok response', async () => {
-    const { fetchImpl } = createCapturingFetchMock({}, 500);
+    const { fetchImpl } = createCapturingFetchMock(blueRate, 500);
 
     await expect(fetchDollarRate({ type: 'blue', fetchImpl })).rejects.toThrow(
       'dolarapi request failed with status 500',

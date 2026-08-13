@@ -1,5 +1,7 @@
+export type ThreadSqlValue = string | number | null;
+
 export type ThreadSqlExecutor = {
-  execute<Row extends Record<string, unknown>>(
+  execute<Row extends Record<string, ThreadSqlValue>>(
     query: string,
     ...bindValues: unknown[]
   ): readonly Row[];

@@ -105,11 +105,11 @@ export const CONNECTOR_LIST: readonly ConnectorDefinition[] = [
   },
 ];
 
-const AUTH_HINT_LABEL_MAP: Record<ConnectorAuthKind, string | null> = {
+const AUTH_HINT_LABEL_MAP = {
   oauth: 'Sign in',
   token: 'Token',
   none: null,
-};
+} satisfies Record<ConnectorAuthKind, string | null>;
 
 export function ConnectorCatalog({
   installedUrlSet,

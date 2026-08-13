@@ -100,8 +100,9 @@ export async function compactThreadMessageList(
   const transcriptText = compactableMessageList
     .map((message) => {
       const spokenText = message.parts
-        .filter((part) => part.type === 'text' && typeof part.text === 'string')
-        .map((part) => part.text)
+        .flatMap((part) =>
+          part.type === 'text' && part.text !== undefined ? [part.text] : [],
+        )
         .join(' ')
         .trim();
       if (spokenText.length === 0) {
@@ -118,7 +119,7 @@ export async function compactThreadMessageList(
   const chatResult = await chatWithOpenRouter({
     openRouterApiKey: environment.OPENROUTER_API_KEY,
     modelId: environment.OPENROUTER_MODEL,
-    ...(fetchImplementation === undefined ? {} : { fetchImplementation }),
+    fetchImplementation,
     messageList: [
       {
         role: 'system',
@@ -158,8 +159,9 @@ function mapSessionMessageToChatMessage(
     return undefined;
   }
   const messageText = message.parts
-    .filter((part) => part.type === 'text' && typeof part.text === 'string')
-    .map((part) => part.text)
+    .flatMap((part) =>
+      part.type === 'text' && part.text !== undefined ? [part.text] : [],
+    )
     .join(' ')
     .trim();
   if (messageText.length === 0) {

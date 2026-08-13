@@ -42,12 +42,7 @@ export async function runCodeInApolloSandbox(input: {
   const stdout = [
     ...(executionResult.logs?.stdout ?? []),
     ...executionResult.results
-      .map((result) => {
-        if ('text' in result && typeof result.text === 'string') {
-          return result.text;
-        }
-        return '';
-      })
+      .map((result) => result.text ?? '')
       .filter((text) => text.length > 0),
   ].join('\n');
   const stderr = (executionResult.logs?.stderr ?? []).join('\n');

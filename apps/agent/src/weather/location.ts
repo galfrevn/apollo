@@ -22,7 +22,8 @@ export function parseStoredWeatherLocation(rawValue: string | null): DeskWeather
   }
 
   try {
-    return deskWeatherLocationSchema.parse(JSON.parse(rawValue) as unknown);
+    const storedLocationCandidate: unknown = JSON.parse(rawValue);
+    return deskWeatherLocationSchema.parse(storedLocationCandidate);
   } catch {
     return { ...DEFAULT_DESK_WEATHER_LOCATION };
   }

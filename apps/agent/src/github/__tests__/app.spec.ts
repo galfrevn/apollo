@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { z } from 'zod';
 
 import { buildTestRsaPrivateKeyPem } from '@/configuration/testing';
 import {
@@ -14,10 +15,20 @@ type CapturedRequest = {
   readonly init: RequestInit;
 };
 
-function decodeBase64UrlJson(segment: string): Record<string, unknown> {
+const jsonWebTokenSegmentSchema = z
+  .object({
+    alg: z.string(),
+    typ: z.string(),
+    iss: z.string(),
+    iat: z.number(),
+    exp: z.number(),
+  })
+  .partial();
+
+function decodeBase64UrlJson(segment: string): z.infer<typeof jsonWebTokenSegmentSchema> {
   const base64Text = segment.replaceAll('-', '+').replaceAll('_', '/');
   const padded = base64Text.padEnd(Math.ceil(base64Text.length / 4) * 4, '=');
-  return JSON.parse(atob(padded)) as Record<string, unknown>;
+  return jsonWebTokenSegmentSchema.parse(JSON.parse(atob(padded)));
 }
 
 function createFetchMock(
@@ -26,7 +37,7 @@ function createFetchMock(
     readonly status: number;
     readonly body: unknown;
   }[],
-): { readonly fetchImplementation: typeof fetch; readonly callList: CapturedRequest[] } {
+) {
   const callList: CapturedRequest[] = [];
   const fetchHandler = async (
     input: string | URL | Request,
@@ -44,12 +55,13 @@ function createFetchMock(
     }
     return new Response(JSON.stringify(matched.body), { status: matched.status });
   };
-  return {
-    fetchImplementation: Object.assign(fetchHandler, {
-      preconnect: () => {},
-    }) as typeof fetch,
-    callList,
-  };
+  // SAFETY: the code under test only invokes fetch's call signature and never
+  // touches other members, so the handler plus a preconnect stub covers the
+  // whole surface this suite exercises.
+  const fetchImplementation = Object.assign(fetchHandler, {
+    preconnect: () => {},
+  }) as typeof fetch;
+  return { fetchImplementation, callList };
 }
 
 describe('signGithubAppJsonWebToken', () => {

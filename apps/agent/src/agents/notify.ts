@@ -3,10 +3,8 @@ import { z } from 'zod';
 
 import type { DeskAnnounceKind, DeskFocusState } from '@/focus/logic';
 import { shouldAnnounceDuringFocus } from '@/focus/logic';
-import {
-  enqueuePendingDeviceMessage,
-  type PendingDeviceMessageType,
-} from '@/memory/pending';
+import { enqueuePendingDeviceMessage } from '@/memory/pending';
+import type { listPendingDeviceMessages } from '@/memory/pending';
 import type { MemorySqlExecutor } from '@/memory/store';
 import { encodeServerToDeviceMessage } from '@/protocol/schema';
 import { TTS_PCM_CHANNEL_COUNT, TTS_PCM_SAMPLE_RATE_HZ } from '@/voice/elevenlabs';
@@ -32,10 +30,18 @@ const backgroundResultPendingPayloadSchema = z.object({
   documentKey: z.string().min(1).optional(),
 });
 
-export function parsePendingDeviceMessageAsNotification(pendingMessage: {
-  readonly type: PendingDeviceMessageType;
-  readonly payload: Record<string, unknown>;
-}): DeskDeviceNotification {
+type ReminderPendingPayload = z.infer<typeof reminderPendingPayloadSchema>;
+type BackgroundResultPendingPayload = z.infer<
+  typeof backgroundResultPendingPayloadSchema
+>;
+
+type StoredPendingDeviceMessage = Awaited<
+  ReturnType<typeof listPendingDeviceMessages>
+>[number];
+
+export function parsePendingDeviceMessageAsNotification(
+  pendingMessage: Pick<StoredPendingDeviceMessage, 'type' | 'payload'>,
+): DeskDeviceNotification {
   if (pendingMessage.type === 'reminder') {
     return {
       type: 'reminder',
@@ -50,21 +56,29 @@ export function parsePendingDeviceMessageAsNotification(pendingMessage: {
 
 function extractNotificationPendingPayload(
   notification: DeskDeviceNotification,
-): Record<string, unknown> {
+): ReminderPendingPayload | BackgroundResultPendingPayload {
   if (notification.type === 'reminder') {
     return { message: notification.message };
   }
-  return {
+  const backgroundResultPayload: BackgroundResultPendingPayload = {
     summary: notification.summary,
     prompt: notification.prompt,
-    ...(notification.documentKey !== undefined
-      ? { documentKey: notification.documentKey }
-      : {}),
   };
+  if (notification.documentKey !== undefined) {
+    backgroundResultPayload.documentKey = notification.documentKey;
+  }
+  return backgroundResultPayload;
 }
 
 function extractNotificationSpokenText(notification: DeskDeviceNotification): string {
   return notification.type === 'reminder' ? notification.message : notification.summary;
+}
+
+function encodeMockSpeechAudio(spokenText: string): ArrayBuffer {
+  const encodedSpokenTextBytes = new TextEncoder().encode(spokenText);
+  const mockSpeechAudioBuffer = new ArrayBuffer(encodedSpokenTextBytes.byteLength);
+  new Uint8Array(mockSpeechAudioBuffer).set(encodedSpokenTextBytes);
+  return mockSpeechAudioBuffer;
 }
 
 export async function deliverDeskDeviceNotification(input: {
@@ -114,7 +128,7 @@ async function announceNotificationWithTts(input: {
     extractNotificationSpokenText(input.notification),
   );
   const ttsAudio = input.isMockVoice
-    ? (new TextEncoder().encode(spokenText).buffer as ArrayBuffer)
+    ? encodeMockSpeechAudio(spokenText)
     : await synthesizeApolloSpeech({
         environment: input.environment,
         text: spokenText,

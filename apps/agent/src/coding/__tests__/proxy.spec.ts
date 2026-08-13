@@ -64,8 +64,15 @@ describe('coding proxy tokens', () => {
   });
 });
 
+type ProxiedChatCompletionRequestBody = {
+  readonly model?: string;
+  readonly messages: readonly { readonly role: string; readonly content: string }[];
+};
+
 describe('handleCodingLlmProxyRequest', () => {
-  async function buildAuthorizedRequest(bodyObject: unknown): Promise<Request> {
+  async function buildAuthorizedRequest(
+    requestBody: ProxiedChatCompletionRequestBody,
+  ): Promise<Request> {
     const token = await mintCodingProxyToken({
       instanceId: 'wf-1',
       openRouterApiKey: OPENROUTER_API_KEY,
@@ -74,7 +81,7 @@ describe('handleCodingLlmProxyRequest', () => {
     return new Request('https://apollo.example/coding-llm/v1/chat/completions', {
       method: 'POST',
       headers: { authorization: `Bearer ${token}` },
-      body: JSON.stringify(bodyObject),
+      body: JSON.stringify(requestBody),
     });
   }
 
@@ -86,12 +93,15 @@ describe('handleCodingLlmProxyRequest', () => {
     let forwardedUrl = '';
     let forwardedAuthorization = '';
     let forwardedBody = '';
-    const fakeFetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
-      forwardedUrl = String(url);
-      forwardedAuthorization = new Headers(init?.headers).get('authorization') ?? '';
-      forwardedBody = String(init?.body);
-      return new Response('{"ok":true}');
-    }) as typeof fetch;
+    const fakeFetch: typeof fetch = Object.assign(
+      async (url: RequestInfo | URL, init?: RequestInit) => {
+        forwardedUrl = String(url);
+        forwardedAuthorization = new Headers(init?.headers).get('authorization') ?? '';
+        forwardedBody = String(init?.body);
+        return new Response('{"ok":true}');
+      },
+      { preconnect: () => {} },
+    );
 
     const request = await buildAuthorizedRequest({
       model: 'moonshotai/kimi-k3',

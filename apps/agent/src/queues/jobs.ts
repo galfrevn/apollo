@@ -23,6 +23,4 @@ export const apolloQueueJobSchema = z.discriminatedUnion('type', [
 
 export type ApolloQueueJob = z.infer<typeof apolloQueueJobSchema>;
 
-export function parseApolloQueueJob(rawPayload: unknown): ApolloQueueJob {
-  return apolloQueueJobSchema.parse(rawPayload);
-}
+export const parseApolloQueueJob = apolloQueueJobSchema.parse.bind(apolloQueueJobSchema);

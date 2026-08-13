@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { z } from 'zod';
 
 import { sendEmailWithResend } from '@/notifications/email';
 
@@ -7,10 +8,18 @@ type CapturedFetchCall = {
   readonly init: RequestInit;
 };
 
-function createCapturingFetchMock(status = 200): {
+type CapturingFetchMock = {
   readonly fetchImplementation: typeof fetch;
   readonly callList: CapturedFetchCall[];
-} {
+};
+
+const sentEmailPayloadSchema = z.object({
+  to: z.array(z.string()),
+  subject: z.string(),
+  text: z.string(),
+});
+
+function createCapturingFetchMock(status = 200): CapturingFetchMock {
   const callList: CapturedFetchCall[] = [];
   const fetchHandler = async (
     input: string | URL | Request,
@@ -22,7 +31,7 @@ function createCapturingFetchMock(status = 200): {
   return {
     fetchImplementation: Object.assign(fetchHandler, {
       preconnect: () => {},
-    }) as typeof fetch,
+    }),
     callList,
   };
 }
@@ -41,10 +50,8 @@ describe('sendEmailWithResend', () => {
 
     expect(callList[0].url).toBe('https://api.resend.com/emails');
     expect(callList[0].init.headers).toMatchObject({ Authorization: 'Bearer re-key' });
-    const requestBody = JSON.parse(callList[0].init.body as string) as Record<
-      string,
-      unknown
-    >;
+    const rawRequestBody: unknown = JSON.parse(z.string().parse(callList[0].init.body));
+    const requestBody = sentEmailPayloadSchema.parse(rawRequestBody);
     expect(requestBody).toMatchObject({
       to: ['dueno@example.com'],
       subject: 'Informe',

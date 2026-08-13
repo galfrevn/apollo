@@ -12,14 +12,7 @@ import {
   mapRecentHistoryToChatMessageList,
 } from '@/memory/session';
 
-function createFakeSessionProvider(recentHistoryResult: RecentHistoryResult): {
-  readonly provider: SessionProvider;
-  readonly getRecentHistoryCallArgList: readonly [
-    leafId: string | null | undefined,
-    maxContentBytes: number,
-    minRecentMessages: number | undefined,
-  ][];
-} {
+function createFakeSessionProvider(recentHistoryResult: RecentHistoryResult) {
   const getRecentHistoryCallArgList: [
     leafId: string | null | undefined,
     maxContentBytes: number,

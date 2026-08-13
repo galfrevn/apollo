@@ -17,22 +17,22 @@ const openMeteoCurrentWeatherSchema = z.object({
   }),
 });
 
-const wmoWeatherCodeToSpanishLabelMap: Readonly<Record<number, string>> = {
-  0: 'Despejado',
-  1: 'Mayormente despejado',
-  2: 'Parcialmente nublado',
-  3: 'Nublado',
-  45: 'Niebla',
-  48: 'Niebla con escarcha',
-  51: 'Llovizna',
-  61: 'Lluvia',
-  71: 'Nieve',
-  80: 'Chubascos',
-  95: 'Tormenta',
-};
+const wmoWeatherCodeToSpanishLabelMap = new Map<number, string>([
+  [0, 'Despejado'],
+  [1, 'Mayormente despejado'],
+  [2, 'Parcialmente nublado'],
+  [3, 'Nublado'],
+  [45, 'Niebla'],
+  [48, 'Niebla con escarcha'],
+  [51, 'Llovizna'],
+  [61, 'Lluvia'],
+  [71, 'Nieve'],
+  [80, 'Chubascos'],
+  [95, 'Tormenta'],
+]);
 
 export function mapOpenMeteoWeatherCodeToSpanishLabel(weatherCode: number): string {
-  return wmoWeatherCodeToSpanishLabelMap[weatherCode] ?? 'Desconocido';
+  return wmoWeatherCodeToSpanishLabelMap.get(weatherCode) ?? 'Desconocido';
 }
 
 function buildOpenMeteoForecastUrl(latitude: number, longitude: number): string {

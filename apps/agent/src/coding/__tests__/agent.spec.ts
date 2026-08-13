@@ -13,11 +13,15 @@ type RecordedSandboxCall = {
   readonly content?: string;
 };
 
-function createFakeSandbox(fileContentByPath: Record<string, string> = {}): {
+type FakeCodingSandboxHarness = {
   readonly sandbox: CodingSandboxPort;
   readonly callList: RecordedSandboxCall[];
   readonly writtenFileByPath: Record<string, string>;
-} {
+};
+
+function createFakeSandbox(
+  fileContentByPath: Record<string, string> = {},
+): FakeCodingSandboxHarness {
   const callList: RecordedSandboxCall[] = [];
   const writtenFileByPath: Record<string, string> = {};
   return {
@@ -44,10 +48,14 @@ function createFakeSandbox(fileContentByPath: Record<string, string> = {}): {
   };
 }
 
-function createScriptedLlm(resultList: readonly OpenRouterChatResult[]): {
+type ScriptedLlmHarness = {
   readonly callLlm: CodingLlmCaller;
   readonly roundCount: () => number;
-} {
+};
+
+function createScriptedLlm(
+  resultList: readonly OpenRouterChatResult[],
+): ScriptedLlmHarness {
   let callIndex = 0;
   return {
     roundCount: () => callIndex,

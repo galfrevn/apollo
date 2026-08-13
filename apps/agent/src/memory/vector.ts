@@ -10,6 +10,10 @@ const openRouterEmbeddingResponseSchema = z.object({
     .min(1),
 });
 
+const memoryVectorMetadataSchema = z.object({
+  content: z.string(),
+});
+
 export type MemoryVectorMatch = {
   readonly id: string;
   readonly content: string;
@@ -72,11 +76,14 @@ export async function queryMemoryVectors(input: {
     returnMetadata: 'all',
   });
 
-  return queryResult.matches.map((match) => ({
-    id: match.id,
-    content: typeof match.metadata?.content === 'string' ? match.metadata.content : '',
-    score: match.score,
-  }));
+  return queryResult.matches.map((match) => {
+    const parsedMetadata = memoryVectorMetadataSchema.safeParse(match.metadata);
+    return {
+      id: match.id,
+      content: parsedMetadata.success ? parsedMetadata.data.content : '',
+      score: match.score,
+    };
+  });
 }
 
 export async function recallSemanticMemoryContent(input: {

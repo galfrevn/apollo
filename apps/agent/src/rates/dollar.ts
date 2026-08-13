@@ -27,10 +27,11 @@ const dollarRateSchema = z.object({
 
 export type DollarRate = z.infer<typeof dollarRateSchema>;
 
-async function requestDollarApi(
+async function requestDollarApi<ParsedPayload>(
   requestUrl: string,
+  payloadSchema: z.ZodType<ParsedPayload>,
   fetchImpl: DollarHttpFetchImplementation | undefined,
-): Promise<unknown> {
+): Promise<ParsedPayload> {
   const fetchImplementation: DollarHttpFetchImplementation =
     fetchImpl ?? ((url) => fetch(url));
   const response = await fetchImplementation(requestUrl);
@@ -39,23 +40,27 @@ async function requestDollarApi(
     throw new Error(`dolarapi request failed with status ${response.status}`);
   }
 
-  return response.json();
+  const rawPayload: unknown = await response.json();
+  return payloadSchema.parse(rawPayload);
 }
 
 export async function fetchDollarRate(input: {
   readonly type: DollarRateType;
   readonly fetchImpl?: DollarHttpFetchImplementation;
 }): Promise<DollarRate> {
-  const rawPayload = await requestDollarApi(
+  return requestDollarApi(
     `${DOLLAR_API_BASE_URL}/${input.type}`,
+    dollarRateSchema,
     input.fetchImpl,
   );
-  return dollarRateSchema.parse(rawPayload);
 }
 
 export async function fetchDollarRateList(
   input: { readonly fetchImpl?: DollarHttpFetchImplementation } = {},
 ): Promise<readonly DollarRate[]> {
-  const rawPayload = await requestDollarApi(DOLLAR_API_BASE_URL, input.fetchImpl);
-  return z.array(dollarRateSchema).parse(rawPayload);
+  return requestDollarApi(
+    DOLLAR_API_BASE_URL,
+    z.array(dollarRateSchema),
+    input.fetchImpl,
+  );
 }

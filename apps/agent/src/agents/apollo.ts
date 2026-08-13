@@ -6,6 +6,7 @@ import {
   type WSMessage,
 } from 'agents';
 import type { Session, SessionManager } from 'agents/experimental/memory/session';
+import type { z } from 'zod';
 
 import {
   buildDeskDashboardPayload,
@@ -111,7 +112,9 @@ import {
   removeMcpServerInputSchema,
   retryMcpServerInputSchema,
   setMcpToolEnabledInputSchema,
+  type InstallMcpServerInput,
   type McpServerSummary,
+  type SetMcpToolEnabledInput,
 } from '@/mcp/servers';
 import {
   deleteMcpToolSettingsForServer,
@@ -134,6 +137,7 @@ import {
   getSessionPreference,
   setSessionPreference,
   type MemorySqlExecutor,
+  type MemorySqlRow,
 } from '@/memory/store';
 import { embedTextWithOpenRouter, queryMemoryVectors } from '@/memory/vector';
 import { PUBLIC_ORIGIN_PREFERENCE_KEY, runFirmwareLifecycle } from '@/ota/lifecycle';
@@ -147,11 +151,11 @@ import {
   type ConfirmCloseReasonName,
   type DeskSoundEffectName,
   type DeviceToServerMessage,
+  type ServerToDeviceMessage,
 } from '@/protocol/schema';
 import {
   mapAgentScheduleListToReminderList,
   selectReminderRowsForCancel,
-  type AgentScheduleLike,
   type ScheduledReminderRow,
 } from '@/reminders/logic';
 import { createDeskUiMachine, type DeskUiMachine } from '@/session/machine';
@@ -222,26 +226,47 @@ const LOW_BATTERY_ANNOUNCE_PREFERENCE_KEY = 'lowBatteryLastAnnounceAt';
 const TELEMETRY_SNAPSHOT_PREFERENCE_KEY = 'lastTelemetrySnapshot';
 const INITIATIVE_STATE_PREFERENCE_KEY = 'initiativeState';
 
-function mapUnknownScheduleListToAgentScheduleLikeList(
-  scheduleList: readonly {
-    readonly id: string;
-    readonly callback: string;
-    readonly payload: unknown;
-    readonly time: number;
-    readonly type?: string;
-    readonly delayInSeconds?: number;
-  }[],
-): readonly AgentScheduleLike[] {
-  return scheduleList.map((schedule) => ({
-    id: schedule.id,
-    callback: schedule.callback,
-    payload: schedule.payload,
-    time: schedule.time,
-    ...(schedule.type !== undefined ? { type: schedule.type } : {}),
-    ...(typeof schedule.delayInSeconds === 'number'
-      ? { delayInSeconds: schedule.delayInSeconds }
-      : {}),
-  }));
+type McpSecretInput = z.infer<typeof mcpSecretInputSchema>;
+type RemoveMcpServerInput = z.infer<typeof removeMcpServerInputSchema>;
+type RetryMcpServerInput = z.infer<typeof retryMcpServerInputSchema>;
+type ConsoleSecretInput = z.infer<typeof consoleSecretInputSchema>;
+type ConsoleMemoryBrowseInput = z.infer<typeof consoleMemoryBrowseInputSchema>;
+type ConsoleCancelReminderInput = z.infer<typeof consoleCancelReminderInputSchema>;
+type ConsoleCreateReminderInput = z.infer<typeof consoleCreateReminderInputSchema>;
+type ConsoleDeviceVolumeInput = z.infer<typeof consoleDeviceVolumeInputSchema>;
+type ConsoleDeviceBrightnessInput = z.infer<typeof consoleDeviceBrightnessInputSchema>;
+type ConsoleAddMemoryInput = z.infer<typeof consoleAddMemoryInputSchema>;
+type ConsoleDeleteMemoryInput = z.infer<typeof consoleDeleteMemoryInputSchema>;
+type ConsoleAddListItemInput = z.infer<typeof consoleAddListItemInputSchema>;
+type ConsoleRemoveListItemInput = z.infer<typeof consoleRemoveListItemInputSchema>;
+type ConsoleWeatherInput = z.infer<typeof consoleWeatherInputSchema>;
+type ConsoleThreadListInput = z.infer<typeof consoleThreadListInputSchema>;
+type ConsoleThreadInput = z.infer<typeof consoleThreadInputSchema>;
+type ConsoleDocumentInput = z.infer<typeof consoleDocumentInputSchema>;
+type ConsoleSpeechModeInput = z.infer<typeof consoleSpeechModeInputSchema>;
+type NotifyBackgroundResultInput = z.infer<typeof notifyBackgroundResultInputSchema>;
+type DeliverReminderPayload = z.infer<typeof deliverReminderPayloadSchema>;
+type ExpireConfirmPayload = z.infer<typeof expireConfirmPayloadSchema>;
+type RetryInitiativeUtterancePayload = z.infer<
+  typeof retryInitiativeUtterancePayloadSchema
+>;
+type FinalizeThreadPayload = z.infer<typeof finalizeThreadPayloadSchema>;
+
+type DeviceToolArgumentRecord = Parameters<typeof buildDeviceToolCallPayload>[2];
+type UiStatePushMessage = Extract<ServerToDeviceMessage, { type: 'ui_state' }>;
+
+function createDurableObjectSqlExecutor(sqlStorage: SqlStorage): MemorySqlExecutor {
+  function executeMemorySqlQuery<Row extends MemorySqlRow>(
+    query: string,
+    ...bindValues: unknown[]
+  ): readonly Row[];
+  function executeMemorySqlQuery(
+    query: string,
+    ...bindValues: unknown[]
+  ): readonly MemorySqlRow[] {
+    return sqlStorage.exec(query, ...bindValues).toArray();
+  }
+  return { execute: executeMemorySqlQuery };
 }
 
 export type DeskUiState =
@@ -530,8 +555,16 @@ export class Apollo extends Agent<Env, ApolloState> {
       return;
     }
 
-    if (typeof message !== 'string') {
-      this.#audioChunkList.push(message as ArrayBuffer);
+    if (message instanceof ArrayBuffer) {
+      this.#audioChunkList.push(message);
+      return;
+    }
+    if (ArrayBuffer.isView(message)) {
+      const audioChunkBuffer = new ArrayBuffer(message.byteLength);
+      new Uint8Array(audioChunkBuffer).set(
+        new Uint8Array(message.buffer, message.byteOffset, message.byteLength),
+      );
+      this.#audioChunkList.push(audioChunkBuffer);
       return;
     }
 
@@ -658,7 +691,7 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async installMcpServer(rawInput: unknown): Promise<{
+  async installMcpServer(rawInput: InstallMcpServerInput): Promise<{
     readonly serverId: string;
     readonly state: string;
     readonly authUrl: string | null;
@@ -684,7 +717,9 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async uninstallMcpServer(rawInput: unknown): Promise<readonly McpServerSummary[]> {
+  async uninstallMcpServer(
+    rawInput: RemoveMcpServerInput,
+  ): Promise<readonly McpServerSummary[]> {
     const input = removeMcpServerInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     await this.removeMcpServer(input.serverId);
@@ -693,14 +728,16 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async listMcpServers(rawInput: unknown): Promise<readonly McpServerSummary[]> {
+  async listMcpServers(rawInput: McpSecretInput): Promise<readonly McpServerSummary[]> {
     const input = mcpSecretInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     return this.#listMcpServerSummaryList();
   }
 
   @callable()
-  async retryMcpServer(rawInput: unknown): Promise<readonly McpServerSummary[]> {
+  async retryMcpServer(
+    rawInput: RetryMcpServerInput,
+  ): Promise<readonly McpServerSummary[]> {
     const input = retryMcpServerInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     // Reconnects the existing installation with its stored transport — auth
@@ -712,17 +749,21 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async enableMcpTool(rawInput: unknown): Promise<readonly McpServerSummary[]> {
+  async enableMcpTool(
+    rawInput: SetMcpToolEnabledInput,
+  ): Promise<readonly McpServerSummary[]> {
     return this.#setMcpToolEnabled(rawInput, true);
   }
 
   @callable()
-  async disableMcpTool(rawInput: unknown): Promise<readonly McpServerSummary[]> {
+  async disableMcpTool(
+    rawInput: SetMcpToolEnabledInput,
+  ): Promise<readonly McpServerSummary[]> {
     return this.#setMcpToolEnabled(rawInput, false);
   }
 
   async #setMcpToolEnabled(
-    rawInput: unknown,
+    rawInput: SetMcpToolEnabledInput,
     isEnabled: boolean,
   ): Promise<readonly McpServerSummary[]> {
     const input = setMcpToolEnabledInputSchema.parse(rawInput);
@@ -752,7 +793,7 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async getConsoleStatus(rawInput: unknown): Promise<ConsoleStatusSnapshot> {
+  async getConsoleStatus(rawInput: ConsoleSecretInput): Promise<ConsoleStatusSnapshot> {
     const input = consoleSecretInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     await this.#ensureTelemetrySnapshotLoaded();
@@ -766,7 +807,9 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async browseConsoleMemory(rawInput: unknown): Promise<ConsoleMemoryBrowseResult> {
+  async browseConsoleMemory(
+    rawInput: ConsoleMemoryBrowseInput,
+  ): Promise<ConsoleMemoryBrowseResult> {
     const input = consoleMemoryBrowseInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     return browseConsoleMemoryRecords(this.#sqlExecutor(), {
@@ -776,7 +819,9 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async listConsoleLists(rawInput: unknown): Promise<readonly ListItemRecord[]> {
+  async listConsoleLists(
+    rawInput: ConsoleSecretInput,
+  ): Promise<readonly ListItemRecord[]> {
     const input = consoleSecretInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     return listListItemRecords(this.#sqlExecutor());
@@ -784,7 +829,7 @@ export class Apollo extends Agent<Env, ApolloState> {
 
   @callable()
   async listConsoleReminders(
-    rawInput: unknown,
+    rawInput: ConsoleSecretInput,
   ): Promise<readonly ScheduledReminderRow[]> {
     const input = consoleSecretInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
@@ -793,7 +838,7 @@ export class Apollo extends Agent<Env, ApolloState> {
 
   @callable()
   async cancelConsoleReminder(
-    rawInput: unknown,
+    rawInput: ConsoleCancelReminderInput,
   ): Promise<readonly ScheduledReminderRow[]> {
     const input = consoleCancelReminderInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
@@ -803,14 +848,12 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   async #listConsoleReminderRowList(): Promise<readonly ScheduledReminderRow[]> {
-    return mapAgentScheduleListToReminderList(
-      mapUnknownScheduleListToAgentScheduleLikeList(await this.listSchedules()),
-    );
+    return mapAgentScheduleListToReminderList(await this.listSchedules());
   }
 
   @callable()
   async createConsoleReminder(
-    rawInput: unknown,
+    rawInput: ConsoleCreateReminderInput,
   ): Promise<readonly ScheduledReminderRow[]> {
     const input = consoleCreateReminderInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
@@ -829,7 +872,9 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async setConsoleDeviceVolume(rawInput: unknown): Promise<ToolExecutionResult> {
+  async setConsoleDeviceVolume(
+    rawInput: ConsoleDeviceVolumeInput,
+  ): Promise<ToolExecutionResult> {
     const input = consoleDeviceVolumeInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     return this.#callDeviceTool('self.audio_speaker.set_volume', {
@@ -838,7 +883,9 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async setConsoleDeviceBrightness(rawInput: unknown): Promise<ToolExecutionResult> {
+  async setConsoleDeviceBrightness(
+    rawInput: ConsoleDeviceBrightnessInput,
+  ): Promise<ToolExecutionResult> {
     const input = consoleDeviceBrightnessInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     return this.#callDeviceTool('self.screen.set_brightness', {
@@ -847,14 +894,18 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async getConsoleDeviceStatus(rawInput: unknown): Promise<ToolExecutionResult> {
+  async getConsoleDeviceStatus(
+    rawInput: ConsoleSecretInput,
+  ): Promise<ToolExecutionResult> {
     const input = consoleSecretInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     return this.#callDeviceTool('self.get_device_status', {});
   }
 
   @callable()
-  async addConsoleMemory(rawInput: unknown): Promise<ConsoleMemoryBrowseResult> {
+  async addConsoleMemory(
+    rawInput: ConsoleAddMemoryInput,
+  ): Promise<ConsoleMemoryBrowseResult> {
     const input = consoleAddMemoryInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     const memoryRecord = await addMemoryRecord(this.#sqlExecutor(), input.content);
@@ -868,7 +919,9 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async deleteConsoleMemory(rawInput: unknown): Promise<ConsoleMemoryBrowseResult> {
+  async deleteConsoleMemory(
+    rawInput: ConsoleDeleteMemoryInput,
+  ): Promise<ConsoleMemoryBrowseResult> {
     const input = consoleDeleteMemoryInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     await deleteConsoleMemoryRecord(
@@ -880,7 +933,9 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async addConsoleListItem(rawInput: unknown): Promise<readonly ListItemRecord[]> {
+  async addConsoleListItem(
+    rawInput: ConsoleAddListItemInput,
+  ): Promise<readonly ListItemRecord[]> {
     const input = consoleAddListItemInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     await addListItemRecord(this.#sqlExecutor(), {
@@ -891,7 +946,9 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async removeConsoleListItem(rawInput: unknown): Promise<readonly ListItemRecord[]> {
+  async removeConsoleListItem(
+    rawInput: ConsoleRemoveListItemInput,
+  ): Promise<readonly ListItemRecord[]> {
     const input = consoleRemoveListItemInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     await removeListItemRecordById(this.#sqlExecutor(), input.itemId);
@@ -899,14 +956,14 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async getConsoleWeather(rawInput: unknown): Promise<DeskWeatherLocation> {
+  async getConsoleWeather(rawInput: ConsoleSecretInput): Promise<DeskWeatherLocation> {
     const input = consoleSecretInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     return this.#resolveWeatherLocation();
   }
 
   @callable()
-  async setConsoleWeather(rawInput: unknown): Promise<DeskWeatherLocation> {
+  async setConsoleWeather(rawInput: ConsoleWeatherInput): Promise<DeskWeatherLocation> {
     const input = consoleWeatherInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     const location = await geocodeDeskWeatherLocation({
@@ -922,7 +979,9 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async listConsoleThreads(rawInput: unknown): Promise<readonly ConsoleThreadSummary[]> {
+  async listConsoleThreads(
+    rawInput: ConsoleThreadListInput,
+  ): Promise<readonly ConsoleThreadSummary[]> {
     const input = consoleThreadListInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     const legacyMessageCount = await this.sessionManager.getMessageCount(
@@ -938,7 +997,9 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async getConsoleThread(rawInput: unknown): Promise<readonly ConsoleHistoryTurn[]> {
+  async getConsoleThread(
+    rawInput: ConsoleThreadInput,
+  ): Promise<readonly ConsoleHistoryTurn[]> {
     const input = consoleThreadInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     const recentHistory = await this.sessionManager
@@ -948,14 +1009,16 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async listConsoleJobs(rawInput: unknown): Promise<readonly ConsoleJobDocument[]> {
+  async listConsoleJobs(
+    rawInput: ConsoleSecretInput,
+  ): Promise<readonly ConsoleJobDocument[]> {
     const input = consoleSecretInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     return listConsoleJobDocuments(this.env.MEDIA, this.name ?? 'default');
   }
 
   @callable()
-  async getConsoleDocument(rawInput: unknown): Promise<{
+  async getConsoleDocument(rawInput: ConsoleDocumentInput): Promise<{
     readonly documentKey: string;
     readonly content: string | null;
   }> {
@@ -970,7 +1033,7 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async setConsoleSpeechMode(rawInput: unknown): Promise<ApolloState> {
+  async setConsoleSpeechMode(rawInput: ConsoleSpeechModeInput): Promise<ApolloState> {
     const input = consoleSpeechModeInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     return this.setSpeechMode(input.speechModeId);
@@ -993,7 +1056,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     return this.state;
   }
 
-  async expireConfirm(payload: unknown): Promise<void> {
+  async expireConfirm(payload: ExpireConfirmPayload | undefined): Promise<void> {
     if (this.state.pendingConfirmId === null) {
       return;
     }
@@ -1043,7 +1106,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     }
   }
 
-  async deliverReminder(payload: unknown): Promise<void> {
+  async deliverReminder(payload: DeliverReminderPayload): Promise<void> {
     const parsedPayload = deliverReminderPayloadSchema.parse(payload);
     // The earcon goes out before the notification so it lands while the TTS
     // announcement is still being synthesized.
@@ -1061,16 +1124,14 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async notifyBackgroundResult(input: unknown): Promise<void> {
+  async notifyBackgroundResult(input: NotifyBackgroundResultInput): Promise<void> {
     const parsedInput = notifyBackgroundResultInputSchema.parse(input);
     await deliverDeskDeviceNotification({
       notification: {
         type: 'background_result',
         prompt: parsedInput.prompt,
         summary: parsedInput.summary,
-        ...(parsedInput.documentKey !== undefined
-          ? { documentKey: parsedInput.documentKey }
-          : {}),
+        documentKey: parsedInput.documentKey,
       },
       connectionList: [...this.getConnections(DEVICE_CONNECTION_TAG)],
       sqlExecutor: this.#sqlExecutor(),
@@ -1113,7 +1174,7 @@ export class Apollo extends Agent<Env, ApolloState> {
         message: 'initiative_decision',
         source: input.source,
         action: decision.action,
-        ...(decision.action !== 'deliver' ? { reason: decision.reason } : {}),
+        reason: decision.action === 'deliver' ? undefined : decision.reason,
       }),
     );
     if (decision.action === 'defer') {
@@ -1121,14 +1182,19 @@ export class Apollo extends Agent<Env, ApolloState> {
         60,
         Math.ceil((decision.retryAtMilliseconds - nowMilliseconds) / 1000),
       );
-      await this.schedule(retryDelaySeconds, 'retryInitiativeUtterance', {
+      const deferredRetryPayload: RetryInitiativeUtterancePayload = {
         source: input.source,
         priority: input.priority,
         message: input.message,
-        ...(input.earconName !== undefined ? { earconName: input.earconName } : {}),
-        ...(input.utteranceKey !== undefined ? { utteranceKey: input.utteranceKey } : {}),
+        earconName: input.earconName,
+        utteranceKey: input.utteranceKey,
         deferCount,
-      });
+      };
+      await this.schedule(
+        retryDelaySeconds,
+        'retryInitiativeUtterance',
+        deferredRetryPayload,
+      );
       return 'deferred';
     }
     if (decision.action === 'suppress' || this.#isDeliveringInitiative) {
@@ -1148,7 +1214,7 @@ export class Apollo extends Agent<Env, ApolloState> {
         deviceId: this.name ?? 'default',
         ttsVoiceId: APOLLO_TTS_VOICE,
         isMockVoice: this.env.MOCK_VOICE === '1',
-        ...(input.priority === 'critical' ? { announceKind: 'critical' as const } : {}),
+        announceKind: input.priority === 'critical' ? 'critical' : undefined,
       });
       // Recorded only after delivery succeeds, so a failed delivery neither
       // consumes budget nor starts the source cooldown.
@@ -1177,24 +1243,20 @@ export class Apollo extends Agent<Env, ApolloState> {
     return 'delivered';
   }
 
-  async retryInitiativeUtterance(payload: unknown): Promise<void> {
+  async retryInitiativeUtterance(
+    payload: RetryInitiativeUtterancePayload,
+  ): Promise<void> {
     const parsedPayload = retryInitiativeUtterancePayloadSchema.parse(payload);
     const nextDeferCount = parsedPayload.deferCount + 1;
-    const retryPayload = {
+    const retryPayload: RetryInitiativeUtterancePayload = {
       source: parsedPayload.source,
       priority: parsedPayload.priority,
       message: parsedPayload.message,
-      ...(parsedPayload.earconName !== undefined
-        ? { earconName: parsedPayload.earconName }
-        : {}),
-      ...(parsedPayload.utteranceKey !== undefined
-        ? { utteranceKey: parsedPayload.utteranceKey }
-        : {}),
-    };
-    const deliveryOutcome = await this.#deliverInitiativeUtterance({
-      ...retryPayload,
+      earconName: parsedPayload.earconName,
+      utteranceKey: parsedPayload.utteranceKey,
       deferCount: nextDeferCount,
-    });
+    };
+    const deliveryOutcome = await this.#deliverInitiativeUtterance(retryPayload);
     // A deferred utterance already survived one policy window; letting its
     // retry vanish on a transient suppression (device offline at 09:00, budget
     // spent) would lose it for good — so it re-schedules itself, bounded by
@@ -1206,7 +1268,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       await this.schedule(
         INITIATIVE_SUPPRESSED_RETRY_DELAY_SECONDS,
         'retryInitiativeUtterance',
-        { ...retryPayload, deferCount: nextDeferCount },
+        retryPayload,
       );
     }
   }
@@ -1477,7 +1539,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     await targetSession.refreshSystemPrompt();
   }
 
-  async finalizeThread(rawPayload: unknown): Promise<void> {
+  async finalizeThread(rawPayload: FinalizeThreadPayload): Promise<void> {
     const payload = finalizeThreadPayloadSchema.parse(rawPayload);
     const sqlExecutor = this.#sqlExecutor();
     // A resumed thread is active again by the time a delayed finalizer fires;
@@ -1559,15 +1621,7 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   #sqlExecutor(): MemorySqlExecutor {
-    return {
-      execute: <Row extends Record<string, unknown>>(
-        query: string,
-        ...bindValues: unknown[]
-      ): readonly Row[] => {
-        const result = this.ctx.storage.sql.exec(query, ...bindValues);
-        return result.toArray() as unknown as readonly Row[];
-      },
-    };
+    return createDurableObjectSqlExecutor(this.ctx.storage.sql);
   }
 
   async #ensurePreferencesLoaded(): Promise<void> {
@@ -1603,30 +1657,25 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   #pushUiState(connection: Connection): void {
-    const focusRemainingSec =
-      this.state.focusEndsAt === null
-        ? undefined
-        : Math.max(0, Math.ceil((this.state.focusEndsAt - Date.now()) / 1000));
-    connection.send(
-      encodeServerToDeviceMessage({
-        type: 'ui_state',
-        state: this.state.uiState,
-        speechMode: this.state.speechMode,
-        caption: this.state.caption ?? undefined,
-        focusRemainingSec,
-        ...(this.state.focusEndsAt !== null
-          ? {
-              focusEndsAt: Math.floor(this.state.focusEndsAt / 1000),
-              ...(this.state.focusStartedAt !== null &&
-              this.state.focusStartedAt !== undefined
-                ? { focusStartedAt: Math.floor(this.state.focusStartedAt / 1000) }
-                : {}),
-            }
-          : {}),
-        emotion: resolveDeskFaceEmotion(this.state.uiState),
-        accentColor: resolveDeskSpeechMode(this.state.speechMode).accentColor,
-      }),
-    );
+    const uiStateMessage: UiStatePushMessage = {
+      type: 'ui_state',
+      state: this.state.uiState,
+      speechMode: this.state.speechMode,
+      caption: this.state.caption ?? undefined,
+      emotion: resolveDeskFaceEmotion(this.state.uiState),
+      accentColor: resolveDeskSpeechMode(this.state.speechMode).accentColor,
+    };
+    if (this.state.focusEndsAt !== null) {
+      uiStateMessage.focusRemainingSec = Math.max(
+        0,
+        Math.ceil((this.state.focusEndsAt - Date.now()) / 1000),
+      );
+      uiStateMessage.focusEndsAt = Math.floor(this.state.focusEndsAt / 1000);
+      if (this.state.focusStartedAt !== null) {
+        uiStateMessage.focusStartedAt = Math.floor(this.state.focusStartedAt / 1000);
+      }
+    }
+    connection.send(encodeServerToDeviceMessage(uiStateMessage));
   }
 
   async #pushDashboard(connection: Connection): Promise<void> {
@@ -1700,17 +1749,11 @@ export class Apollo extends Agent<Env, ApolloState> {
     deviceMessage: Extract<DeviceToServerMessage, { type: 'telemetry' }>,
   ): Promise<void> {
     const snapshot: DeskTelemetrySnapshot = {
-      ...(deviceMessage.battery !== undefined ? { battery: deviceMessage.battery } : {}),
-      ...(deviceMessage.charging !== undefined
-        ? { charging: deviceMessage.charging }
-        : {}),
-      ...(deviceMessage.volume !== undefined ? { volume: deviceMessage.volume } : {}),
-      ...(deviceMessage.wifiRssi !== undefined
-        ? { wifiRssi: deviceMessage.wifiRssi }
-        : {}),
-      ...(deviceMessage.firmwareVersion !== undefined
-        ? { firmwareVersion: deviceMessage.firmwareVersion }
-        : {}),
+      battery: deviceMessage.battery,
+      charging: deviceMessage.charging,
+      volume: deviceMessage.volume,
+      wifiRssi: deviceMessage.wifiRssi,
+      firmwareVersion: deviceMessage.firmwareVersion,
       receivedAtMs: Date.now(),
     };
     // The previous snapshot is read before the overwrite because the firmware
@@ -1849,7 +1892,7 @@ export class Apollo extends Agent<Env, ApolloState> {
 
   async #callDeviceTool(
     deviceToolName: string,
-    argumentRecord: Record<string, unknown>,
+    argumentRecord: DeviceToolArgumentRecord,
   ): Promise<ToolExecutionResult> {
     const connectionList = [...this.getConnections(DEVICE_CONNECTION_TAG)];
     if (connectionList.length === 0) {
@@ -1911,13 +1954,12 @@ export class Apollo extends Agent<Env, ApolloState> {
 
   async #broadcastSoonestRemainingTimerArc(): Promise<void> {
     const remainingReminderList = mapAgentScheduleListToReminderList(
-      mapUnknownScheduleListToAgentScheduleLikeList(await this.listSchedules()),
+      await this.listSchedules(),
     );
     const remainingTimerList = remainingReminderList
       .filter(
         (reminder) =>
-          reminder.message.startsWith('Timer') &&
-          typeof reminder.delayInSeconds === 'number',
+          reminder.message.startsWith('Timer') && reminder.delayInSeconds !== undefined,
       )
       .toSorted((left, right) => left.firesAtIso.localeCompare(right.firesAtIso));
     const soonestTimer = remainingTimerList[0];
@@ -2029,14 +2071,11 @@ export class Apollo extends Agent<Env, ApolloState> {
         });
       },
       listReminders: async () => {
-        const scheduleList = await this.listSchedules();
-        return mapAgentScheduleListToReminderList(
-          mapUnknownScheduleListToAgentScheduleLikeList(scheduleList),
-        );
+        return mapAgentScheduleListToReminderList(await this.listSchedules());
       },
       cancelReminders: async ({ message, cancelAll }) => {
         const reminderList = mapAgentScheduleListToReminderList(
-          mapUnknownScheduleListToAgentScheduleLikeList(await this.listSchedules()),
+          await this.listSchedules(),
         );
         const selectedReminderList = selectReminderRowsForCancel(reminderList, {
           message,
@@ -2118,9 +2157,7 @@ export class Apollo extends Agent<Env, ApolloState> {
                   receivedAtMilliseconds: this.#lastPlaybackAck.receivedAtMilliseconds,
                 }
               : null,
-          ...(this.#lastTelemetrySnapshot !== undefined
-            ? { telemetrySnapshot: this.#lastTelemetrySnapshot }
-            : {}),
+          telemetrySnapshot: this.#lastTelemetrySnapshot,
         },
         turnPart,
       );

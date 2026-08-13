@@ -1,13 +1,26 @@
 import type { MemorySqlExecutor } from '@/memory/store';
 import type { DeskToolEffects } from '@/tools/types';
 
+type PendingConfirmationRow = {
+  readonly id: string;
+  readonly tool_name: string;
+  readonly args_json: string;
+  readonly summary: string;
+  readonly expires_at: number;
+};
+
+type McpToolSettingRow = {
+  readonly namespaced_name: string;
+  readonly server_id: string;
+  readonly tool_name: string;
+  readonly is_enabled: number;
+  readonly safety: string;
+};
+
 export function createInMemoryPendingConfirmationSqlExecutor(): MemorySqlExecutor {
-  let rowList: readonly Record<string, unknown>[] = [];
-  return {
-    execute<Row extends Record<string, unknown>>(
-      query: string,
-      ...bindValues: unknown[]
-    ): readonly Row[] {
+  let rowList: readonly PendingConfirmationRow[] = [];
+  const fakeExecutor = {
+    execute(query: string, ...bindValues: unknown[]): readonly PendingConfirmationRow[] {
       if (query.startsWith('DELETE FROM pending_confirmations')) {
         rowList = [];
         return [];
@@ -26,22 +39,22 @@ export function createInMemoryPendingConfirmationSqlExecutor(): MemorySqlExecuto
         return [];
       }
       if (query.includes('FROM pending_confirmations')) {
-        return rowList.slice(0, 1) as readonly Row[];
+        return rowList.slice(0, 1);
       }
       return [];
     },
   };
+  // SAFETY: the fake only ever serves pending_confirmations columns, which is
+  // exactly the Row shape every query against this table selects.
+  return fakeExecutor as MemorySqlExecutor;
 }
 
 export function createInMemoryMcpToolSettingsSqlExecutor(
-  initialRowList: readonly Record<string, unknown>[] = [],
+  initialRowList: readonly McpToolSettingRow[] = [],
 ): MemorySqlExecutor {
-  let rowList: readonly Record<string, unknown>[] = [...initialRowList];
-  return {
-    execute<Row extends Record<string, unknown>>(
-      query: string,
-      ...bindValues: unknown[]
-    ): readonly Row[] {
+  let rowList: readonly McpToolSettingRow[] = [...initialRowList];
+  const fakeExecutor = {
+    execute(query: string, ...bindValues: unknown[]): readonly McpToolSettingRow[] {
       if (query.startsWith('DELETE FROM mcp_tool_settings')) {
         const removedServerId = String(bindValues[0]);
         rowList = rowList.filter((row) => row.server_id !== removedServerId);
@@ -62,11 +75,14 @@ export function createInMemoryMcpToolSettingsSqlExecutor(
         return [];
       }
       if (query.includes('FROM mcp_tool_settings')) {
-        return rowList as readonly Row[];
+        return rowList;
       }
       return [];
     },
   };
+  // SAFETY: the fake only ever serves mcp_tool_settings columns, which is
+  // exactly the Row shape every query against this table selects.
+  return fakeExecutor as MemorySqlExecutor;
 }
 
 export function createFakeMediaBucket(
@@ -75,7 +91,7 @@ export function createFakeMediaBucket(
   const storedObjectMap = new Map<string, Uint8Array>(
     Object.entries(initialObjectMap).map(([objectKey, content]) => [
       objectKey,
-      typeof content === 'string' ? new TextEncoder().encode(content) : content,
+      content instanceof Uint8Array ? content : new TextEncoder().encode(content),
     ]),
   );
   const partialBucket = {
@@ -98,19 +114,24 @@ export function createFakeMediaBucket(
           return storedText;
         },
         async json() {
-          return JSON.parse(storedText) as unknown;
+          const parsedJson: unknown = JSON.parse(storedText);
+          return parsedJson;
         },
       };
     },
     async put(objectKey: string, content: string | ArrayBuffer | Uint8Array) {
       const contentBytes =
-        typeof content === 'string'
-          ? new TextEncoder().encode(content)
-          : new Uint8Array(content instanceof ArrayBuffer ? content : content);
+        content instanceof Uint8Array
+          ? new Uint8Array(content)
+          : content instanceof ArrayBuffer
+            ? new Uint8Array(content)
+            : new TextEncoder().encode(content);
       storedObjectMap.set(objectKey, contentBytes);
       return null;
     },
   };
+  // SAFETY: specs exercise only get and put on the media bucket; no other
+  // R2Bucket member is ever read through this fake.
   return partialBucket as Env['MEDIA'];
 }
 
@@ -142,6 +163,9 @@ export async function buildTestRsaPrivateKeyPem(): Promise<string> {
 }
 
 export function createFakeApolloEnvironment(overrides: Partial<Env> = {}): Env {
+  // SAFETY: specs read only the vars, secrets, and owner email above the
+  // binding stubs; the empty binding objects exist to satisfy Env's shape and
+  // are never invoked unless a test overrides them with a working fake.
   return {
     OPENROUTER_MODEL: 'deepseek/deepseek-v4-flash-0731',
     OPENROUTER_STT_MODEL: 'openai/whisper-large-v3',
