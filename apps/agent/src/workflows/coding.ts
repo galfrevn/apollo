@@ -7,6 +7,7 @@ import { getAgentByName } from 'agents';
 import type { z } from 'zod';
 
 import { runCodingAgent } from '@/coding/agent';
+import { CODING_UNAVAILABLE_SPOKEN_SUMMARY } from '@/sandbox/capability';
 import { buildCodingBranchName } from '@/coding/git';
 import { runOpencodeAgent } from '@/coding/opencode';
 import { mintCodingProxyToken } from '@/coding/proxy';
@@ -54,6 +55,13 @@ export class ApolloCoding extends WorkflowEntrypoint<Env, ApolloCodingParams> {
     event: WorkflowEvent<ApolloCodingParams>,
     step: WorkflowStep,
   ): Promise<ApolloCodingResult> {
+    // The tool layer already refuses to enqueue without the binding; this
+    // guard covers instances created any other way (console, replays).
+    if (this.env.Sandbox === undefined) {
+      const summary = CODING_UNAVAILABLE_SPOKEN_SUMMARY;
+      await this.#notifyDevice(event.payload.deviceId, event.payload.task, summary);
+      return { summary };
+    }
     const repository = parseGithubRepositoryReference(event.payload.repository);
     const repositoryLabel = `${repository.owner}/${repository.repository}`;
     const agentSandboxId = buildCodingSandboxId(event.instanceId);
@@ -282,10 +290,14 @@ export class ApolloCoding extends WorkflowEntrypoint<Env, ApolloCodingParams> {
   async #getSandbox(
     sandboxId: string,
   ): Promise<SandboxLike & { destroy: () => Promise<void> }> {
+    const sandboxNamespace = this.env.Sandbox;
+    if (sandboxNamespace === undefined) {
+      throw new Error('Sandbox binding is not configured');
+    }
     const { getSandbox } = await import('@cloudflare/sandbox');
     // keepAlive because the disk is wiped on sleep: the 10 minute default would
     // take the clone with it while the agent is still thinking.
-    const sandbox = getSandbox(this.env.Sandbox, sandboxId, {
+    const sandbox = getSandbox(sandboxNamespace, sandboxId, {
       keepAlive: true,
       normalizeId: true,
     });

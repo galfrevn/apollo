@@ -1,0 +1,35 @@
+name: Starter
+
+on:
+  pull_request:
+    paths:
+      - 'apps/agent/**'
+      - 'documentation/**'
+      - 'tooling/starter/**'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/agent/**'
+      - 'documentation/**'
+      - 'tooling/starter/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Generate and smoke-build the starter
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          worker-types: 'false'
+
+      - name: Generate starter and smoke-build it
+        run: bun tooling/starter/build.ts --smoke

@@ -181,7 +181,7 @@ export function createFakeApolloEnvironment(overrides: Partial<Env> = {}): Env {
     RESEND_API_KEY: '',
     GITHUB_APP_ID: '',
     GITHUB_APP_PRIVATE_KEY: '',
-    APOLLO_OWNER_EMAIL: 'galfre.vn@gmail.com',
+    APOLLO_OWNER_EMAIL: 'owner@example.com',
     Apollo: {} as Env['Apollo'],
     MEDIA: {} as Env['MEDIA'],
     VECTORIZE: {} as Env['VECTORIZE'],

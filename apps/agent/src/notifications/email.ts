@@ -1,6 +1,5 @@
-// Resend free tier: without a verified domain it can only deliver to the
-// account owner's own address — exactly Apollo's use case (reports and notes
-// to the user, never arbitrary recipients).
+import { APOLLO_EMAIL_SENDER } from '@/configuration/identity';
+
 export async function sendEmailWithResend(input: {
   readonly resendApiKey: string;
   readonly toAddress: string;
@@ -16,7 +15,7 @@ export async function sendEmailWithResend(input: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Apollo <onboarding@resend.dev>',
+      from: APOLLO_EMAIL_SENDER,
       to: [input.toAddress],
       subject: input.subject,
       text: input.textBody,

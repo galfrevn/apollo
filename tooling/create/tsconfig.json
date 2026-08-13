@@ -1,0 +1,9 @@
+{
+  "extends": "@apollo/typescript-config/script.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["*.ts", "src/**/*.ts", "__tests__/*.ts"]
+}

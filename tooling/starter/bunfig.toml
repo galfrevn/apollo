@@ -1,0 +1,2 @@
+[test]
+root = "./__tests__"

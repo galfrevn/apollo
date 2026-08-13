@@ -93,7 +93,7 @@ describe('runCodingAgent', () => {
     const outcome = await runCodingAgent({
       sandbox,
       callLlm,
-      repositoryLabel: 'galfrevn/apollo',
+      repositoryLabel: 'example/apollo',
       taskText: 'poné la constante en 2',
     });
 
@@ -132,7 +132,7 @@ describe('runCodingAgent', () => {
     const outcome = await runCodingAgent({
       sandbox,
       callLlm,
-      repositoryLabel: 'galfrevn/apollo',
+      repositoryLabel: 'example/apollo',
       taskText: 'leé algo raro',
     });
 
@@ -166,7 +166,7 @@ describe('runCodingAgent', () => {
     const outcome = await runCodingAgent({
       sandbox,
       callLlm,
-      repositoryLabel: 'galfrevn/apollo',
+      repositoryLabel: 'example/apollo',
       taskText: 'dar vueltas para siempre',
       roundLimit: 4,
     });
@@ -202,7 +202,7 @@ describe('runCodingAgent', () => {
     const outcome = await runCodingAgent({
       sandbox,
       callLlm,
-      repositoryLabel: 'galfrevn/apollo',
+      repositoryLabel: 'example/apollo',
       taskText: 'dar vueltas para siempre',
     });
 
@@ -249,7 +249,7 @@ describe('runCodingAgent', () => {
     const outcome = await runCodingAgent({
       sandbox: tailChangingSandbox,
       callLlm,
-      repositoryLabel: 'galfrevn/apollo',
+      repositoryLabel: 'example/apollo',
       taskText: 'dar vueltas para siempre',
     });
 
@@ -291,7 +291,7 @@ describe('runCodingAgent', () => {
     const outcome = await runCodingAgent({
       sandbox: changingSandbox,
       callLlm,
-      repositoryLabel: 'galfrevn/apollo',
+      repositoryLabel: 'example/apollo',
       taskText: 'arreglá los tests',
     });
 
@@ -315,7 +315,7 @@ describe('runCodingAgent', () => {
     await runCodingAgent({
       sandbox,
       callLlm,
-      repositoryLabel: 'galfrevn/apollo',
+      repositoryLabel: 'example/apollo',
       taskText: 'corré los tests',
     });
 

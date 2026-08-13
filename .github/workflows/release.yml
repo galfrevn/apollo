@@ -1,0 +1,49 @@
+# Publishes a tagged snapshot of the generated starter to the public
+# apollo-starter repository. Trigger: push a tag like `starter-v1.0.0`.
+#
+# Requires the STARTER_DEPLOY_TOKEN secret: a fine-grained PAT with Contents
+# read/write on galfrevn/apollo-starter. The starter repo's main branch is
+# force-pushed on every release (users consume tagged snapshots, not history).
+name: Release starter
+
+on:
+  push:
+    tags:
+      - 'starter-v*'
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Publish starter snapshot
+    if: github.repository == 'galfrevn/apollo'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          worker-types: 'false'
+
+      - name: Generate starter and smoke-build it
+        run: bun tooling/starter/build.ts --smoke
+
+      - name: Push snapshot to apollo-starter
+        env:
+          STARTER_DEPLOY_TOKEN: ${{ secrets.STARTER_DEPLOY_TOKEN }}
+        run: |
+          starterVersionTag="${GITHUB_REF_NAME#starter-}"
+          cd tooling/starter/out
+          git init --initial-branch=main
+          git config user.name 'apollo-starter-bot'
+          git config user.email 'noreply@users.noreply.github.com'
+          git add --all
+          git commit --message "apollo-starter ${starterVersionTag} (from apollo@${GITHUB_SHA})"
+          git tag "${starterVersionTag}"
+          git push --force \
+            "https://x-access-token:${STARTER_DEPLOY_TOKEN}@github.com/galfrevn/apollo-starter.git" \
+            main "refs/tags/${starterVersionTag}"

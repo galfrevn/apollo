@@ -1,7 +1,8 @@
+import { APOLLO_TTS_VOICE } from '@/configuration/identity';
 import type { DeskFocusState } from '@/focus/logic';
 import { recallMemoryRecords, type MemorySqlExecutor } from '@/memory/store';
 import { buildCurrentTimePromptNote } from '@/persona/clock';
-import { APOLLO_TTS_VOICE, buildApolloSoulPrompt } from '@/persona/soul';
+import { buildApolloSoulPrompt } from '@/persona/soul';
 import type { DeskUiEventName } from '@/session/machine';
 import { executeToolByName, resolvePendingToolConfirmation } from '@/tools/router';
 import type {

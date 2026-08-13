@@ -124,11 +124,11 @@ describe('resolveGithubInstallationId', () => {
 
     await expect(
       resolveGithubInstallationId({
-        repository: parseGithubRepositoryReference('galfrevn/secreto'),
+        repository: parseGithubRepositoryReference('example/secreto'),
         appJsonWebToken: 'jwt',
         fetchImplementation,
       }),
-    ).rejects.toThrow(/no está instalado en galfrevn\/secreto/i);
+    ).rejects.toThrow(/no está instalado en example\/secreto/i);
   });
 });
 
@@ -145,7 +145,7 @@ describe('createGithubInstallationTokenForRepository', () => {
     ]);
 
     const installationToken = await createGithubInstallationTokenForRepository({
-      repository: parseGithubRepositoryReference('galfrevn/apollo'),
+      repository: parseGithubRepositoryReference('example/apollo'),
       appId: '123456',
       privateKeyPem,
       nowMilliseconds: 1_700_000_000_000,
@@ -153,7 +153,7 @@ describe('createGithubInstallationTokenForRepository', () => {
     });
 
     expect(installationToken.token).toBe('ghs_installationtoken');
-    expect(callList[0].url).toContain('/repos/galfrevn/apollo/installation');
+    expect(callList[0].url).toContain('/repos/example/apollo/installation');
     expect(callList[1].url).toContain('/app/installations/42/access_tokens');
     expect(callList[1].init.method).toBe('POST');
   });
@@ -163,7 +163,7 @@ describe('createGithubInstallationTokenForRepository', () => {
 
     await expect(
       createGithubInstallationTokenForRepository({
-        repository: parseGithubRepositoryReference('galfrevn/apollo'),
+        repository: parseGithubRepositoryReference('example/apollo'),
         appId: '',
         privateKeyPem: '',
         nowMilliseconds: 0,
@@ -193,8 +193,8 @@ describe('listGithubAppRepositoryFullNameList', () => {
         status: 200,
         body: {
           repositories: [
-            { full_name: 'galfrevn/apollo' },
-            { full_name: 'galfrevn/dotfiles' },
+            { full_name: 'example/apollo' },
+            { full_name: 'example/dotfiles' },
           ],
         },
       },
@@ -208,17 +208,17 @@ describe('listGithubAppRepositoryFullNameList', () => {
     });
 
     expect(fullNameList).toEqual([
-      'galfrevn/apollo',
-      'galfrevn/dotfiles',
-      'galfrevn/apollo',
-      'galfrevn/dotfiles',
+      'example/apollo',
+      'example/dotfiles',
+      'example/apollo',
+      'example/dotfiles',
     ]);
   });
 
   it('follows pagination past the first page of repositories', async () => {
     const privateKeyPem = await buildTestRsaPrivateKeyPem();
     const firstPageRepositoryList = Array.from({ length: 100 }, (_, index) => ({
-      full_name: `galfrevn/repo-${index}`,
+      full_name: `example/repo-${index}`,
     }));
     const { fetchImplementation, callList } = createFetchMock([
       {
@@ -239,7 +239,7 @@ describe('listGithubAppRepositoryFullNameList', () => {
       {
         fragment: '/installation/repositories?per_page=100&page=2',
         status: 200,
-        body: { repositories: [{ full_name: 'galfrevn/repo-100' }] },
+        body: { repositories: [{ full_name: 'example/repo-100' }] },
       },
     ]);
 
@@ -251,7 +251,7 @@ describe('listGithubAppRepositoryFullNameList', () => {
     });
 
     expect(fullNameList).toHaveLength(101);
-    expect(fullNameList.at(-1)).toBe('galfrevn/repo-100');
+    expect(fullNameList.at(-1)).toBe('example/repo-100');
     expect(
       callList.some((request) =>
         request.url.includes('/installation/repositories?per_page=100&page=2'),

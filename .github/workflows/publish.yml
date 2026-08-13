@@ -1,0 +1,60 @@
+# Publishes create-heyapollo to npm. Trigger: push a tag like `create-v0.1.0`
+# whose version must match tooling/create/package.json.
+#
+# Auth is npm Trusted Publishing (OIDC) — no long-lived npm token secret.
+# One-time setup, after the FIRST manual publish from a logged-in machine:
+# npmjs.com → create-heyapollo → Settings → Trusted Publisher →
+# GitHub Actions, repository galfrevn/apollo, workflow publish.yml.
+name: Publish create-heyapollo
+
+on:
+  push:
+    tags:
+      - 'create-v*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish to npm
+    if: github.repository == 'galfrevn/apollo'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          worker-types: 'false'
+
+      - name: Verify the tag matches the package version
+        run: |
+          packageVersion=$(bun -e "console.log(JSON.parse(await Bun.file('tooling/create/package.json').text()).version)")
+          tagVersion="${GITHUB_REF_NAME#create-v}"
+          if [ "$packageVersion" != "$tagVersion" ]; then
+            echo "tag $GITHUB_REF_NAME does not match package version $packageVersion" >&2
+            exit 1
+          fi
+
+      - name: Smoke-build the starter that will be embedded
+        run: bun tooling/starter/build.ts --smoke
+
+      - name: Setup Node for npm publishing
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      # Trusted Publishing needs a recent npm; provenance is attested from the
+      # OIDC-verified workflow identity.
+      - name: Publish with provenance
+        working-directory: tooling/create
+        run: |
+          npm install -g npm@latest
+          npm publish --provenance --access public

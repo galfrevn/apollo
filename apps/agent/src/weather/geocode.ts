@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { DEFAULT_DESK_WEATHER_LOCATION } from '@/weather/defaults';
+import { DEFAULT_DESK_WEATHER_LOCATION } from '@/configuration/identity';
 import type { WeatherHttpFetchImplementation } from '@/weather/fetch';
 
 export type DeskWeatherLocation = {

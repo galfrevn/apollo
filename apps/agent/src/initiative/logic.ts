@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { APOLLO_TIME_ZONE } from '@/persona/clock';
+import { APOLLO_TIME_ZONE } from '@/configuration/identity';
 import type { DeskSoundEffectName } from '@/protocol/schema';
 
 export const initiativeSourceSchema = z.enum([

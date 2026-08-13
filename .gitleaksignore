@@ -2,3 +2,8 @@
 # run time inside the test and an inline "abc" PKCS#1 body used to assert that
 # PKCS#1 keys are rejected. Neither is a real credential.
 e9e5ec3fb3a334bf7fe4c6a2ec6cdaab32bb514a:src/github/__tests__/app.spec.ts:private-key:39
+
+# A fake PEM fixture that briefly existed in the wizard's dev-vars parser
+# spec; replaced with a neutral multiline value in a later commit, but the
+# introducing commit stays in the branch history the PR scan walks.
+4cb7e0316fc1cbe36187bc8e61910540e9d90c2e:apps/wizard/src/__tests__/vars.spec.ts:private-key:54

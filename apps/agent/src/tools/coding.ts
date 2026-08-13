@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { listGithubAppRepositoryFullNameList } from '@/github/app';
+import { CODING_UNAVAILABLE_SPOKEN_SUMMARY } from '@/sandbox/capability';
 import {
   formatGithubRepositoryReference,
   parseGithubRepositoryReference,
@@ -34,6 +35,9 @@ export const listCodingRepositoriesTool: ToolDefinition = {
     additionalProperties: false,
   },
   async handler(_args, context) {
+    if (context.environment.Sandbox === undefined) {
+      return { ok: false, summary: CODING_UNAVAILABLE_SPOKEN_SUMMARY };
+    }
     let fullNameList: readonly string[];
     try {
       fullNameList = await listInstalledRepositoryFullNameList(context);
@@ -83,6 +87,9 @@ export const startCodingTaskTool: ToolDefinition = {
     return `Programar en ${parsedArgs.repository}: ${parsedArgs.task.slice(0, 120)}`;
   },
   async handler(args, context) {
+    if (context.environment.Sandbox === undefined) {
+      return { ok: false, summary: CODING_UNAVAILABLE_SPOKEN_SUMMARY };
+    }
     if (!context.effects) {
       return { ok: false, summary: 'Effects no disponibles' };
     }

@@ -11,9 +11,9 @@ import { ApolloCoding } from '@/workflows/coding';
 
 export { Apollo, ApolloBackground, ApolloCoding, Sandbox };
 
-// The console at heyapollo.dev/console probes /health cross-origin before
-// opening the agent WebSocket; auth is the query token, never a cookie, so a
-// wildcard origin does not widen what the token already gates.
+// The hosted management console probes /health cross-origin before opening
+// the agent WebSocket; auth is the query token, never a cookie, so a wildcard
+// origin does not widen what the token already gates.
 const CONSOLE_CORS_HEADER_MAP = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, HEAD, OPTIONS',
@@ -33,7 +33,14 @@ export default {
         {
           ok: true,
           name: 'apollo',
-          features: ['session', 'vectorize', 'r2', 'queues', 'workflows'],
+          features: [
+            'session',
+            'vectorize',
+            'r2',
+            'queues',
+            'workflows',
+            ...(environment.Sandbox !== undefined ? ['coding'] : []),
+          ],
         },
         { headers: CONSOLE_CORS_HEADER_MAP },
       );

@@ -9,7 +9,7 @@ note you dictated, a list you want off the device.
 
 ## Why it needs no confirmation
 
-The recipient is pinned to the `APOLLO_OWNER_EMAIL` var (`apps/agent/wrangler.jsonc`), so the model
+The recipient is pinned to the `APOLLO_OWNER_EMAIL` secret, so the model
 cannot address anyone else. That is what keeps the tool `safe` in router terms: the
 blast radius of a hallucinated call is one email to your own inbox. Anything that could
 reach a third party would need `safety: 'unsafe'` and the confirmation flow described in
@@ -17,10 +17,12 @@ reach a third party would need `safety: 'unsafe'` and the confirmation flow desc
 
 ## Delivery
 
-Resend, secret `RESEND_API_KEY` (`apps/agent/src/notifications/email.ts`). On the free tier without
+Resend, secret `RESEND_API_KEY` (`apps/agent/src/notifications/email.ts`); the sender constant
+lives in `apps/agent/src/configuration/identity.ts`. On the free tier without
 a verified domain, Resend only delivers to the account owner's own address — which is
-exactly the constraint above, enforced twice. Missing key returns a spoken "el email no
-está configurado todavía" instead of failing the turn.
+exactly the constraint above, enforced twice. A missing `RESEND_API_KEY` or
+`APOLLO_OWNER_EMAIL` returns a spoken "el email no está configurado todavía" instead of
+failing the turn.
 
 ## Automatic report delivery
 

@@ -33,6 +33,9 @@ Thin map from handbook topics to code folders. Prefer the narrative chapters for
 | Session UI machine | `apps/agent/src/session/` |
 | Config / env types | `apps/agent/src/configuration/`, `apps/agent/wrangler.jsonc` |
 | Firmware (separate repo) | `apps/firmware/apollo-firmware` (git submodule, own handbook) |
+| Starter generator | `tooling/starter/` (see [Starter](starter.md)) |
+| Setup wizard | `apps/wizard/src/`, shipped into the starter as `setup/` |
+| Starter skills | `documentation/skills/`, shipped as `.claude/skills/` |
 
 ## Navigation
 

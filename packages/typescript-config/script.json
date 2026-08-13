@@ -1,0 +1,13 @@
+{
+  "extends": "./base.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "types": ["bun"],
+    "lib": ["es2023"],
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true
+  }
+}

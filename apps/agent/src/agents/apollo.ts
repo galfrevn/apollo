@@ -85,6 +85,7 @@ import {
   consoleWeatherInputSchema,
 } from '@/console/rpc';
 import { buildConsoleStatusSnapshot, type ConsoleStatusSnapshot } from '@/console/status';
+import { APOLLO_TTS_VOICE } from '@/configuration/identity';
 import {
   clearDeskFocus,
   createInactiveDeskFocusState,
@@ -162,7 +163,6 @@ import { PUBLIC_ORIGIN_PREFERENCE_KEY, runFirmwareLifecycle } from '@/ota/lifecy
 import { enqueueMemoryIndexJob } from '@/queues/consume';
 import { cycleDeskSpeechMode, resolveDeskSpeechMode } from '@/persona/catalog';
 import { resolveDeskFaceEmotion } from '@/persona/face';
-import { APOLLO_TTS_VOICE } from '@/persona/soul';
 import {
   encodeServerToDeviceMessage,
   parseDeviceToServerMessage,

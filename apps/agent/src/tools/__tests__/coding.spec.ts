@@ -5,6 +5,7 @@ import {
   createFakeApolloEnvironment,
   createStubDeskToolEffects,
 } from '@/configuration/testing';
+import { CODING_UNAVAILABLE_SPOKEN_SUMMARY } from '@/sandbox/capability';
 import { createBuiltinToolDefinitionMap } from '@/tools/catalog';
 import { listCodingRepositoriesTool, startCodingTaskTool } from '@/tools/coding';
 import { executeToolByName } from '@/tools/router';
@@ -55,7 +56,7 @@ async function buildConfiguredEnvironment(): Promise<Env> {
 
 describe('listCodingRepositoriesTool', () => {
   it('speaks the installation list', async () => {
-    stubGithubFetch(['galfrevn/apollo', 'galfrevn/dotfiles']);
+    stubGithubFetch(['example/apollo', 'example/dotfiles']);
 
     const result = await listCodingRepositoriesTool.handler(
       {},
@@ -66,8 +67,8 @@ describe('listCodingRepositoriesTool', () => {
     );
 
     expect(result.ok).toBe(true);
-    expect(result.summary).toContain('galfrevn/apollo');
-    expect(result.summary).toContain('galfrevn/dotfiles');
+    expect(result.summary).toContain('example/apollo');
+    expect(result.summary).toContain('example/dotfiles');
   });
 
   it('reports the configuration gap when the app is missing', async () => {
@@ -79,15 +80,41 @@ describe('listCodingRepositoriesTool', () => {
     expect(result.ok).toBe(false);
     expect(result.summary).toContain('GITHUB_APP_ID');
   });
+
+  it('refuses when the deployment has no Sandbox binding', async () => {
+    const result = await listCodingRepositoriesTool.handler(
+      {},
+      {
+        environment: createFakeApolloEnvironment({ Sandbox: undefined }),
+        nowMilliseconds: 0,
+      },
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.summary).toBe(CODING_UNAVAILABLE_SPOKEN_SUMMARY);
+  });
 });
 
 describe('startCodingTaskTool', () => {
+  it('refuses when the deployment has no Sandbox binding', async () => {
+    const result = await startCodingTaskTool.handler(
+      { repository: 'example/apollo', task: 'arreglar el typo del readme' },
+      {
+        environment: createFakeApolloEnvironment({ Sandbox: undefined }),
+        nowMilliseconds: 0,
+      },
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.summary).toBe(CODING_UNAVAILABLE_SPOKEN_SUMMARY);
+  });
+
   it('requires confirmation before anything is enqueued', async () => {
     const enqueuedList: { repository: string; task: string }[] = [];
     const outcome = await executeToolByName(
       createBuiltinToolDefinitionMap(),
       'start_coding_task',
-      { repository: 'galfrevn/apollo', task: 'arreglar el typo del readme' },
+      { repository: 'example/apollo', task: 'arreglar el typo del readme' },
       {
         environment: fakeEnvironment,
         nowMilliseconds: 0,
@@ -104,7 +131,7 @@ describe('startCodingTaskTool', () => {
     expect(outcome.status).toBe('needs_confirm');
     expect(enqueuedList).toHaveLength(0);
     if (outcome.status === 'needs_confirm') {
-      expect(outcome.pending.summary).toContain('galfrevn/apollo');
+      expect(outcome.pending.summary).toContain('example/apollo');
       expect(outcome.pending.summary).toContain('arreglar el typo');
     }
   });
@@ -114,7 +141,7 @@ describe('startCodingTaskTool', () => {
 
     const result = await startCodingTaskTool.handler(
       {
-        repository: 'https://github.com/galfrevn/apollo.git',
+        repository: 'https://github.com/example/apollo.git',
         task: 'agregar un test',
       },
       {
@@ -131,7 +158,7 @@ describe('startCodingTaskTool', () => {
 
     expect(result.ok).toBe(true);
     expect(enqueuedList).toEqual([
-      { repository: 'galfrevn/apollo', task: 'agregar un test' },
+      { repository: 'example/apollo', task: 'agregar un test' },
     ]);
   });
 
@@ -157,7 +184,7 @@ describe('startCodingTaskTool', () => {
   });
 
   it('resolves a spoken name against the installed repositories', async () => {
-    stubGithubFetch(['galfrevn/apollo', 'galfrevn/apollo-firmware']);
+    stubGithubFetch(['example/apollo', 'example/apollo-firmware']);
     const enqueuedList: { repository: string; task: string }[] = [];
 
     const result = await startCodingTaskTool.handler(
@@ -176,12 +203,12 @@ describe('startCodingTaskTool', () => {
 
     expect(result.ok).toBe(true);
     expect(enqueuedList).toEqual([
-      { repository: 'galfrevn/apollo-firmware', task: 'agregar un test' },
+      { repository: 'example/apollo-firmware', task: 'agregar un test' },
     ]);
   });
 
   it('asks which candidate instead of guessing an ambiguous name', async () => {
-    stubGithubFetch(['galfrevn/apollo', 'galfrevn/apollo-firmware']);
+    stubGithubFetch(['example/apollo', 'example/apollo-firmware']);
     const enqueuedList: { repository: string; task: string }[] = [];
 
     const result = await startCodingTaskTool.handler(
@@ -199,13 +226,13 @@ describe('startCodingTaskTool', () => {
     );
 
     expect(result.ok).toBe(false);
-    expect(result.summary).toContain('galfrevn/apollo');
-    expect(result.summary).toContain('galfrevn/apollo-firmware');
+    expect(result.summary).toContain('example/apollo');
+    expect(result.summary).toContain('example/apollo-firmware');
     expect(enqueuedList).toHaveLength(0);
   });
 
   it('answers with the available repositories for an unknown name', async () => {
-    stubGithubFetch(['galfrevn/apollo']);
+    stubGithubFetch(['example/apollo']);
     const enqueuedList: { repository: string; task: string }[] = [];
 
     const result = await startCodingTaskTool.handler(
@@ -223,7 +250,7 @@ describe('startCodingTaskTool', () => {
     );
 
     expect(result.ok).toBe(false);
-    expect(result.summary).toContain('galfrevn/apollo');
+    expect(result.summary).toContain('example/apollo');
     expect(enqueuedList).toHaveLength(0);
   });
 });

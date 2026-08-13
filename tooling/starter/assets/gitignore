@@ -1,0 +1,6 @@
+node_modules/
+.wrangler/
+coverage/
+worker-configuration.d.ts
+.dev.vars
+.apollo.json

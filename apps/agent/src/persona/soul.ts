@@ -1,11 +1,5 @@
 import { resolveDeskSpeechMode } from '@/persona/catalog';
 
-// ElevenLabs voice id. eleven_multilingual_v2 takes no language_code, so the
-// Rioplatense accent has to live in the voice itself: pick one from the Voice
-// Library (Spanish / Argentina, e.g. Malena or Tomás), add it to My Voices,
-// and paste its id here.
-export const APOLLO_TTS_VOICE = 'ByVRQtaK1WDOvTmP1PKO';
-
 const apolloIdentityPrompt =
   'Sos Apollo, asistente de escritorio en español rioplatense. Actuá; no divagues. ' +
   'Las respuestas son para voz: naturales, habladas, texto plano. ' +

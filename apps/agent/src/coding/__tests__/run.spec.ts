@@ -63,7 +63,7 @@ function createFakeSandbox(
   };
 }
 
-const apolloRepository = parseGithubRepositoryReference('galfrevn/apollo');
+const apolloRepository = parseGithubRepositoryReference('example/apollo');
 const commitIdentity = {
   name: 'apollo[bot]',
   email: '1+apollo[bot]@users.noreply.github.com',
