@@ -46,6 +46,7 @@ export function BroadcastPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
   const recordedPcmRef = useRef<Uint8Array | null>(null);
   const stopRecordingRef = useRef<() => void>(() => {});
   const isUnmountedRef = useRef(false);
+  const isStartingRecordingRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -133,10 +134,17 @@ export function BroadcastPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
   }
 
   async function handleStartRecording() {
+    // Guarded by a ref, not the phase state: the phase only flips after the
+    // microphone resolves, so a double click would acquire two streams and
+    // strand the first one without a reachable stop.
+    if (isStartingRecordingRef.current || recorderHandleRef.current !== null) {
+      return;
+    }
     if (!isRecordingSupported()) {
       setAudioErrorMessage(broadcastMessages.micUnsupportedError);
       return;
     }
+    isStartingRecordingRef.current = true;
     setAudioErrorMessage(null);
     setFeedbackOutcome(null);
     try {
@@ -158,6 +166,8 @@ export function BroadcastPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
           ? broadcastMessages.micDeniedError
           : broadcastMessages.sendFallbackError,
       );
+    } finally {
+      isStartingRecordingRef.current = false;
     }
   }
 
