@@ -23,29 +23,30 @@ This handbook is meant to be read in order. Later chapters assume the concepts i
 
 8. [Tools](capabilities/tools.md) — Router and built-in catalog
 9. [Memory](capabilities/memory.md) — Preferences, facts, and vectors
-10. [Research](capabilities/research.md) — Quick search and deep research
-11. [Weather](capabilities/weather.md) — Location, forecast, dashboard
-12. [Focus](capabilities/focus.md) — Focus timer behavior
-13. [Reminders](capabilities/reminders.md) — Schedules and delivery
-14. [Timers](capabilities/timers.md) — Countdowns and pomodoros
-15. [Lists](capabilities/lists.md) — Durable spoken lists
-16. [Dollar rates](capabilities/rates.md) — Argentine dollar quotes
-17. [Email](capabilities/email.md) — Reports and notes to the owner
-18. [Sandbox](capabilities/sandbox.md) — Isolated code execution
-19. [Coding](capabilities/coding.md) — Clone a repo, change it, open a pull request
-20. [MCP servers](capabilities/mcp.md) — Connect external tools at runtime
+10. [Threads](capabilities/threads.md) — Conversation lifecycle, cutoff, and recall
+11. [Research](capabilities/research.md) — Quick search and deep research
+12. [Weather](capabilities/weather.md) — Location, forecast, dashboard
+13. [Focus](capabilities/focus.md) — Focus timer behavior
+14. [Reminders](capabilities/reminders.md) — Schedules and delivery
+15. [Timers](capabilities/timers.md) — Countdowns and pomodoros
+16. [Lists](capabilities/lists.md) — Durable spoken lists
+17. [Dollar rates](capabilities/rates.md) — Argentine dollar quotes
+18. [Email](capabilities/email.md) — Reports and notes to the owner
+19. [Sandbox](capabilities/sandbox.md) — Isolated code execution
+20. [Coding](capabilities/coding.md) — Clone a repo, change it, open a pull request
+21. [MCP servers](capabilities/mcp.md) — Connect external tools at runtime
 
 ### Part IV — Operations
 
-21. [Setup](operations/setup.md) — Local development
-22. [Deploy](operations/deploy.md) — Workers, bindings, secrets, and vars
-23. [Auth](operations/auth.md) — Device and dashboard credentials
-24. [Testing](operations/testing.md) — How this repo verifies behavior
+22. [Setup](operations/setup.md) — Local development
+23. [Deploy](operations/deploy.md) — Workers, bindings, secrets, and vars
+24. [Auth](operations/auth.md) — Device and dashboard credentials
+25. [Testing](operations/testing.md) — How this repo verifies behavior
 
 ### Part V — Reference
 
-25. [Mapping](reference/mapping.md) — Handbook topics to `apps/agent/src/` folders
-26. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
+26. [Mapping](reference/mapping.md) — Handbook topics to `apps/agent/src/` folders
+27. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
 
 ## The firmware
 

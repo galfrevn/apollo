@@ -5,7 +5,7 @@ import {
   type ConnectionContext,
   type WSMessage,
 } from 'agents';
-import type { Session } from 'agents/experimental/memory/session';
+import type { Session, SessionManager } from 'agents/experimental/memory/session';
 
 import {
   buildDeskDashboardPayload,
@@ -34,7 +34,9 @@ import {
 import { isDeviceSharedSecretValid } from '@/auth/token';
 import {
   mapSessionMessagesToConsoleHistory,
+  mapThreadCatalogToConsoleThreadList,
   type ConsoleHistoryTurn,
+  type ConsoleThreadSummary,
 } from '@/console/history';
 import {
   listConsoleJobDocuments,
@@ -55,10 +57,12 @@ import {
   consoleDeviceBrightnessInputSchema,
   consoleDeviceVolumeInputSchema,
   consoleDocumentInputSchema,
-  consoleHistoryInputSchema,
   consoleMemoryBrowseInputSchema,
   consoleRemoveListItemInputSchema,
   consoleSecretInputSchema,
+  consoleSpeechModeInputSchema,
+  consoleThreadInputSchema,
+  consoleThreadListInputSchema,
   consoleWeatherInputSchema,
 } from '@/console/rpc';
 import { buildConsoleStatusSnapshot, type ConsoleStatusSnapshot } from '@/console/status';
@@ -93,6 +97,7 @@ import {
   DEVICE_TOOL_CALL_TIMEOUT_MILLISECONDS,
   summarizeDeviceToolResult,
 } from '@/mcp/bridge';
+import { buildMcpOauthLandingResponse } from '@/mcp/landing';
 import { buildNamespacedMcpToolName } from '@/mcp/naming';
 import {
   buildInstalledMcpServerSummaryList,
@@ -112,16 +117,24 @@ import {
   listMcpToolSettings,
   saveMcpToolSetting,
 } from '@/mcp/settings';
-import { OWNER_MEMORY_CONSOLIDATION_CRON } from '@/memory/consolidate';
+import {
+  flattenRecentHistoryToTranscript,
+  OWNER_MEMORY_CONSOLIDATION_CRON,
+} from '@/memory/consolidate';
 import { runOwnerMemoryConsolidation } from '@/memory/nightly';
 import { deletePendingDeviceMessage, listPendingDeviceMessages } from '@/memory/pending';
-import { createApolloSession, rememberFactInSession } from '@/memory/session';
+import {
+  createApolloSessionManager,
+  LEGACY_THREAD_SESSION_ID,
+  rememberFactInSession,
+} from '@/memory/session';
 import {
   addMemoryRecord,
   getSessionPreference,
   setSessionPreference,
   type MemorySqlExecutor,
 } from '@/memory/store';
+import { embedTextWithOpenRouter, queryMemoryVectors } from '@/memory/vector';
 import { PUBLIC_ORIGIN_PREFERENCE_KEY, runFirmwareLifecycle } from '@/ota/lifecycle';
 import { enqueueMemoryIndexJob } from '@/queues/consume';
 import { cycleDeskSpeechMode, resolveDeskSpeechMode } from '@/persona/catalog';
@@ -147,6 +160,39 @@ import {
   type DeskTelemetrySnapshot,
 } from '@/telemetry/logic';
 import {
+  buildThreadDigestMessageList,
+  finalizeThreadPayloadSchema,
+  parseThreadDigestResult,
+  runThreadFinalization,
+  THREAD_FINALIZATION_TRANSCRIPT_BYTE_BUDGET,
+} from '@/threads/finalize';
+import { buildThreadHandoffNote, THREAD_HANDOFF_BYTE_BUDGET } from '@/threads/handoff';
+import {
+  ACTIVE_THREAD_LAST_TURN_PREFERENCE_KEY,
+  ACTIVE_THREAD_SESSION_PREFERENCE_KEY,
+  buildDefaultThreadTitle,
+  COMMAND_THREAD_RETENTION_DAYS,
+  decideThreadRotation,
+  parseStoredLastTurnAt,
+  PREVIOUS_THREAD_SESSION_PREFERENCE_KEY,
+  THREAD_INACTIVITY_CUTOFF_MILLISECONDS,
+} from '@/threads/lifecycle';
+import {
+  mapVectorMemoryIdToThreadSessionId,
+  selectThreadForResume,
+  THREAD_VECTOR_MEMORY_ID_PREFIX,
+} from '@/threads/resume';
+import {
+  deleteThreadMeta,
+  getThreadMeta,
+  listExpiredCommandThreadSessionIds,
+  listThreadMeta,
+  listThreadSessionIdsActiveSince,
+  markThreadFinalized,
+  recordThreadActivity,
+  reopenThreadMeta,
+} from '@/threads/store';
+import {
   deletePendingToolConfirmations,
   isPendingConfirmationOrphaned,
   readPendingToolConfirmation,
@@ -158,6 +204,7 @@ import type {
   ToolDefinition,
   ToolExecutionResult,
 } from '@/tools/types';
+import { chatWithOpenRouter } from '@/voice/llm';
 import { geocodeDeskWeatherLocation, type DeskWeatherLocation } from '@/weather/geocode';
 import type { DeskWeatherSnapshot } from '@/weather/fetch';
 import {
@@ -231,7 +278,9 @@ export class Apollo extends Agent<Env, ApolloState> {
   #pendingConfirmation: PendingToolConfirmation | undefined;
   #didLoadPreferences = false;
   #isSpeechAborted = false;
-  #session: Session | undefined;
+  #sessionManager: SessionManager | undefined;
+  #activeThreadSessionId: string | undefined;
+  #idleThreadCheckScheduleId: string | undefined;
   #lastKnownWeatherSnapshot: DeskWeatherSnapshot | undefined;
   #lastTelemetrySnapshot: DeskTelemetrySnapshot | undefined;
   #isAnnouncingLowBattery = false;
@@ -245,14 +294,27 @@ export class Apollo extends Agent<Env, ApolloState> {
     readonly receivedAtMilliseconds: number;
   } | null = null;
 
-  get session(): Session {
-    if (this.#session === undefined) {
-      this.#session = createApolloSession(this, this.env.MEDIA);
+  get sessionManager(): SessionManager {
+    if (this.#sessionManager === undefined) {
+      this.#sessionManager = createApolloSessionManager(this, this.env);
     }
-    return this.#session;
+    return this.#sessionManager;
+  }
+
+  // The active thread session; before the first post-migration turn it falls
+  // back to the legacy fixed session, whose shared memory block is the same.
+  get session(): Session {
+    return this.sessionManager.getSession(
+      this.#activeThreadSessionId ?? LEGACY_THREAD_SESSION_ID,
+    );
   }
 
   async onStart(): Promise<void> {
+    // Held in memory only, so every DO start must re-register it; without it a
+    // successful OAuth callback strands the owner's browser on a bare 404.
+    this.mcp.configureOAuthCallback({
+      customHandler: (callbackResult) => buildMcpOauthLandingResponse(callbackResult),
+    });
     void this.sql`
       CREATE TABLE IF NOT EXISTS memories (
         id TEXT PRIMARY KEY,
@@ -304,13 +366,57 @@ export class Apollo extends Agent<Env, ApolloState> {
         safety TEXT NOT NULL
       )
     `;
-    this.#session = createApolloSession(this, this.env.MEDIA);
+    // Thread classification and summaries live outside the SDK's session
+    // tables so the SDK schema stays untouched by Apollo concerns.
+    void this.sql`
+      CREATE TABLE IF NOT EXISTS thread_meta (
+        session_id TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        summary TEXT,
+        last_turn_at INTEGER NOT NULL
+      )
+    `;
+    this.#sessionManager = createApolloSessionManager(this, this.env);
+    const storedActiveThreadSessionId = await getSessionPreference(
+      this.#sqlExecutor(),
+      ACTIVE_THREAD_SESSION_PREFERENCE_KEY,
+    );
+    if (storedActiveThreadSessionId !== null && storedActiveThreadSessionId.length > 0) {
+      this.#activeThreadSessionId = storedActiveThreadSessionId;
+    }
     await this.#ensurePreferencesLoaded();
     await this.scheduleEvery(
       DESK_DASHBOARD_REFRESH_INTERVAL_SECONDS,
       'refreshDashboardWeather',
     );
     await this.schedule(OWNER_MEMORY_CONSOLIDATION_CRON, 'consolidateOwnerMemory');
+    await this.scheduleEvery(86_400, 'purgeExpiredCommandThreads');
+  }
+
+  async purgeExpiredCommandThreads(): Promise<void> {
+    const sqlExecutor = this.#sqlExecutor();
+    const retentionCutoffMilliseconds =
+      Date.now() - COMMAND_THREAD_RETENTION_DAYS * 86_400_000;
+    const expiredSessionIdList = listExpiredCommandThreadSessionIds(
+      sqlExecutor,
+      retentionCutoffMilliseconds,
+    );
+    for (const expiredSessionId of expiredSessionIdList) {
+      if (expiredSessionId === this.#activeThreadSessionId) {
+        continue;
+      }
+      await this.sessionManager.delete(expiredSessionId);
+      deleteThreadMeta(sqlExecutor, expiredSessionId);
+    }
+    if (expiredSessionIdList.length > 0) {
+      console.log(
+        JSON.stringify({
+          level: 'info',
+          message: 'command_threads_purged',
+          purgedCount: expiredSessionIdList.length,
+        }),
+      );
+    }
   }
 
   async #resolveWeatherLocation() {
@@ -558,7 +664,17 @@ export class Apollo extends Agent<Env, ApolloState> {
   }> {
     const input = installMcpServerInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
-    const installResult = await this.addMcpServer(input.name, input.url);
+    // Without an explicit callbackHost the SDK derives it from this very
+    // connection's host, which is the worker origin the console dialed.
+    const installResult = await this.addMcpServer(
+      input.name,
+      input.url,
+      input.authToken === undefined
+        ? undefined
+        : {
+            transport: { headers: { Authorization: `Bearer ${input.authToken}` } },
+          },
+    );
     return {
       serverId: installResult.id,
       state: installResult.state,
@@ -793,13 +909,28 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
-  async listConsoleHistory(rawInput: unknown): Promise<readonly ConsoleHistoryTurn[]> {
-    const input = consoleHistoryInputSchema.parse(rawInput);
+  async listConsoleThreads(rawInput: unknown): Promise<readonly ConsoleThreadSummary[]> {
+    const input = consoleThreadListInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
-    const recentHistory = await this.session.getRecentHistory(
-      input.maxContentBytes ?? 24_000,
-      10,
+    const legacyMessageCount = await this.sessionManager.getMessageCount(
+      LEGACY_THREAD_SESSION_ID,
     );
+    return mapThreadCatalogToConsoleThreadList({
+      sessionInfoList: this.sessionManager.list(),
+      threadMetaList: listThreadMeta(this.#sqlExecutor()),
+      activeThreadSessionId: this.#activeThreadSessionId ?? null,
+      hasLegacyHistory: legacyMessageCount > 0,
+      legacySessionId: LEGACY_THREAD_SESSION_ID,
+    });
+  }
+
+  @callable()
+  async getConsoleThread(rawInput: unknown): Promise<readonly ConsoleHistoryTurn[]> {
+    const input = consoleThreadInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    const recentHistory = await this.sessionManager
+      .getSession(input.threadId)
+      .getRecentHistory(input.maxContentBytes ?? 48_000, 10);
     return mapSessionMessagesToConsoleHistory(recentHistory.messages);
   }
 
@@ -826,6 +957,13 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   @callable()
+  async setConsoleSpeechMode(rawInput: unknown): Promise<ApolloState> {
+    const input = consoleSpeechModeInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    return this.setSpeechMode(input.speechModeId);
+  }
+
+  @callable()
   async setSpeechMode(speechModeId: string): Promise<ApolloState> {
     const speechMode = resolveDeskSpeechMode(speechModeId);
     await setSessionPreference(this.#sqlExecutor(), 'speechMode', speechMode.id);
@@ -834,6 +972,11 @@ export class Apollo extends Agent<Env, ApolloState> {
       speechMode: speechMode.id,
       caption: null,
     });
+    // The desk only learns the new accent from a ui_state push; without it the
+    // ring keeps the old mode color until an unrelated event redraws it.
+    for (const connection of this.getConnections(DEVICE_CONNECTION_TAG)) {
+      this.#pushUiState(connection);
+    }
     return this.state;
   }
 
@@ -1072,10 +1215,314 @@ export class Apollo extends Agent<Env, ApolloState> {
         deviceId: this.name ?? 'default',
         nowMilliseconds: Date.now(),
         createIdentifier: () => crypto.randomUUID(),
+        gatherTranscriptSince: async (sinceMilliseconds, transcriptByteBudget) =>
+          this.#gatherThreadTranscriptSince(sinceMilliseconds, transcriptByteBudget),
       });
     } finally {
       this.#isConsolidatingMemory = false;
     }
+  }
+
+  async #gatherThreadTranscriptSince(
+    sinceMilliseconds: number,
+    transcriptByteBudget: number,
+  ): Promise<{ readonly transcriptText: string; readonly hasNewActivity: boolean }> {
+    const activeThreadSessionIdList = listThreadSessionIdsActiveSince(
+      this.#sqlExecutor(),
+      sinceMilliseconds,
+    );
+    if (activeThreadSessionIdList.length === 0) {
+      return { transcriptText: '', hasNewActivity: false };
+    }
+    const transcriptPartList: string[] = [];
+    let remainingByteBudget = transcriptByteBudget;
+    for (const threadSessionId of activeThreadSessionIdList) {
+      if (remainingByteBudget <= 0) {
+        break;
+      }
+      const recentHistory = await this.sessionManager
+        .getSession(threadSessionId)
+        .getRecentHistory(remainingByteBudget, 1);
+      const transcriptText = flattenRecentHistoryToTranscript(recentHistory.messages);
+      if (transcriptText.length === 0) {
+        continue;
+      }
+      transcriptPartList.push(transcriptText);
+      remainingByteBudget -= transcriptText.length;
+    }
+    return {
+      transcriptText: transcriptPartList.join('\n\n'),
+      hasNewActivity: true,
+    };
+  }
+
+  async #rotateThreadForTurn(): Promise<void> {
+    const sqlExecutor = this.#sqlExecutor();
+    const nowMilliseconds = Date.now();
+    const storedLastTurnAt = await getSessionPreference(
+      sqlExecutor,
+      ACTIVE_THREAD_LAST_TURN_PREFERENCE_KEY,
+    );
+    const rotationDecision = decideThreadRotation({
+      activeSessionId: this.#activeThreadSessionId ?? null,
+      lastTurnAtMilliseconds: parseStoredLastTurnAt(storedLastTurnAt),
+      nowMilliseconds,
+    });
+    let activeThreadSessionId: string;
+    if (rotationDecision.action === 'start') {
+      // A thread the idle check already closed still hands its tail to the
+      // next thread; its id survives in the previous-thread preference.
+      const storedPreviousThreadSessionId = await getSessionPreference(
+        sqlExecutor,
+        PREVIOUS_THREAD_SESSION_PREFERENCE_KEY,
+      );
+      const handoffSourceSessionId =
+        rotationDecision.previousSessionId ??
+        (storedPreviousThreadSessionId !== null &&
+        storedPreviousThreadSessionId.length > 0
+          ? storedPreviousThreadSessionId
+          : null);
+      const threadInfo = this.sessionManager.create(
+        buildDefaultThreadTitle(nowMilliseconds),
+        { source: 'voice' },
+      );
+      activeThreadSessionId = threadInfo.id;
+      this.#activeThreadSessionId = threadInfo.id;
+      await setSessionPreference(
+        sqlExecutor,
+        ACTIVE_THREAD_SESSION_PREFERENCE_KEY,
+        threadInfo.id,
+      );
+      await setSessionPreference(sqlExecutor, PREVIOUS_THREAD_SESSION_PREFERENCE_KEY, '');
+      if (handoffSourceSessionId !== null) {
+        await this.#writeThreadHandoffNote(handoffSourceSessionId, threadInfo.id);
+      }
+      if (rotationDecision.previousSessionId !== null) {
+        await this.schedule(1, 'finalizeThread', {
+          sessionId: rotationDecision.previousSessionId,
+        });
+      }
+    } else {
+      activeThreadSessionId = rotationDecision.sessionId;
+    }
+    await setSessionPreference(
+      sqlExecutor,
+      ACTIVE_THREAD_LAST_TURN_PREFERENCE_KEY,
+      String(nowMilliseconds),
+    );
+    recordThreadActivity(sqlExecutor, activeThreadSessionId, nowMilliseconds);
+    await this.#scheduleIdleThreadCheck();
+  }
+
+  // Best effort: the id lives in memory only, so a hibernation between turns
+  // leaks at most one extra check, and maybeFinalizeIdleThread is idempotent.
+  async #scheduleIdleThreadCheck(): Promise<void> {
+    if (this.#idleThreadCheckScheduleId !== undefined) {
+      await this.cancelSchedule(this.#idleThreadCheckScheduleId);
+    }
+    const idleCheckDelaySeconds =
+      Math.ceil(THREAD_INACTIVITY_CUTOFF_MILLISECONDS / 1000) + 60;
+    const idleCheckSchedule = await this.schedule(
+      idleCheckDelaySeconds,
+      'maybeFinalizeIdleThread',
+      {},
+    );
+    this.#idleThreadCheckScheduleId = idleCheckSchedule.id;
+  }
+
+  async maybeFinalizeIdleThread(): Promise<void> {
+    const sqlExecutor = this.#sqlExecutor();
+    const activeThreadSessionId = this.#activeThreadSessionId;
+    if (activeThreadSessionId === undefined) {
+      return;
+    }
+    const lastTurnAtMilliseconds = parseStoredLastTurnAt(
+      await getSessionPreference(sqlExecutor, ACTIVE_THREAD_LAST_TURN_PREFERENCE_KEY),
+    );
+    if (
+      lastTurnAtMilliseconds === null ||
+      Date.now() - lastTurnAtMilliseconds < THREAD_INACTIVITY_CUTOFF_MILLISECONDS
+    ) {
+      return;
+    }
+    this.#activeThreadSessionId = undefined;
+    await setSessionPreference(sqlExecutor, ACTIVE_THREAD_SESSION_PREFERENCE_KEY, '');
+    await setSessionPreference(
+      sqlExecutor,
+      PREVIOUS_THREAD_SESSION_PREFERENCE_KEY,
+      activeThreadSessionId,
+    );
+    await this.finalizeThread({ sessionId: activeThreadSessionId });
+  }
+
+  // Reopening makes the found thread active again: its recency window feeds
+  // the next turn, and its meta drops back to pending so the next close
+  // regenerates a digest that covers the new turns. The turn that triggered
+  // the resume still lands in the thread it started in.
+  async #resumeConversationThread(
+    query: string,
+  ): Promise<{ readonly title: string; readonly summary: string | null } | undefined> {
+    const sqlExecutor = this.#sqlExecutor();
+    const resolvedSessionId =
+      (await this.#findThreadByVector(query)) ?? this.#findThreadByKeyword(query);
+    if (resolvedSessionId === undefined) {
+      return undefined;
+    }
+    const threadInfo = this.sessionManager.get(resolvedSessionId);
+    if (threadInfo === null) {
+      return undefined;
+    }
+    const threadMeta = getThreadMeta(sqlExecutor, resolvedSessionId);
+    const nowMilliseconds = Date.now();
+    this.#activeThreadSessionId = resolvedSessionId;
+    await setSessionPreference(
+      sqlExecutor,
+      ACTIVE_THREAD_SESSION_PREFERENCE_KEY,
+      resolvedSessionId,
+    );
+    await setSessionPreference(
+      sqlExecutor,
+      ACTIVE_THREAD_LAST_TURN_PREFERENCE_KEY,
+      String(nowMilliseconds),
+    );
+    await setSessionPreference(sqlExecutor, PREVIOUS_THREAD_SESSION_PREFERENCE_KEY, '');
+    recordThreadActivity(sqlExecutor, resolvedSessionId, nowMilliseconds);
+    reopenThreadMeta(sqlExecutor, resolvedSessionId);
+    await this.#scheduleIdleThreadCheck();
+    return { title: threadInfo.name, summary: threadMeta?.summary ?? null };
+  }
+
+  async #findThreadByVector(query: string): Promise<string | undefined> {
+    // Mock mode has no embeddings; the keyword fallback still works.
+    if (this.env.MOCK_VOICE === '1') {
+      return undefined;
+    }
+    try {
+      const values = await embedTextWithOpenRouter({
+        openRouterApiKey: this.env.OPENROUTER_API_KEY,
+        modelId: this.env.OPENROUTER_EMBEDDING_MODEL,
+        text: query,
+      });
+      const matchList = await queryMemoryVectors({
+        vectorizeIndex: this.env.VECTORIZE,
+        values,
+        deviceId: this.name ?? 'default',
+        topK: 8,
+      });
+      for (const match of matchList) {
+        const sessionId = mapVectorMemoryIdToThreadSessionId(match.id);
+        if (
+          sessionId !== undefined &&
+          sessionId !== this.#activeThreadSessionId &&
+          this.sessionManager.get(sessionId) !== null
+        ) {
+          return sessionId;
+        }
+      }
+    } catch {
+      // Resume must never fail the turn; the keyword fallback runs next.
+    }
+    return undefined;
+  }
+
+  #findThreadByKeyword(query: string): string | undefined {
+    const metaBySessionId = new Map(
+      listThreadMeta(this.#sqlExecutor()).map((meta) => [meta.sessionId, meta]),
+    );
+    const candidateList = this.sessionManager
+      .list()
+      .filter((sessionInfo) => sessionInfo.id !== this.#activeThreadSessionId)
+      .map((sessionInfo) => ({
+        sessionId: sessionInfo.id,
+        title: sessionInfo.name,
+        summary: metaBySessionId.get(sessionInfo.id)?.summary ?? null,
+        lastTurnAtMilliseconds:
+          metaBySessionId.get(sessionInfo.id)?.lastTurnAtMilliseconds ?? 0,
+      }))
+      .toSorted(
+        (left, right) => right.lastTurnAtMilliseconds - left.lastTurnAtMilliseconds,
+      );
+    return selectThreadForResume(candidateList, query)?.sessionId;
+  }
+
+  async #writeThreadHandoffNote(
+    sourceSessionId: string,
+    targetSessionId: string,
+  ): Promise<void> {
+    const sourceHistory = await this.sessionManager
+      .getSession(sourceSessionId)
+      .getRecentHistory(THREAD_HANDOFF_BYTE_BUDGET, 2);
+    const handoffNote = buildThreadHandoffNote({
+      previousThreadTitle: this.sessionManager.get(sourceSessionId)?.name ?? '',
+      messageList: sourceHistory.messages,
+    });
+    if (handoffNote === undefined) {
+      return;
+    }
+    const targetSession = this.sessionManager.getSession(targetSessionId);
+    await targetSession.replaceContextBlock('handoff', handoffNote);
+    await targetSession.refreshSystemPrompt();
+  }
+
+  async finalizeThread(rawPayload: unknown): Promise<void> {
+    const payload = finalizeThreadPayloadSchema.parse(rawPayload);
+    const sqlExecutor = this.#sqlExecutor();
+    // A resumed thread is active again by the time a delayed finalizer fires;
+    // digesting it now would freeze the old transcript and pin it, because
+    // later closes skip non-pending meta. Rotation away reschedules this.
+    const activeThreadSessionId =
+      this.#activeThreadSessionId ??
+      (await getSessionPreference(sqlExecutor, ACTIVE_THREAD_SESSION_PREFERENCE_KEY));
+    if (payload.sessionId === activeThreadSessionId) {
+      return;
+    }
+    const existingMeta = getThreadMeta(sqlExecutor, payload.sessionId);
+    if (existingMeta !== undefined && existingMeta.kind !== 'pending') {
+      return;
+    }
+    await runThreadFinalization({
+      getThreadMessages: async () => {
+        const recentHistory = await this.sessionManager
+          .getSession(payload.sessionId)
+          .getRecentHistory(THREAD_FINALIZATION_TRANSCRIPT_BYTE_BUDGET, 10);
+        return recentHistory.messages;
+      },
+      generateThreadDigest: async (transcriptText) => {
+        // Mock mode has no LLM to call; a dev session must not burn tokens.
+        if (this.env.MOCK_VOICE === '1' || transcriptText.length === 0) {
+          return undefined;
+        }
+        const chatResult = await chatWithOpenRouter({
+          openRouterApiKey: this.env.OPENROUTER_API_KEY,
+          modelId: this.env.OPENROUTER_MODEL,
+          messageList: buildThreadDigestMessageList(transcriptText),
+        });
+        return parseThreadDigestResult(chatResult.text);
+      },
+      renameThread: async (title) => {
+        this.sessionManager.rename(payload.sessionId, title);
+      },
+      persistOutcome: async (outcome) => {
+        markThreadFinalized(sqlExecutor, {
+          sessionId: payload.sessionId,
+          kind: outcome.kind,
+          summary: outcome.summary,
+        });
+        // The summary rides the same embedding pipeline as owner facts; the
+        // thread- prefix is what resume_conversation later maps back to a
+        // session id.
+        if (outcome.kind === 'conversation' && outcome.summary !== null) {
+          await enqueueMemoryIndexJob(this.env, {
+            memoryId: `${THREAD_VECTOR_MEMORY_ID_PREFIX}${payload.sessionId}`,
+            content:
+              outcome.title !== null
+                ? `${outcome.title}: ${outcome.summary}`
+                : outcome.summary,
+            deviceId: this.name ?? 'default',
+          });
+        }
+      },
+    });
   }
 
   #currentFocusState(): DeskFocusState {
@@ -1537,6 +1984,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     const deviceId = this.name ?? 'default';
     this.#isSpeechAborted = false;
     await this.#ensureTelemetrySnapshotLoaded();
+    await this.#rotateThreadForTurn();
     const deskToolEffects = createDeskToolEffects({
       sqlExecutor: this.#sqlExecutor(),
       environment: this.env,
@@ -1607,6 +2055,14 @@ export class Apollo extends Agent<Env, ApolloState> {
           serializeWeatherLocation(location),
         );
       },
+      searchThreadHistory: async ({ query, limit }) =>
+        this.sessionManager.search(query, { limit }).map((match) => ({
+          id: match.id,
+          role: match.role,
+          content: match.content,
+        })),
+      resumeConversationThread: async ({ query }) =>
+        this.#resumeConversationThread(query),
       callDeviceTool: async ({ deviceToolName, argumentRecord }) =>
         this.#callDeviceTool(deviceToolName, argumentRecord),
       callInstalledMcpTool: async (call) => callInstalledMcpTool(this.mcp, call),

@@ -334,11 +334,20 @@ export async function executeApolloTurn(
       id: crypto.randomUUID(),
       role: 'user',
       parts: [{ type: 'text', text: turnOutput.transcript }],
+      createdAt: new Date(),
     });
     await dependencies.session.appendMessage({
       id: crypto.randomUUID(),
       role: 'assistant',
-      parts: [{ type: 'text', text: turnOutput.spokenText }],
+      parts: [
+        { type: 'text', text: turnOutput.spokenText },
+        ...turnOutput.executedToolCallList.map((executedToolCall) => ({
+          type: 'tool-call',
+          toolName: executedToolCall.name,
+          output: executedToolCall.summary,
+        })),
+      ],
+      createdAt: new Date(),
     });
   }
 }

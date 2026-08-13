@@ -30,6 +30,8 @@ export function createDeskToolEffects(input: {
   readonly cancelReminders: DeskToolEffects['cancelReminders'];
   readonly resolveWeatherLocation: DeskToolEffects['resolveWeatherLocation'];
   readonly persistWeatherLocation: DeskToolEffects['persistWeatherLocation'];
+  readonly searchThreadHistory: DeskToolEffects['searchThreadHistory'];
+  readonly resumeConversationThread: DeskToolEffects['resumeConversationThread'];
   readonly callDeviceTool: DeskToolEffects['callDeviceTool'];
   readonly callInstalledMcpTool: DeskToolEffects['callInstalledMcpTool'];
 }): DeskToolEffects {
@@ -65,6 +67,8 @@ export function createDeskToolEffects(input: {
     cancelReminders: input.cancelReminders,
     resolveWeatherLocation: input.resolveWeatherLocation,
     persistWeatherLocation: input.persistWeatherLocation,
+    searchThreadHistory: input.searchThreadHistory,
+    resumeConversationThread: input.resumeConversationThread,
     callDeviceTool: input.callDeviceTool,
     callInstalledMcpTool: input.callInstalledMcpTool,
     addListItem: async (item) => addListItemRecord(input.sqlExecutor, item),

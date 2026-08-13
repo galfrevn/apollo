@@ -13,6 +13,7 @@ Thin map from handbook topics to code folders. Prefer the narrative chapters for
 | Face (emotion, accent color) | `apps/agent/src/persona/face.ts` |
 | Tools | `apps/agent/src/tools/` |
 | Memory | `apps/agent/src/memory/` |
+| Threads | `apps/agent/src/threads/`, `apps/agent/src/tools/history.ts`, `apps/agent/src/console/history.ts` |
 | Search / research pipeline | `apps/agent/src/search/`, `apps/agent/src/tools/research.ts`, `apps/agent/src/tools/web.ts` |
 | Weather | `apps/agent/src/weather/`, `apps/agent/src/agents/dashboard.ts` |
 | Focus | `apps/agent/src/focus/`, `apps/agent/src/tools/focus.ts` |

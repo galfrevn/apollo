@@ -70,6 +70,14 @@ function createRecordingEffects(): DeskToolEffects & {
     enqueueCodingTask: async ({ repository, task }) => {
       calls.push(`coding:${repository}:${task}`);
     },
+    searchThreadHistory: async ({ query }) => {
+      calls.push(`threads:${query}`);
+      return [];
+    },
+    resumeConversationThread: async ({ query }) => {
+      calls.push(`resume:${query}`);
+      return undefined;
+    },
     callDeviceTool: async ({ deviceToolName }) => {
       calls.push(`device:${deviceToolName}`);
       return { ok: true, summary: 'true' };

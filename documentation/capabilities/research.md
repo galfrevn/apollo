@@ -19,4 +19,4 @@ The old homemade pipeline (Cloudflare `WEBSEARCH` binding + fetch/extract/synthe
 
 ## Navigation
 
-Prev: [Memory](memory.md) · Next: [Weather](weather.md)
+Prev: [Threads](threads.md) · Next: [Weather](weather.md)

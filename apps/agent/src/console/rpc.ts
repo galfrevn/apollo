@@ -27,6 +27,10 @@ export const consoleDeviceBrightnessInputSchema = consoleSecretInputSchema.exten
   brightness: z.number().int().min(0).max(100),
 });
 
+export const consoleSpeechModeInputSchema = consoleSecretInputSchema.extend({
+  speechModeId: z.string().min(1).max(30),
+});
+
 export const consoleAddMemoryInputSchema = consoleSecretInputSchema.extend({
   content: z.string().min(1).max(500),
 });
@@ -48,7 +52,10 @@ export const consoleWeatherInputSchema = consoleSecretInputSchema.extend({
   locationQuery: z.string().min(1).max(100),
 });
 
-export const consoleHistoryInputSchema = consoleSecretInputSchema.extend({
+export const consoleThreadListInputSchema = consoleSecretInputSchema;
+
+export const consoleThreadInputSchema = consoleSecretInputSchema.extend({
+  threadId: z.string().min(1).max(100),
   maxContentBytes: z.number().int().min(1_000).max(100_000).optional(),
 });
 
