@@ -33,7 +33,7 @@ export function LandingCapabilities() {
               <span className="font-mono text-xs text-dim transition-colors duration-300 group-hover:text-foreground">
                 {capabilityRow.indexLabel}
               </span>
-              <span className="flex items-center gap-3 font-serif text-2xl">
+              <h3 className="flex items-center gap-3 font-serif text-2xl font-normal">
                 {capabilityRow.name}
                 <span
                   aria-hidden
@@ -41,7 +41,7 @@ export function LandingCapabilities() {
                 >
                   →
                 </span>
-              </span>
+              </h3>
               <p className="col-start-2 max-w-[48ch] text-sm text-muted-foreground md:col-start-3">
                 {capabilityRow.description}
               </p>

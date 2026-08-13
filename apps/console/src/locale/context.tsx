@@ -21,9 +21,27 @@ function resolveBrowserStorage(): Storage | null {
   }
 }
 
-export function LocaleProvider({ children }: { readonly children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() =>
-    detectInitialLocale(resolveBrowserStorage(), navigator.languages),
+const LANDING_PATH_LIST = ['/', '/en', '/en/'];
+
+export function LocaleProvider({
+  children,
+  localeOverride = null,
+  shouldDetectBrowserLanguage = true,
+}: {
+  readonly children: ReactNode;
+  readonly localeOverride?: Locale | null;
+  readonly shouldDetectBrowserLanguage?: boolean;
+}) {
+  // Search crawlers render with english browser preferences, so the landing
+  // must not let navigator.languages flip the content away from the URL's
+  // canonical language; only an explicit stored choice may.
+  const [locale, setLocaleState] = useState<Locale>(
+    () =>
+      localeOverride ??
+      detectInitialLocale(
+        resolveBrowserStorage(),
+        shouldDetectBrowserLanguage ? navigator.languages : [],
+      ),
   );
 
   const setLocale = useCallback((nextLocale: Locale) => {
@@ -33,6 +51,17 @@ export function LocaleProvider({ children }: { readonly children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.lang = locale;
+  }, [locale]);
+
+  useEffect(() => {
+    const landingPathForLocale = locale === 'en' ? '/en' : '/';
+    const currentPathname = window.location.pathname;
+    if (
+      LANDING_PATH_LIST.includes(currentPathname) &&
+      currentPathname !== landingPathForLocale
+    ) {
+      window.history.replaceState(null, '', landingPathForLocale);
+    }
   }, [locale]);
 
   return (

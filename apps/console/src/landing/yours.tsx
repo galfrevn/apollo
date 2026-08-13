@@ -30,7 +30,7 @@ export function LandingYours() {
               data-reveal-delay={cardIndex * 0.08}
               className="flex flex-col gap-3 border bg-card p-6"
             >
-              <span className="text-xs text-dim">{ownershipCard.label}</span>
+              <h3 className="text-xs font-normal text-dim">{ownershipCard.label}</h3>
               <p className="text-sm text-muted-foreground">{ownershipCard.description}</p>
               <div className="mt-auto pt-4">
                 <p className="text-sm">{ownershipCard.action}</p>
@@ -42,7 +42,9 @@ export function LandingYours() {
             data-reveal-delay="0.16"
             className="flex flex-col gap-3 border bg-card p-6"
           >
-            <span className="text-xs text-dim">{yoursMessages.docsCardLabel}</span>
+            <h3 className="text-xs font-normal text-dim">
+              {yoursMessages.docsCardLabel}
+            </h3>
             <p className="text-sm text-muted-foreground">
               {yoursMessages.docsCardDescription}
             </p>
@@ -62,7 +64,9 @@ export function LandingYours() {
             data-reveal-delay="0.24"
             className="flex flex-col gap-3 border bg-card p-6"
           >
-            <span className="text-xs text-dim">{yoursMessages.consoleCardLabel}</span>
+            <h3 className="text-xs font-normal text-dim">
+              {yoursMessages.consoleCardLabel}
+            </h3>
             <p className="text-sm text-muted-foreground">
               {yoursMessages.consoleCardDescription}
             </p>

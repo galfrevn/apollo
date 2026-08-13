@@ -4,11 +4,17 @@ import { resolveSurfaceFromLocation } from '@/router/path';
 
 describe('resolveSurfaceFromLocation', () => {
   it('resolves the root path to the landing surface', () => {
-    expect(resolveSurfaceFromLocation('/', '')).toEqual({ kind: 'landing' });
+    expect(resolveSurfaceFromLocation('/', '')).toEqual({
+      kind: 'landing',
+      localeOverride: null,
+    });
   });
 
   it('resolves unknown paths to the landing surface', () => {
-    expect(resolveSurfaceFromLocation('/pricing', '')).toEqual({ kind: 'landing' });
+    expect(resolveSurfaceFromLocation('/pricing', '')).toEqual({
+      kind: 'landing',
+      localeOverride: null,
+    });
   });
 
   it('resolves console paths to the console surface', () => {
@@ -20,7 +26,10 @@ describe('resolveSurfaceFromLocation', () => {
   });
 
   it('does not treat path prefixes of /console as the console surface', () => {
-    expect(resolveSurfaceFromLocation('/consoles', '')).toEqual({ kind: 'landing' });
+    expect(resolveSurfaceFromLocation('/consoles', '')).toEqual({
+      kind: 'landing',
+      localeOverride: null,
+    });
   });
 
   it('redirects legacy root hash routes into console paths', () => {
@@ -52,10 +61,25 @@ describe('resolveSurfaceFromLocation', () => {
     });
   });
 
+  it('resolves the english path to the landing surface with the locale forced', () => {
+    expect(resolveSurfaceFromLocation('/en', '')).toEqual({
+      kind: 'landing',
+      localeOverride: 'en',
+    });
+    expect(resolveSurfaceFromLocation('/en/', '')).toEqual({
+      kind: 'landing',
+      localeOverride: 'en',
+    });
+  });
+
   it('keeps unknown root hashes on the landing surface', () => {
     expect(resolveSurfaceFromLocation('/', '#/nonsense')).toEqual({
       kind: 'landing',
+      localeOverride: null,
     });
-    expect(resolveSurfaceFromLocation('/', '#listen')).toEqual({ kind: 'landing' });
+    expect(resolveSurfaceFromLocation('/', '#listen')).toEqual({
+      kind: 'landing',
+      localeOverride: null,
+    });
   });
 });

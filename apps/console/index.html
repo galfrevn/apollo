@@ -4,24 +4,62 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0d0d0d" />
+    <meta name="robots" content="index, follow" />
     <meta
       name="description"
       content="El cerebro open source para dispositivos agénticos físicos: voz, memoria, agenda y herramientas, corriendo en tu propia cuenta de Cloudflare."
     />
-    <meta property="og:title" content="Apollo" />
+    <link rel="canonical" href="https://apollo-console.galfre-vn.workers.dev/" />
+    <link
+      rel="alternate"
+      hreflang="es"
+      href="https://apollo-console.galfre-vn.workers.dev/"
+    />
+    <link
+      rel="alternate"
+      hreflang="en"
+      href="https://apollo-console.galfre-vn.workers.dev/en"
+    />
+    <link
+      rel="alternate"
+      hreflang="x-default"
+      href="https://apollo-console.galfre-vn.workers.dev/"
+    />
+    <meta property="og:site_name" content="Apollo" />
+    <meta property="og:locale" content="es_LA" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:title" content="Apollo | Tu agente personal de escritorio" />
     <meta
       property="og:description"
       content="Tu agente personal de escritorio. Un cerebro en tu cuenta de Cloudflare, un cuerpo en tu escritorio, nada en el medio."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://apollo-console.galfre-vn.workers.dev" />
+    <meta property="og:url" content="https://apollo-console.galfre-vn.workers.dev/" />
     <meta
       property="og:image"
       content="https://apollo-console.galfre-vn.workers.dev/og.png"
     />
     <meta property="og:image:width" content="2400" />
     <meta property="og:image:height" content="1260" />
+    <meta
+      property="og:image:alt"
+      content="La cara de Apollo: dos ojos de cápsula sobre una pantalla oscura."
+    />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Apollo | Tu agente personal de escritorio" />
+    <meta
+      name="twitter:description"
+      content="Tu agente personal de escritorio. Un cerebro en tu cuenta de Cloudflare, un cuerpo en tu escritorio, nada en el medio."
+    />
+    <meta
+      name="twitter:image"
+      content="https://apollo-console.galfre-vn.workers.dev/og.png"
+    />
+    <meta
+      name="twitter:image:alt"
+      content="La cara de Apollo: dos ojos de cápsula sobre una pantalla oscura."
+    />
     <link
       rel="preload"
       href="/src/fonts/hedvigsans.woff2"
@@ -39,18 +77,46 @@
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <title>Apollo | Tu agente personal de escritorio</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://apollo-console.galfre-vn.workers.dev/#website",
+            "url": "https://apollo-console.galfre-vn.workers.dev/",
+            "name": "Apollo",
+            "inLanguage": ["es", "en"]
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://apollo-console.galfre-vn.workers.dev/#software",
+            "name": "Apollo",
+            "description": "El cerebro open source para dispositivos agénticos físicos: voz, memoria, agenda y herramientas, corriendo en tu propia cuenta de Cloudflare.",
+            "url": "https://apollo-console.galfre-vn.workers.dev/",
+            "image": "https://apollo-console.galfre-vn.workers.dev/og.png",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "Cloudflare Workers",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "license": "https://github.com/galfrevn/apollo/blob/main/LICENSE",
+            "sameAs": ["https://github.com/galfrevn/apollo"],
+            "featureList": "Turnos de voz, Memoria, Recordatorios, Respuestas en vivo, Agente de código, Tus herramientas",
+            "author": { "@id": "https://apollo-console.galfre-vn.workers.dev/#author" }
+          },
+          {
+            "@type": "Person",
+            "@id": "https://apollo-console.galfre-vn.workers.dev/#author",
+            "name": "Valentín Galfre",
+            "url": "https://github.com/galfrevn"
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
-    <!--
-      THESIS: Apollo's instrument panel — quiet grayscale surfaces where live device truth is the only emphasis; refuses the amber-accent pixel-console arrangement that preceded it.
-      OWN-WORLD: Monochrome dark: #0d0d0d ground, #0c0c0c cards, #1d1d1d hairlines, #fafafa ink, #878787/#666666 grays, red reserved for failure; Hedvig Letters Sans UI with a single serif greeting; square corners everywhere; elevation by 1px border; Material outline icons; 70px hover-expanding rail.
-      STORY: The owner connects, is greeted by their device with live insight sentences, scans stat tiles, and drills into sections to audit and control the agent.
-      FIRST VIEWPORT: Left icon rail; 70px header with search; centered column — serif greeting, dashed-underline insights, 3x2 stat tile grid.
-      FORM: User-pinned direction (quiet monochrome instrument language); pinned brief beats the roll, no seed.
-      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and documentation/console/design.md
-    -->
-    <div id="root"></div>
+    <div id="root"><!-- landing-static --><!-- /landing-static --></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

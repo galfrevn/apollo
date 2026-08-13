@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Vite + React 19, Tailwind v4 + shadcn/ui, deployed as an assets-only Cloudflare Worker at apollo-console.galfre-vn.workers.dev. (console.apollodevice.com is the planned domain once it is acquired; the social meta in `index.html` points at the workers.dev host until then.)
+Vite + React 19, Tailwind v4 + shadcn/ui, deployed as an assets-only Cloudflare Worker at apollo-console.galfre-vn.workers.dev. (console.apollodevice.com is the planned domain once it is acquired; the social meta in `index.html` and the discovery files point at the workers.dev host until then — the origin is pinned in `src/landing/origin.ts` and the discovery spec enumerates every touchpoint for the migration.) Discovery infrastructure — prerendered bilingual landing documents, robots/sitemap/llms.txt, structured data, real 404s — is documented in [Landing](landing.md).
 
 ## Users
 

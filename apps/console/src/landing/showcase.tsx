@@ -137,6 +137,7 @@ export function LandingShowcase() {
               emotion={LIVE_EMOTION_CYCLE[liveEmotionIndex]}
               gridResolution={14}
               shouldTrackPointer
+              label={showcaseMessages.faceCaption}
               className="my-auto aspect-square w-full max-w-[220px] self-center"
             />
             <p className="text-sm text-muted-foreground">

@@ -1,4 +1,3 @@
-import { Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import '@/index.css';
@@ -15,20 +14,26 @@ const surface = resolveSurfaceFromLocation(
   window.location.hash,
 );
 
+// The template ships crawler-readable landing markup inside #root; mounting only
+// after the surface module resolves keeps that markup visible until React can
+// replace it with the live tree.
 if (surface.kind === 'redirect') {
   window.location.replace(surface.targetUrl);
+} else if (surface.kind === 'landing') {
+  const { LandingPage } = await import('@/landing/page');
+  createRoot(rootElement).render(
+    <LocaleProvider
+      localeOverride={surface.localeOverride}
+      shouldDetectBrowserLanguage={false}
+    >
+      <LandingPage />
+    </LocaleProvider>,
+  );
 } else {
-  const LandingPage = lazy(() =>
-    import('@/landing/page').then((module) => ({ default: module.LandingPage })),
-  );
-  const ConsoleApp = lazy(() =>
-    import('@/app').then((module) => ({ default: module.App })),
-  );
+  const { App } = await import('@/app');
   createRoot(rootElement).render(
     <LocaleProvider>
-      <Suspense fallback={null}>
-        {surface.kind === 'landing' ? <LandingPage /> : <ConsoleApp />}
-      </Suspense>
+      <App />
     </LocaleProvider>,
   );
 }
