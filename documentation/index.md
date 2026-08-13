@@ -47,11 +47,12 @@ This handbook is meant to be read in order. Later chapters assume the concepts i
 
 26. [Product](console/product.md) — What the console is for and who it serves
 27. [Design](console/design.md) — The console's visual system, documented from the code as built
+28. [Landing](console/landing.md) — The marketing landing at `/`, its narrative, pixel face, and motion policy
 
 ### Part VI — Reference
 
-28. [Mapping](reference/mapping.md) — Handbook topics to `apps/agent/src/` folders
-29. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
+29. [Mapping](reference/mapping.md) — Handbook topics to `apps/agent/src/` folders
+30. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
 
 ## The firmware
 

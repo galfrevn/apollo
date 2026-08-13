@@ -1,0 +1,23 @@
+# Landing
+
+The marketing page for Apollo, served by the same assets-only Worker as the console: `/` is the landing, `/console` is the console (hash routes keep working as `/console#/device`), and legacy `/#/device` bookmarks redirect via `window.location.replace`. The split happens in `src/main.tsx` through `resolveSurfaceFromLocation` (`src/router/path.ts`); each surface loads through its own `React.lazy` boundary. Only exact `CONSOLE_ROUTE_LIST` hashes trigger the redirect.
+
+## Page
+
+All code lives in `src/landing/`. Sections in order: hero (`hero.tsx`), 01 Listen (`showcase.tsx` + `script.ts`), 02 Think (`architecture.tsx`), 03 Act (`capabilities/`), 04 Yours (`yours.tsx` — the ownership close: brain/body/console cards with the console CTA), footer (`footer.tsx`).
+
+The positioning is "the brain for physical agentic devices": the worker is the brain, and the page speaks of bodies generically — the copy never names the ESP32. Typography follows the console system: sentence case everywhere, Hedvig Sans for UI text, mono reserved for code and data, sizes on the text-xs/text-sm scale. All claims stay factual — real paths, real bindings, no invented users or metrics.
+
+## The face
+
+The living ASCII face is the brand mark animated: `face/geometry.ts` is a pure rasterizer (mark geometry, blink, pupil clamp, dither reveal — unit-tested), `face/emotions.ts` maps the four landing emotions to eye parameters, and `face/canvas.tsx` paints glyphs on a canvas driven by GSAP (blink timeline, `quickTo` pupil tracking, emotion morphs).
+
+## Motion
+
+GSAP is imported only under `src/landing/`, keeping it out of the console chunk. Every effect lives inside `gsap.matchMedia('(prefers-reduced-motion: no-preference)')`; reduced-motion visitors get a static face and default-visible markup. Shared setup is in `motion.ts`.
+
+The single landing-only exception to the console doctrine is the `#F5C518` speech accent on the reply label.
+
+## Navigation
+
+Prev: [Design](design.md) · Next: [Mapping](../reference/mapping.md)

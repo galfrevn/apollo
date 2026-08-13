@@ -1,6 +1,6 @@
 # Apollo
 
-A personal desk agent for an ESP32 device: a Cloudflare Worker (`apps/agent/`) that handles voice turns, tools, memory, and background work, an ESP32 firmware submodule (`apps/firmware/`), and a management dashboard (`apps/console/`, not yet built). Turborepo + Bun workspaces.
+A personal desk agent for an ESP32 device: a Cloudflare Worker (`apps/agent/`) that handles voice turns, tools, memory, and background work, an ESP32 firmware submodule (`apps/firmware/`), and a web app (`apps/console/`) serving the marketing landing at `/` and the management console at `/console`. Turborepo + Bun workspaces.
 
 ## Commands
 
@@ -23,7 +23,7 @@ Formatting is oxfmt's job; never hand-format. Note that oxfmt does *not* sort or
 ## Monorepo layout
 
 - `apps/agent/` — the Cloudflare Worker (see `apps/agent/CLAUDE.md`)
-- `apps/console/` — management dashboard (see `documentation/console/`)
+- `apps/console/` — marketing landing (`/`) + management dashboard (`/console`) (see `documentation/console/`)
 - `apps/firmware/` — ESP32 firmware, a git submodule, not a JS workspace member
 - `packages/typescript-config/` — shared base tsconfig
 
