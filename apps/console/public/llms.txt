@@ -16,7 +16,7 @@ Apollo tiene licencia MIT y es gratis. El cerebro se despliega con un comando a 
 ## Enlaces
 
 - [Repositorio](https://github.com/galfrevn/apollo)
-- [Documentación](https://github.com/galfrevn/apollo/tree/main/documentation)
+- [Documentación](https://heyapollo.dev/docs)
 - [Landing en español](https://heyapollo.dev/)
 - [Consola](https://heyapollo.dev/console)
 
@@ -29,3 +29,4 @@ Apollo is MIT licensed and free. The brain deploys with one command to your own 
 Capabilities: voice turns tuned for a desk device, memory recalled by meaning (Vectorize), reminders that fire on the device itself, live answers condensed from web research, a sandboxed coding agent for repository work, and your own services connected over MCP.
 
 - [English landing](https://heyapollo.dev/en)
+- [Handbook](https://heyapollo.dev/docs)

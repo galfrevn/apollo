@@ -5,7 +5,7 @@ import { Icons } from '@/components/icons';
 import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { MagneticLink } from '@/landing/magnet';
 import { LANDING_LINK_MAP } from '@/landing/metadata';
-import { warmConsoleChunk } from '@/landing/prefetch';
+import { warmConsoleChunk, warmDocsChunk } from '@/landing/prefetch';
 import { useMessages } from '@/locale/context';
 
 const REPOSITORY_API_URL = 'https://api.github.com/repos/galfrevn/apollo';
@@ -60,8 +60,8 @@ export function LandingNav() {
         <div className="flex items-center gap-7 text-sm text-muted-foreground">
           <a
             href={LANDING_LINK_MAP.documentation}
-            target="_blank"
-            rel="noreferrer"
+            onPointerEnter={warmDocsChunk}
+            onFocus={warmDocsChunk}
             className="underline-reveal hover:text-foreground"
           >
             {landingMessages.nav.docsLabel}

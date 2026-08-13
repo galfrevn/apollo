@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { MagneticLink } from '@/landing/magnet';
 import { LANDING_LINK_MAP } from '@/landing/metadata';
+import { warmDocsChunk } from '@/landing/prefetch';
 import { REDUCED_MOTION_SAFE_QUERY, RISE_EASE, gsap, useGSAP } from '@/landing/motion';
 import { useMessages } from '@/locale/context';
 
@@ -63,14 +64,14 @@ export function LandingHero() {
             </MagneticLink>
             <MagneticLink
               href={LANDING_LINK_MAP.documentation}
-              isExternal
+              onWarm={warmDocsChunk}
               className="underline-reveal"
             >
               {landingMessages.nav.docsLabel}
             </MagneticLink>
             <MagneticLink
               href={LANDING_LINK_MAP.documentation}
-              isExternal
+              onWarm={warmDocsChunk}
               className="border px-4 py-2.5 transition-colors hover:border-border-hover hover:bg-card"
             >
               {landingMessages.hero.gettingStartedLabel}
