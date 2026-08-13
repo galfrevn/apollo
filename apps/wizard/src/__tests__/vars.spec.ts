@@ -51,10 +51,10 @@ describe('upsertDevelopmentVariable', () => {
 
   it('parses quoted multi-line values', () => {
     const variableMap = parseDevelopmentVariableMap(
-      'GITHUB_APP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----"',
+      'GITHUB_APP_PRIVATE_KEY="first line\\nsecond line\\nthird line"',
     );
     expect(variableMap.get('GITHUB_APP_PRIVATE_KEY')).toBe(
-      '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----',
+      'first line\nsecond line\nthird line',
     );
   });
 });

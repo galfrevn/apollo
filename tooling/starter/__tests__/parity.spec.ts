@@ -11,7 +11,7 @@ const trickyFixtureContent = [
   'OPENROUTER_API_KEY=',
   'MOCK_VOICE=1',
   'APOLLO_OWNER_EMAIL=owner@example.com',
-  'GITHUB_APP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----"',
+  'GITHUB_APP_PRIVATE_KEY="first line\\nsecond line\\nthird line"',
   'TRAILING_SPACES=  padded value  ',
   'WITH_EQUALS=a=b=c',
   '# COMMENTED=never',
@@ -25,7 +25,7 @@ describe('dev-vars parser parity (wizard vs bootstrap)', () => {
     const bootstrapResult = parseWithBootstrapParser(trickyFixtureContent);
     expect([...wizardResult.entries()]).toEqual([...bootstrapResult.entries()]);
     expect(wizardResult.get('WITH_EQUALS')).toBe('a=b=c');
-    expect(wizardResult.get('GITHUB_APP_PRIVATE_KEY')).toContain('\nabc\n');
+    expect(wizardResult.get('GITHUB_APP_PRIVATE_KEY')).toContain('\nsecond line\n');
     expect(wizardResult.has('# COMMENTED')).toBe(false);
   });
 });
