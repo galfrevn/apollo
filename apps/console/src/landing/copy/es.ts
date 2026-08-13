@@ -168,7 +168,7 @@ export const LANDING_MESSAGES_ES: LandingMessages = {
     consoleCardAction: 'Abrir consola →',
   },
   footer: {
-    echoWordList: ['El', 'escritorio', 'escucha'],
+    echoWordList: ['Tu', 'escritorio', 'escucha'],
     wakePhrase: '“Hey, Apollo.”',
     builtByPrefix: 'Hecho por ',
   },

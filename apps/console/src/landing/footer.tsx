@@ -31,7 +31,7 @@ export function LandingFooter() {
   return (
     <footer ref={footerReference} className="border-t pb-14 pt-[120px]">
       <div className="mx-auto w-full max-w-[1180px] px-8">
-        <p className="mb-20 flex flex-wrap items-center gap-x-[0.24em] font-serif text-[clamp(48px,9vw,120px)] leading-[1.05] tracking-[-0.02em]">
+        <p className="mb-20 flex flex-wrap items-center gap-x-[0.24em] font-serif text-[clamp(44px,7.8vw,104px)] leading-[1.05] tracking-[-0.02em]">
           {footerMessages.echoWordList.map((echoWord, echoWordIndex) => {
             const isLastEchoWord =
               echoWordIndex === footerMessages.echoWordList.length - 1;
