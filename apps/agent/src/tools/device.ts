@@ -74,10 +74,11 @@ function parseDeviceStatusSummary(
   deviceResult: ToolExecutionResult,
 ): ToolExecutionResult {
   try {
+    const parsedStatusData: unknown = JSON.parse(deviceResult.summary);
     return {
       ok: true,
       summary: 'Estado del dispositivo obtenido.',
-      data: JSON.parse(deviceResult.summary) as unknown,
+      data: parsedStatusData,
     };
   } catch {
     return deviceResult;

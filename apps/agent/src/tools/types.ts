@@ -3,6 +3,18 @@ import type { ScheduledReminderRow } from '@/reminders/logic';
 
 export type ToolSafetyLevel = 'safe' | 'unsafe';
 
+export type JsonSerializableValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly JsonSerializableValue[]
+  | { readonly [propertyName: string]: JsonSerializableValue };
+
+export type ToolArgumentRecord = {
+  readonly [argumentName: string]: JsonSerializableValue;
+};
+
 export type ToolExecutionResult = {
   readonly ok: boolean;
   readonly summary: string;
@@ -87,7 +99,7 @@ export type DeskToolEffects = {
   >;
   readonly callDeviceTool: (input: {
     readonly deviceToolName: string;
-    readonly argumentRecord: Record<string, unknown>;
+    readonly argumentRecord: ToolArgumentRecord;
   }) => Promise<ToolExecutionResult>;
   readonly callInstalledMcpTool: (input: {
     readonly serverId: string;

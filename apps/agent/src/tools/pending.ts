@@ -32,7 +32,7 @@ export async function savePendingToolConfirmation(
 export async function readPendingToolConfirmation(
   sqlExecutor: MemorySqlExecutor,
 ): Promise<PendingToolConfirmation | undefined> {
-  const rows = sqlExecutor.execute<Record<string, unknown>>(
+  const rows = sqlExecutor.execute(
     'SELECT id, tool_name, args_json, summary, expires_at FROM pending_confirmations LIMIT 1',
   );
   const firstRow = rows[0];

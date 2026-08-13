@@ -5,12 +5,8 @@ import {
   createStubDeskToolEffects,
 } from '@/configuration/testing';
 import { formatDurationForSpeech, setTimerTool, startPomodoroTool } from '@/tools/timer';
-import type { DeskToolEffects } from '@/tools/types';
 
-function createRecordingEffects(): {
-  readonly effects: DeskToolEffects;
-  readonly calls: string[];
-} {
+function createRecordingEffects() {
   const calls: string[] = [];
   return {
     calls,

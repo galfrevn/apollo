@@ -43,7 +43,7 @@ function stubGithubFetch(installedFullNameList: readonly string[]): void {
   };
   globalThis.fetch = Object.assign(fetchHandler, {
     preconnect: () => {},
-  }) as typeof fetch;
+  });
 }
 
 async function buildConfiguredEnvironment(): Promise<Env> {

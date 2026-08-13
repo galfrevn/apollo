@@ -131,11 +131,15 @@ export const removeFromListTool: ToolDefinition = {
     }
     const parsedArgs = parsedArgsResult.data;
     const listName = parsedArgs.listName ?? DEFAULT_LIST_NAME;
-    const removal = await context.effects.removeListItems({
-      listName,
-      ...(parsedArgs.item !== undefined ? { contentQuery: parsedArgs.item } : {}),
-      clearAll: parsedArgs.clearAll === true,
-    });
+    const removal = await context.effects.removeListItems(
+      parsedArgs.item === undefined
+        ? { listName, clearAll: parsedArgs.clearAll === true }
+        : {
+            listName,
+            contentQuery: parsedArgs.item,
+            clearAll: parsedArgs.clearAll === true,
+          },
+    );
     if (removal.removedCount === 0) {
       return {
         ok: false,
