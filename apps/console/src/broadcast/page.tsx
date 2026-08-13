@@ -45,6 +45,7 @@ export function BroadcastPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
   const recorderHandleRef = useRef<BroadcastRecorderHandle | null>(null);
   const recordedPcmRef = useRef<Uint8Array | null>(null);
   const stopRecordingRef = useRef<() => void>(() => {});
+  const isUnmountedRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -96,6 +97,7 @@ export function BroadcastPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
     () => () => {
       // Navigating away mid-recording must release the microphone, not just
       // remove the controls.
+      isUnmountedRef.current = true;
       const abandonedRecorderHandle = recorderHandleRef.current;
       if (abandonedRecorderHandle !== null) {
         recorderHandleRef.current = null;
@@ -138,7 +140,16 @@ export function BroadcastPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
     setAudioErrorMessage(null);
     setFeedbackOutcome(null);
     try {
-      recorderHandleRef.current = await startBroadcastRecording();
+      const recorderHandle = await startBroadcastRecording();
+      if (isUnmountedRef.current) {
+        // The page went away while the microphone was being acquired; there is
+        // no ref left that could ever stop this handle, so stop it here.
+        recorderHandle.stop().catch(() => {
+          // Releasing an already-torn-down graph has nothing left to report.
+        });
+        return;
+      }
+      recorderHandleRef.current = recorderHandle;
       setElapsedSeconds(0);
       setRecorderPhase('recording');
     } catch (error) {
