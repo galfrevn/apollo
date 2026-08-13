@@ -30,20 +30,20 @@ export function OwnerFactBlock({
         {sortedFactList.map((fact) => (
           <li
             key={fact.id}
-            className="flex items-start gap-3 border-b border-line px-4 py-2.5 last:border-b-0"
+            className="flex items-start gap-3 border-b px-4 py-2.5 last:border-b-0"
           >
             <Badge variant="outline" className="mt-0.5 shrink-0">
               {fact.category}
             </Badge>
             <p className="min-w-0 flex-1 text-sm">{fact.content}</p>
             {fact.sourceCount > 1 && (
-              <span className="shrink-0 text-xs text-faint">×{fact.sourceCount}</span>
+              <span className="shrink-0 text-xs text-dim">×{fact.sourceCount}</span>
             )}
           </li>
         ))}
       </ul>
       {lastConsolidatedAtMilliseconds !== null && (
-        <p className="border-t border-line px-4 py-2 text-xs text-faint">
+        <p className="border-t px-4 py-2 text-xs text-dim">
           Consolidated {new Date(lastConsolidatedAtMilliseconds).toLocaleString()}
         </p>
       )}

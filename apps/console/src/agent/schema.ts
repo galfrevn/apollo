@@ -136,11 +136,26 @@ export const historyTurnSchema = z.object({
   id: z.string(),
   role: z.string(),
   text: z.string(),
+  createdAtIso: z.string().nullable(),
+  toolNameList: z.array(z.string()),
 });
 
 export const historyTurnListSchema = z.array(historyTurnSchema);
 
 export type HistoryTurn = z.infer<typeof historyTurnSchema>;
+
+export const threadSummarySchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  kind: z.enum(['pending', 'command', 'conversation']),
+  isActive: z.boolean(),
+  summary: z.string().nullable(),
+  lastTurnAtIso: z.string().nullable(),
+});
+
+export const threadSummaryListSchema = z.array(threadSummarySchema);
+
+export type ThreadSummary = z.infer<typeof threadSummarySchema>;
 
 export const jobDocumentSchema = z.object({
   documentKey: z.string(),

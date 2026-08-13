@@ -1,7 +1,7 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { XIcon } from 'lucide-react';
 import * as React from 'react';
 
+import { Icons } from '@/components/icons';
 import { cn } from '@/components/utility';
 
 const Dialog = DialogPrimitive.Root;
@@ -16,7 +16,7 @@ function DialogOverlay({
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
-      className={cn('fixed inset-0 z-50 bg-ground/80 backdrop-blur-[2px]', className)}
+      className={cn('fixed inset-0 z-50 bg-background/80', className)}
       {...props}
     />
   );
@@ -34,15 +34,15 @@ function DialogContent({
         data-slot="dialog-content"
         className={cn(
           'fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2',
-          'rounded-xl border border-line bg-panel p-6',
+          'border bg-card p-6',
           'settle',
           className,
         )}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute top-4 right-4 text-faint transition-colors hover:text-ink">
-          <XIcon className="size-4" />
+        <DialogPrimitive.Close className="absolute top-4 right-4 text-dim transition-colors hover:text-foreground">
+          <Icons.Close size={16} />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
@@ -77,7 +77,7 @@ function DialogTitle({
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn('text-lg font-semibold tracking-[-0.01em]', className)}
+      className={cn('text-lg font-medium tracking-tight', className)}
       {...props}
     />
   );
@@ -90,7 +90,7 @@ function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn('text-sm text-muted', className)}
+      className={cn('text-sm text-muted-foreground', className)}
       {...props}
     />
   );

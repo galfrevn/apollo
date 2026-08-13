@@ -12,6 +12,7 @@ import {
   mcpServerListSchema,
   memoryBrowseResultSchema,
   reminderListSchema,
+  threadSummaryListSchema,
   weatherLocationSchema,
 } from '@/agent/schema';
 
@@ -47,6 +48,8 @@ export function createConsoleRpc(call: AgentCall, secret: string) {
       }),
     setDeviceVolume: (volume: number) =>
       invoke('setConsoleDeviceVolume', deviceCommandResultSchema, { volume }),
+    setSpeechMode: (speechModeId: string) =>
+      invoke('setConsoleSpeechMode', apolloStateSchema, { speechModeId }),
     setDeviceBrightness: (brightness: number) =>
       invoke('setConsoleDeviceBrightness', deviceCommandResultSchema, { brightness }),
     addMemory: (content: string) =>
@@ -60,15 +63,19 @@ export function createConsoleRpc(call: AgentCall, secret: string) {
     getWeather: () => invoke('getConsoleWeather', weatherLocationSchema),
     setWeather: (locationQuery: string) =>
       invoke('setConsoleWeather', weatherLocationSchema, { locationQuery }),
-    listHistory: () => invoke('listConsoleHistory', historyTurnListSchema),
+    listThreads: () => invoke('listConsoleThreads', threadSummaryListSchema),
+    getThread: (threadId: string) =>
+      invoke('getConsoleThread', historyTurnListSchema, { threadId }),
     listJobs: () => invoke('listConsoleJobs', jobDocumentListSchema),
     getDocument: (documentKey: string) =>
       invoke('getConsoleDocument', jobDocumentContentSchema, { documentKey }),
     listMcpServers: () => invoke('listMcpServers', mcpServerListSchema),
-    installMcpServer: (name: string, url: string) =>
-      invoke('installMcpServer', mcpInstallResultSchema, { name, url }),
+    installMcpServer: (name: string, url: string, authToken?: string) =>
+      invoke('installMcpServer', mcpInstallResultSchema, { name, url, authToken }),
     uninstallMcpServer: (serverId: string) =>
       invoke('uninstallMcpServer', mcpServerListSchema, { serverId }),
+    retryMcpServer: (serverId: string) =>
+      invoke('retryMcpServer', mcpServerListSchema, { serverId }),
     setToolEnabled: (serverId: string, toolName: string, isEnabled: boolean) =>
       invoke(isEnabled ? 'enableMcpTool' : 'disableMcpTool', mcpServerListSchema, {
         serverId,

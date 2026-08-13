@@ -6,6 +6,7 @@ import { Heading } from '@/blueprint/heading';
 import { Panel } from '@/blueprint/panel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ListsBlock } from '@/memory/lists';
 import { OwnerFactBlock } from '@/memory/owner';
 import type { ConsoleRpc } from '@/agent/rpc';
@@ -87,7 +88,7 @@ export function MemoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) 
       {errorMessage !== null && (
         <p
           role="alert"
-          className="rounded-lg border border-danger/40 bg-dangerdim px-3 py-2 text-xs text-danger"
+          className="border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
         >
           {errorMessage}
         </p>
@@ -95,10 +96,20 @@ export function MemoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) 
 
       <Panel
         title="Owner memory"
-        meta={<span className="text-xs text-faint">Nightly consolidation</span>}
+        meta={<span className="text-xs text-dim">Nightly consolidation</span>}
       >
         {browseResult === null ? (
-          <p className="p-4 text-sm text-muted">Loading…</p>
+          <ul>
+            {[0, 1, 2].map((rowIndex) => (
+              <li
+                key={rowIndex}
+                className="flex items-center gap-3 border-b px-4 py-2.5 last:border-b-0"
+              >
+                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-4 flex-1" />
+              </li>
+            ))}
+          </ul>
         ) : (
           <OwnerFactBlock browseResult={browseResult} />
         )}
@@ -112,7 +123,7 @@ export function MemoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) 
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search…"
-              className="h-7 w-40 rounded-md text-xs"
+              className="h-7 w-40 text-xs"
               aria-label="Search memories"
             />
             <Button type="submit" variant="ghost" size="sm">
@@ -123,7 +134,7 @@ export function MemoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) 
       >
         <form
           onSubmit={handleAddMemory}
-          className="flex gap-2 border-b border-line p-3"
+          className="flex gap-2 border-b p-3"
           aria-busy={isAddingMemory}
         >
           <Input
@@ -138,7 +149,17 @@ export function MemoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) 
           </Button>
         </form>
         {browseResult === null ? (
-          <p className="p-4 text-sm text-muted">Loading…</p>
+          <ul>
+            {[0, 1, 2].map((rowIndex) => (
+              <li
+                key={rowIndex}
+                className="flex items-center gap-4 border-b px-4 py-2.5 last:border-b-0"
+              >
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 flex-1" />
+              </li>
+            ))}
+          </ul>
         ) : browseResult.memoryList.length === 0 ? (
           <Empty message="Nothing remembered yet" className="m-4" />
         ) : (
@@ -146,9 +167,9 @@ export function MemoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) 
             {browseResult.memoryList.map((memoryRecord) => (
               <li
                 key={memoryRecord.id}
-                className="group flex items-baseline gap-4 border-b border-line px-4 py-2.5 last:border-b-0"
+                className="group flex items-baseline gap-4 border-b px-4 py-2.5 last:border-b-0"
               >
-                <span className="shrink-0 text-xs text-faint">
+                <span className="shrink-0 text-xs text-dim">
                   {new Date(memoryRecord.createdAt).toLocaleDateString()}
                 </span>
                 <p className="min-w-0 flex-1 text-sm">{memoryRecord.content}</p>
@@ -157,7 +178,7 @@ export function MemoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) 
                   size="sm"
                   disabled={busyMemoryId === memoryRecord.id}
                   onClick={() => void handleDeleteMemory(memoryRecord.id)}
-                  className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-danger"
+                  className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-destructive"
                 >
                   Forget
                 </Button>
@@ -169,7 +190,15 @@ export function MemoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) 
 
       <Panel title="Lists">
         {itemList === null ? (
-          <p className="p-4 text-sm text-muted">Loading…</p>
+          <div className="grid gap-px bg-border sm:grid-cols-2">
+            {[0, 1].map((cellIndex) => (
+              <div key={cellIndex} className="space-y-3 bg-card p-4">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            ))}
+          </div>
         ) : (
           <ListsBlock
             itemList={itemList}
