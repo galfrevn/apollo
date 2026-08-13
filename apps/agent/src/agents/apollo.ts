@@ -1467,6 +1467,15 @@ export class Apollo extends Agent<Env, ApolloState> {
   async finalizeThread(rawPayload: unknown): Promise<void> {
     const payload = finalizeThreadPayloadSchema.parse(rawPayload);
     const sqlExecutor = this.#sqlExecutor();
+    // A resumed thread is active again by the time a delayed finalizer fires;
+    // digesting it now would freeze the old transcript and pin it, because
+    // later closes skip non-pending meta. Rotation away reschedules this.
+    const activeThreadSessionId =
+      this.#activeThreadSessionId ??
+      (await getSessionPreference(sqlExecutor, ACTIVE_THREAD_SESSION_PREFERENCE_KEY));
+    if (payload.sessionId === activeThreadSessionId) {
+      return;
+    }
     const existingMeta = getThreadMeta(sqlExecutor, payload.sessionId);
     if (existingMeta !== undefined && existingMeta.kind !== 'pending') {
       return;
