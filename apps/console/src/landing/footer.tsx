@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { REDUCED_MOTION_SAFE_QUERY, RISE_EASE, gsap, useGSAP } from '@/landing/motion';
 import { useMessages } from '@/locale/context';
+import { LocaleToggle } from '@/locale/toggle';
 
 export function LandingFooter() {
   const footerMessages = useMessages(LANDING_MESSAGE_CATALOG).footer;
@@ -36,7 +37,10 @@ export function LandingFooter() {
             const isLastEchoWord =
               echoWordIndex === footerMessages.echoWordList.length - 1;
             return (
-              <span key={echoWord} className="block overflow-hidden">
+              <span
+                key={echoWord}
+                className="-mb-[0.12em] block overflow-hidden pb-[0.12em]"
+              >
                 <span data-echo-word className="flex items-center whitespace-nowrap">
                   {echoWord}
                   {isLastEchoWord ? (
@@ -52,6 +56,7 @@ export function LandingFooter() {
         </p>
         <div className="flex flex-wrap items-center justify-between gap-5 text-xs text-dim">
           <span className="font-serif text-sm">{footerMessages.wakePhrase}</span>
+          <LocaleToggle />
           <span>
             {footerMessages.builtByPrefix}
             <a

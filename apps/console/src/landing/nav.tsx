@@ -6,7 +6,6 @@ import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { MagneticLink } from '@/landing/magnet';
 import { LANDING_LINK_MAP } from '@/landing/metadata';
 import { useMessages } from '@/locale/context';
-import { LocaleToggle } from '@/locale/toggle';
 
 const REPOSITORY_API_URL = 'https://api.github.com/repos/galfrevn/apollo';
 const repositorySchema = z.object({ stargazers_count: z.number() });
@@ -58,7 +57,6 @@ export function LandingNav() {
           Apollo
         </a>
         <div className="flex items-center gap-7 text-sm text-muted-foreground">
-          <LocaleToggle />
           <a
             href={LANDING_LINK_MAP.documentation}
             target="_blank"

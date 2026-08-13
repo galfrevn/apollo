@@ -34,12 +34,12 @@ export function LandingHero() {
     >
       <div className="mx-auto w-full max-w-[1180px] px-8">
         <h1 className="font-serif text-[clamp(64px,11.5vw,156px)] leading-[0.98] tracking-[-0.02em]">
-          <span className="block overflow-hidden">
+          <span className="-mb-[0.12em] block overflow-hidden pb-[0.12em]">
             <span data-hero-line className="block">
               {landingMessages.hero.lineOne}
             </span>
           </span>
-          <span className="block overflow-hidden">
+          <span className="-mb-[0.12em] block overflow-hidden pb-[0.12em]">
             <span data-hero-line className="block">
               {landingMessages.hero.lineTwo}
               <span className="text-muted-foreground">.</span>
