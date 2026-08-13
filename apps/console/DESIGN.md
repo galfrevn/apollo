@@ -41,7 +41,7 @@ Square everywhere — no `rounded-*` class exists in the tree except `rounded-fu
 
 ## Icons
 
-One `Icons` object in `src/components/icons.tsx`; nothing imports icon components directly. Nine Material Design **outline** icons from `react-icons/md` (Close, History, Jobs, Logout, Mcp, Memory, Schedules, Search, Status) plus `LogoMark` — the brand: a hand-drawn 20×20 SVG of four squares in a 2×2 grid, `currentColor` at opacities 1 / 0.45 / 0.45 / 0.18 fading corner to corner. Rendered monochrome at 20–22px in the rail and mobile header, 26px on the connect screen. Icon sizes in use: 16, 18, 20, 22, 26.
+One `Icons` object in `src/components/icons.tsx`; nothing imports icon components directly. Nine Material Design **outline** icons from `react-icons/md` (Close, History, Jobs, Logout, Mcp, Memory, Schedules, Search, Status) plus `LogoMark` — the brand: a hand-drawn 20×20 SVG of the device's face, a solid `currentColor` square with two capsule eyes punched out (even-odd fill, so the ground shows through). Masters and social assets live in `branding/` at the repo root; the favicon set is in `public/`. Rendered monochrome at 20–22px in the rail and mobile header, 26px on the connect screen. Icon sizes in use: 16, 18, 20, 22, 26.
 
 ## Components
 
@@ -117,4 +117,4 @@ Structural motion is limited to three moves: the rail's push (margin animation o
 - **Serif is a display voice**, limited to the overview greeting and the connect-screen title.
 - **One Icons object.** All glyphs route through `src/components/icons.tsx`; Material outline style only.
 - **The dashboard secret** is entered via `type="password"` and never rendered anywhere in the UI.
-- **The four-square LogoMark is the only brand mark** — no third-party logos or names anywhere in the chrome (connector logos inside the MCP catalog are content, not chrome).
+- **The face LogoMark is the only brand mark** — the device's square screen with two punched capsule eyes; no third-party logos or names anywhere in the chrome (connector logos inside the MCP catalog are content, not chrome).
