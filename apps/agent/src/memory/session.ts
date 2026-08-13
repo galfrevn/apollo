@@ -76,9 +76,10 @@ export function createApolloSessionManager(
 // A marathon thread (or a repeatedly resumed one) can outgrow its token
 // budget; compaction folds everything but the recent tail into a summary
 // overlay. Originals stay in SQLite, so the console still shows full turns.
-async function compactThreadMessageList(
+export async function compactThreadMessageList(
   environment: Env,
   messageList: SessionMessage[],
+  fetchImplementation?: typeof fetch,
 ): Promise<ThreadCompactionResult | null> {
   // Mock mode has no LLM to call; a dev session must not burn tokens.
   if (environment.MOCK_VOICE === '1') {
@@ -117,6 +118,7 @@ async function compactThreadMessageList(
   const chatResult = await chatWithOpenRouter({
     openRouterApiKey: environment.OPENROUTER_API_KEY,
     modelId: environment.OPENROUTER_MODEL,
+    ...(fetchImplementation === undefined ? {} : { fetchImplementation }),
     messageList: [
       {
         role: 'system',
