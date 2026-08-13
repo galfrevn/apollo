@@ -11,13 +11,10 @@ describe('resolveSurfaceFromLocation', () => {
     expect(resolveSurfaceFromLocation('/pricing', '')).toEqual({ kind: 'landing' });
   });
 
-  it('resolves the console base path to the console surface', () => {
+  it('resolves console paths to the console surface', () => {
     expect(resolveSurfaceFromLocation('/console', '')).toEqual({ kind: 'console' });
     expect(resolveSurfaceFromLocation('/console/', '')).toEqual({ kind: 'console' });
-  });
-
-  it('keeps console hash routes on the console surface', () => {
-    expect(resolveSurfaceFromLocation('/console', '#/memory')).toEqual({
+    expect(resolveSurfaceFromLocation('/console/memory', '')).toEqual({
       kind: 'console',
     });
   });
@@ -26,19 +23,39 @@ describe('resolveSurfaceFromLocation', () => {
     expect(resolveSurfaceFromLocation('/consoles', '')).toEqual({ kind: 'landing' });
   });
 
-  it('redirects legacy root hash routes into the console surface', () => {
+  it('redirects legacy root hash routes into console paths', () => {
     expect(resolveSurfaceFromLocation('/', '#/device')).toEqual({
       kind: 'redirect',
-      targetUrl: '/console#/device',
+      targetUrl: '/console/device',
     });
     expect(resolveSurfaceFromLocation('/', '#/status')).toEqual({
       kind: 'redirect',
-      targetUrl: '/console#/status',
+      targetUrl: '/console/status',
+    });
+  });
+
+  it('redirects the bare legacy hash to the status route', () => {
+    expect(resolveSurfaceFromLocation('/', '#/')).toEqual({
+      kind: 'redirect',
+      targetUrl: '/console/status',
+    });
+  });
+
+  it('redirects legacy console hash routes to console paths', () => {
+    expect(resolveSurfaceFromLocation('/console', '#/memory')).toEqual({
+      kind: 'redirect',
+      targetUrl: '/console/memory',
+    });
+    expect(resolveSurfaceFromLocation('/console', '#/')).toEqual({
+      kind: 'redirect',
+      targetUrl: '/console/status',
     });
   });
 
   it('keeps unknown root hashes on the landing surface', () => {
-    expect(resolveSurfaceFromLocation('/', '#/nonsense')).toEqual({ kind: 'landing' });
+    expect(resolveSurfaceFromLocation('/', '#/nonsense')).toEqual({
+      kind: 'landing',
+    });
     expect(resolveSurfaceFromLocation('/', '#listen')).toEqual({ kind: 'landing' });
   });
 });

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import type { ConsoleRoute } from '@/router/hash';
+import type { ConsoleRoute } from '@/router/route';
 
 export const ROUTE_LABEL_MAP = {
   status: 'Status',

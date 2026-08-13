@@ -3,9 +3,9 @@ import type { IconType } from 'react-icons';
 import { Icons } from '@/components/icons';
 import { cn } from '@/components/utility';
 import { useConnection } from '@/connection/context';
-import { CONSOLE_ROUTE_LIST, navigateToRoute, useConsoleRoute } from '@/router/hash';
+import { CONSOLE_ROUTE_LIST, navigateToRoute, useConsoleRoute } from '@/router/route';
 import { ROUTE_LABEL_MAP } from '@/router/metadata';
-import type { ConsoleRoute } from '@/router/hash';
+import type { ConsoleRoute } from '@/router/route';
 
 export const ROUTE_ICON_MAP = {
   status: Icons.Status,

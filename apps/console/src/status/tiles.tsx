@@ -1,8 +1,8 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/components/utility';
-import { navigateToRoute } from '@/router/hash';
+import { navigateToRoute } from '@/router/route';
 import type { ApolloAgentState, ConsoleStatus } from '@/agent/schema';
-import type { ConsoleRoute } from '@/router/hash';
+import type { ConsoleRoute } from '@/router/route';
 
 const TELEMETRY_STALE_AFTER_MS = 5 * 60_000;
 

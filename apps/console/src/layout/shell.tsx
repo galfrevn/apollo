@@ -13,7 +13,7 @@ import { Nav } from '@/layout/nav';
 import { Search } from '@/layout/search';
 import { McpPage } from '@/mcp/page';
 import { MemoryPage } from '@/memory/page';
-import { useConsoleRoute } from '@/router/hash';
+import { useConsoleRoute } from '@/router/route';
 import { useDocumentMetadata } from '@/router/metadata';
 import { SchedulesPage } from '@/schedules/page';
 import { StatusPage } from '@/status/page';

@@ -1,6 +1,6 @@
 # Landing
 
-The marketing page for Apollo, served by the same assets-only Worker as the console: `/` is the landing, `/console` is the console (hash routes keep working as `/console#/device`), and legacy `/#/device` bookmarks redirect via `window.location.replace`. The split happens in `src/main.tsx` through `resolveSurfaceFromLocation` (`src/router/path.ts`); each surface loads through its own `React.lazy` boundary. Only exact `CONSOLE_ROUTE_LIST` hashes trigger the redirect.
+The marketing page for Apollo, served by the same assets-only Worker as the console: `/` is the landing and the console lives at path routes like `/console/device` (`src/router/route.ts`, history-based). Legacy hash bookmarks — `/#/device`, `/console#/device`, and the bare `/#/` — redirect to their path equivalents via `window.location.replace`. The split happens in `src/main.tsx` through `resolveSurfaceFromLocation` (`src/router/path.ts`); each surface loads through its own `React.lazy` boundary.
 
 ## Page
 

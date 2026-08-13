@@ -1,8 +1,8 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConnection } from '@/connection/context';
-import { navigateToRoute } from '@/router/hash';
+import { navigateToRoute } from '@/router/route';
 import type { ApolloAgentState, ConsoleStatus } from '@/agent/schema';
-import type { ConsoleRoute } from '@/router/hash';
+import type { ConsoleRoute } from '@/router/route';
 
 type InsightSegment =
   | { readonly kind: 'plain'; readonly text: string }
