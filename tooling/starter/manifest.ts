@@ -21,6 +21,7 @@ export const starterManifest = {
     'console/design.md',
     'console/landing.md',
     'reference/roadmap.md',
+    'reference/starter.md',
   ],
   documentationRewriteList: [
     { from: 'apps/agent/src/', to: 'src/' },
@@ -46,6 +47,10 @@ export const starterManifest = {
     'console/design.md',
     'console/landing.md',
     'reference/roadmap.md',
+    'reference/starter.md',
+    'tooling/starter/',
+    'apps/wizard/',
+    'documentation/skills/',
   ],
   skillsDirectory: 'documentation/skills',
   wizardDirectory: 'apps/wizard',
