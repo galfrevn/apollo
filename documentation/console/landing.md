@@ -16,7 +16,7 @@ The living ASCII face is the brand mark animated: `face/geometry.ts` is a pure r
 
 ## Motion
 
-GSAP is imported only under `src/landing/`, keeping it out of the console chunk. Every effect lives inside `gsap.matchMedia('(prefers-reduced-motion: no-preference)')`; reduced-motion visitors get a static face and default-visible markup. Shared setup is in `motion.ts`.
+GSAP is imported only under `src/landing/`, keeping it out of the console chunk. Every effect lives inside `gsap.matchMedia('(prefers-reduced-motion: no-preference)')`; reduced-motion visitors get a static face, default-visible markup, and native scrolling. Shared setup is in `motion.ts`, including `useSmoothScroll` — a ScrollSmoother instance (`smooth: 1`) over the `#smooth-wrapper`/`#smooth-content` pair in `page.tsx`; the fixed nav sits outside the smoothed content, and touch devices keep native scroll (ScrollSmoother's default).
 
 The single landing-only exception to the console doctrine is the `#F5C518` speech accent on the reply label.
 
