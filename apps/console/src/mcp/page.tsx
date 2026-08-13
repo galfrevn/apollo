@@ -219,11 +219,7 @@ export function McpPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
             <ServerDetail
               server={selectedServer}
               onRetry={async () => {
-                await consoleRpc.installMcpServer(
-                  selectedServer.name,
-                  selectedServer.url,
-                );
-                await refreshServerList();
+                setServerList(await consoleRpc.retryMcpServer(selectedServer.serverId));
               }}
               onToggleTool={async (toolName, isEnabled) => {
                 setServerList(

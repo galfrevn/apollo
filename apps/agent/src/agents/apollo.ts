@@ -109,6 +109,7 @@ import {
   installMcpServerInputSchema,
   mcpSecretInputSchema,
   removeMcpServerInputSchema,
+  retryMcpServerInputSchema,
   setMcpToolEnabledInputSchema,
   type McpServerSummary,
 } from '@/mcp/servers';
@@ -695,6 +696,18 @@ export class Apollo extends Agent<Env, ApolloState> {
   async listMcpServers(rawInput: unknown): Promise<readonly McpServerSummary[]> {
     const input = mcpSecretInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
+    return this.#listMcpServerSummaryList();
+  }
+
+  @callable()
+  async retryMcpServer(rawInput: unknown): Promise<readonly McpServerSummary[]> {
+    const input = retryMcpServerInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    // Reconnects the existing installation with its stored transport — auth
+    // provider and headers included — instead of re-running install, which
+    // rejects failed servers and would drop a token-authenticated setup.
+    await this.mcp.connectToServer(input.serverId);
+    await this.mcp.discoverIfConnected(input.serverId);
     return this.#listMcpServerSummaryList();
   }
 

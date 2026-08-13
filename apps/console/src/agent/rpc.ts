@@ -74,6 +74,8 @@ export function createConsoleRpc(call: AgentCall, secret: string) {
       invoke('installMcpServer', mcpInstallResultSchema, { name, url, authToken }),
     uninstallMcpServer: (serverId: string) =>
       invoke('uninstallMcpServer', mcpServerListSchema, { serverId }),
+    retryMcpServer: (serverId: string) =>
+      invoke('retryMcpServer', mcpServerListSchema, { serverId }),
     setToolEnabled: (serverId: string, toolName: string, isEnabled: boolean) =>
       invoke(isEnabled ? 'enableMcpTool' : 'disableMcpTool', mcpServerListSchema, {
         serverId,

@@ -37,6 +37,11 @@ export const removeMcpServerInputSchema = z.object({
   serverId: z.string().min(1),
 });
 
+export const retryMcpServerInputSchema = z.object({
+  secret: z.string().min(1),
+  serverId: z.string().min(1),
+});
+
 export const setMcpToolEnabledInputSchema = z.object({
   secret: z.string().min(1),
   serverId: z.string().min(1),
