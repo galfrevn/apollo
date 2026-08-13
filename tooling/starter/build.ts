@@ -139,6 +139,16 @@ async function emitStarterPackageManifest(): Promise<void> {
   const rootPackage = packageManifestSchema.parse(
     JSON.parse(await readRepositoryTextFile('package.json')),
   );
+  const wizardPackage = packageManifestSchema.parse(
+    JSON.parse(
+      await readRepositoryTextFile(join(starterManifest.wizardDirectory, 'package.json')),
+    ),
+  );
+  const wizardOnlyDependencyEntryList = Object.entries(
+    wizardPackage.dependencies ?? {},
+  ).filter(
+    ([dependencyName]) => agentPackage.dependencies?.[dependencyName] === undefined,
+  );
   const wranglerVersion = agentPackage.devDependencies?.wrangler;
   const typescriptVersion = rootPackage.devDependencies?.typescript;
   const bunTypesVersion = rootPackage.devDependencies?.['@types/bun'];
@@ -166,12 +176,14 @@ async function emitStarterPackageManifest(): Promise<void> {
       check: 'bun run types && bun run typecheck && bun run test',
       bootstrap: 'bun scripts/bootstrap.ts',
       probe: 'bun scripts/probe.ts',
+      setup: `bun ${starterManifest.wizardOutputDirectory}/index.ts`,
     },
     dependencies: agentPackage.dependencies,
     devDependencies: {
       '@types/bun': bunTypesVersion,
       typescript: typescriptVersion,
       wrangler: wranglerVersion,
+      ...Object.fromEntries(wizardOnlyDependencyEntryList),
     },
   };
   await writeOutputTextFile(
@@ -250,6 +262,31 @@ async function emitSkills(): Promise<void> {
   }
 }
 
+// The starter maps `@/` to the agent's src/, so the wizard cannot keep its
+// alias imports there: sources stay flat and `@/x` becomes the sibling `./x`.
+async function emitWizard(): Promise<void> {
+  const wizardSourceDirectory = join(
+    repositoryRootDirectory,
+    starterManifest.wizardDirectory,
+    'src',
+  );
+  for (const entry of readdirSync(wizardSourceDirectory, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      if (entry.name === '__tests__') {
+        continue;
+      }
+      throw new Error(
+        `wizard source must stay flat for the starter copy: unexpected directory src/${entry.name}`,
+      );
+    }
+    const sourceContent = await Bun.file(join(wizardSourceDirectory, entry.name)).text();
+    await writeOutputTextFile(
+      join(starterManifest.wizardOutputDirectory, entry.name),
+      sourceContent.replaceAll("from '@/", "from './"),
+    );
+  }
+}
+
 async function emitAssets(): Promise<void> {
   for (const assetFileName of ['README.md', 'tsconfig.json']) {
     cpSync(join(assetsDirectory, assetFileName), join(outputDirectory, assetFileName));
@@ -318,6 +355,7 @@ async function buildStarter(): Promise<void> {
   await emitStarterPackageManifest();
   await emitDocumentation();
   await emitSkills();
+  await emitWizard();
   await emitAssets();
   await runForbiddenPatternGuard();
   console.log(`starter generated at ${outputDirectory}`);

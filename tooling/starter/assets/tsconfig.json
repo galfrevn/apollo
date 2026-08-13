@@ -14,5 +14,10 @@
     },
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts", "worker-configuration.d.ts"]
+  "include": [
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "setup/*.ts",
+    "worker-configuration.d.ts"
+  ]
 }

@@ -22,6 +22,7 @@ bun run dev          # wrangler dev — uses the *preview* R2 bucket (apollo-med
 bun run check        # the quality gate: types + typecheck + test — must pass before a change is done
 bun run types        # regenerate worker-configuration.d.ts from wrangler.jsonc
 bun run bootstrap    # provision / secrets / deploy / verify (see apollo-setup)
+bun run setup        # interactive human wizard wrapping the same bootstrap steps
 bun run probe        # protocol-level client for a live worker
 ```
 

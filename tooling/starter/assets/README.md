@@ -18,7 +18,16 @@ Your own Apollo: a personal desk agent that lives on a Cloudflare Worker and tal
 
 No keys yet? Deploy in **trial mode** (`MOCK_VOICE=1`, preset in `.dev.vars.example`): a fully protocol-correct brain with mocked speech, zero external spend.
 
-## The fast path: let your coding agent do it
+## The guided path: the setup wizard
+
+```sh
+bun install
+bun run setup
+```
+
+An interactive wizard that confirms which Cloudflare account it's about to touch, validates every API key live before writing it, lets you **pick Apollo's voice from your own ElevenLabs library**, sets your city and timezone, then provisions, deploys, and verifies — ending at a live URL and a working device handshake. "No keys yet" is a first-class answer (trial mode, zero spend).
+
+## The agent path
 
 Open this folder with [Claude Code](https://claude.com/claude-code) (or any agent that reads `AGENTS.md`) and say:
 

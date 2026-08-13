@@ -48,6 +48,8 @@ export const starterManifest = {
     'reference/roadmap.md',
   ],
   skillsDirectory: 'documentation/skills',
+  wizardDirectory: 'apps/wizard',
+  wizardOutputDirectory: 'setup',
   identityPlaceholderSwap: {
     relativePath: 'src/configuration/identity.ts',
     from: "export const APOLLO_TTS_VOICE = 'ByVRQtaK1WDOvTmP1PKO';",
@@ -69,6 +71,7 @@ export const starterManifest = {
         'AGENTS.md',
         '.claude/',
         'documentation/',
+        'setup/',
       ],
     },
     {

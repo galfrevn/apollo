@@ -235,9 +235,18 @@ async function runDeploy(): Promise<void> {
     );
     return;
   }
+  let previousStateRecord: Record<string, unknown> = {};
+  if (existsSync(DEPLOYMENT_STATE_FILE)) {
+    const parsedState = z
+      .record(z.unknown())
+      .safeParse(JSON.parse(await Bun.file(DEPLOYMENT_STATE_FILE).text()));
+    if (parsedState.success) {
+      previousStateRecord = parsedState.data;
+    }
+  }
   await Bun.write(
     DEPLOYMENT_STATE_FILE,
-    `${JSON.stringify({ workerUrl: deployedUrlMatch[0] }, null, 2)}\n`,
+    `${JSON.stringify({ ...previousStateRecord, workerUrl: deployedUrlMatch[0] }, null, 2)}\n`,
   );
   reportStep('wrangler deploy', true, deployedUrlMatch[0]);
 }

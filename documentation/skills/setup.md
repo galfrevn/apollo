@@ -7,6 +7,8 @@ description: From-zero deploy runbook for the Apollo starter — provisioning Cl
 
 Deploy the Apollo desk-agent Worker onto the user's own Cloudflare account, from nothing to a verified spoken turn. Follow the phases in order. The bootstrap scripts are the **only** sanctioned way to mutate the Cloudflare account — never run raw `wrangler` create/put/deploy commands yourself (one narrow exception in Troubleshooting).
 
+(A human working without an agent has the same flow as an interactive wizard: `bun run setup` — it validates keys live, offers a voice picker, and shells the same bootstrap subcommands. If the user prefers the wizard, point them there and stand by.)
+
 ## Prerequisites
 
 - **bun** installed.

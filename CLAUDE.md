@@ -25,6 +25,8 @@ Formatting is oxfmt's job; never hand-format. Note that oxfmt does *not* sort or
 - `apps/agent/` — the Cloudflare Worker (see `apps/agent/CLAUDE.md`)
 - `apps/console/` — marketing landing (`/`) + management dashboard (`/console`) (see `documentation/console/`)
 - `apps/firmware/` — ESP32 firmware, a git submodule, not a JS workspace member
+- `apps/wizard/` — the interactive setup wizard shipped inside the generated starter (`tooling/starter` copies its flat `src/` to `setup/`)
+- `tooling/starter/` — generates the public `apollo-starter` snapshot from `apps/agent` + `documentation/`
 - `packages/typescript-config/` — shared base tsconfig
 
 **Read `documentation/` before changing agent behavior** — it's a handbook meant to be read in order, and `documentation/reference/mapping.md` maps each topic to its `apps/agent/src/` folder. Start at `documentation/index.md`.

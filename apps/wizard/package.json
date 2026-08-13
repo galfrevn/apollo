@@ -1,0 +1,17 @@
+{
+  "name": "@apollo/wizard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.11.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@apollo/typescript-config": "workspace:*",
+    "typescript": "^5.9.3"
+  }
+}
