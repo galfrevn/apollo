@@ -60,13 +60,16 @@ async function chooseVoice(identityContent: string): Promise<{
         2,
       );
       const remainingAttemptCount = KEY_ATTEMPT_LIMIT - attemptIndex - 1;
-      if (remainingAttemptCount > 0) {
-        renderMutedLine(`${remainingAttemptCount} attempt(s) left`);
+      if (remainingAttemptCount === 0) {
+        cancel('Could not validate the ElevenLabs key.');
+        process.exit(1);
       }
+      renderMutedLine(`${remainingAttemptCount} attempt(s) left`);
     }
   }
-  cancel('Could not validate the ElevenLabs key.');
-  process.exit(1);
+  // SAFETY: every iteration returns or exits, but the starter's worker types do
+  // not mark process.exit as `never`, so the compiler needs a terminal path.
+  throw new Error('unreachable: the ElevenLabs key loop returns or exits');
 }
 
 export type RealModeConfiguration = {
