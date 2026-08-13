@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "bun scripts/sandbox.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },

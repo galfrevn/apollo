@@ -9,6 +9,7 @@ Root scripts proxy through turbo across every workspace; target a single app wit
 ```bash
 bun run check        # the full quality gate, ~2s cold
 bun run dev          # turbo run dev --filter=@apollo/agent (wrangler dev, preview R2 bucket)
+bun run dev:wizard   # setup wizard in a throwaway apps/wizard/.sandbox (real wrangler auth, stubbed bootstrap)
 bun run test         # turbo run test
 bun run typecheck    # turbo run typecheck
 bun run lint         # oxlint --deny-warnings (repo-wide)

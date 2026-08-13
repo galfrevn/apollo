@@ -5,9 +5,10 @@
   "packageManager": "bun@1.3.13",
   "workspaces": ["apps/*", "packages/*", "tooling/*"],
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=!@apollo/wizard",
     "dev:agent": "turbo run dev --filter=@apollo/agent",
     "dev:console": "turbo run dev --filter=@apollo/console",
+    "dev:wizard": "bun run --cwd apps/wizard dev",
     "build": "turbo run build",
     "deploy": "turbo run deploy",
     "types": "turbo run types",
