@@ -1,13 +1,16 @@
-import { useMemo, useSyncExternalStore } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 
 import { useApolloAgent } from '@/agent/hook';
 import { createConsoleRpc } from '@/agent/rpc';
-import { Chip } from '@/blueprint/chip';
+import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/components/utility';
 import { useConnection } from '@/connection/context';
+import { DevicePage } from '@/device/page';
 import { HistoryPage } from '@/history/page';
 import { JobsPage } from '@/jobs/page';
 import { Nav } from '@/layout/nav';
+import { Search } from '@/layout/search';
 import { McpPage } from '@/mcp/page';
 import { MemoryPage } from '@/memory/page';
 import { useConsoleRoute } from '@/router/hash';
@@ -36,6 +39,7 @@ export function Shell({ connection }: { readonly connection: ConsoleConnection }
   const { disconnect } = useConnection();
   const agent = useApolloAgent(connection);
   const activeRoute = useConsoleRoute();
+  const [isRailExpanded, setIsRailExpanded] = useState(false);
   const socketReadyState = useSocketReadyState(agent);
   const consoleRpc = useMemo(
     () => createConsoleRpc((method, args) => agent.call(method, args), connection.secret),
@@ -47,44 +51,69 @@ export function Shell({ connection }: { readonly connection: ConsoleConnection }
 
   return (
     <div className="min-h-dvh">
-      <header className="flex h-14 items-center justify-between border-b border-line bg-panel/70 px-4 backdrop-blur-sm lg:px-6">
-        <div className="flex items-center gap-2.5">
-          <span aria-hidden className="grid grid-cols-2 gap-0.5">
-            <span className="size-1.5 bg-amber" />
-            <span className="size-1.5 bg-amber/40" />
-            <span className="size-1.5 bg-amber/40" />
-            <span className="size-1.5 bg-amber/15" />
-          </span>
-          <span className="text-sm font-semibold tracking-[-0.01em]">Apollo Console</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="hidden font-mono text-xs text-faint sm:inline">
-            {connection.deviceName} @ {new URL(connection.workerUrl).host}
-          </span>
-          <Chip tone={isSocketOpen ? 'live' : isUnauthorized ? 'down' : 'busy'}>
-            {isSocketOpen ? 'Link up' : isUnauthorized ? 'Unauthorized' : 'Linking'}
-          </Chip>
-          <Button variant="ghost" size="sm" onClick={disconnect}>
-            Disconnect
-          </Button>
-        </div>
-      </header>
+      <div
+        className={cn(
+          'transition-[margin-left] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]',
+          isRailExpanded ? 'md:ml-60' : 'md:ml-[70px]',
+        )}
+      >
+        <header className="sticky top-0 z-40 flex h-[70px] items-center justify-between gap-4 border-b bg-background/70 px-4 backdrop-blur-xl md:px-6">
+          <div className="flex min-w-0 items-center gap-4">
+            <span className="flex items-center md:hidden">
+              <Icons.LogoMark size={20} />
+            </span>
+            <Search />
+          </div>
+          <div className="flex shrink-0 items-center gap-4">
+            <span role="status" className="flex items-center gap-2 text-xs">
+              <span
+                aria-hidden
+                className={cn(
+                  'size-1.5 rounded-full',
+                  isSocketOpen
+                    ? 'animate-[signal_2s_ease-in-out_infinite] bg-foreground'
+                    : isUnauthorized
+                      ? 'bg-destructive'
+                      : 'animate-[signal_1s_ease-in-out_infinite] bg-dim',
+                )}
+              />
+              <span
+                className={cn(
+                  isUnauthorized ? 'text-destructive' : 'text-muted-foreground',
+                )}
+              >
+                {isSocketOpen
+                  ? 'Connected'
+                  : isUnauthorized
+                    ? 'Unauthorized'
+                    : 'Connecting…'}
+              </span>
+            </span>
+            <Button variant="ghost" size="sm" onClick={disconnect}>
+              <Icons.Logout size={16} />
+              <span className="hidden sm:inline">Disconnect</span>
+            </Button>
+          </div>
+        </header>
 
-      {isUnauthorized && (
-        <div
-          role="alert"
-          className="border-b border-danger/40 bg-dangerdim px-4 py-2 text-xs text-danger"
-        >
-          The worker refused this connection — the dashboard secret is likely wrong.
-          Disconnect and enter it again.
-        </div>
-      )}
+        {isUnauthorized && (
+          <div
+            role="alert"
+            className="border-b border-destructive/40 bg-destructive/10 px-4 py-2 text-xs text-destructive"
+          >
+            The worker refused this connection — the dashboard secret is likely wrong.
+            Disconnect and enter it again.
+          </div>
+        )}
 
-      <div className="lg:grid lg:grid-cols-[12rem_1fr]">
-        <Nav />
-        <main className="min-w-0 p-4 lg:p-6">
+        <Nav isRailExpanded={isRailExpanded} onRailExpandedChange={setIsRailExpanded} />
+
+        <main className="px-4 py-6 md:px-8">
           {activeRoute === 'status' && (
             <StatusPage agent={agent} consoleRpc={consoleRpc} />
+          )}
+          {activeRoute === 'device' && (
+            <DevicePage agent={agent} consoleRpc={consoleRpc} />
           )}
           {activeRoute === 'mcp' && <McpPage consoleRpc={consoleRpc} />}
           {activeRoute === 'memory' && <MemoryPage consoleRpc={consoleRpc} />}

@@ -1,99 +1,120 @@
 # Apollo Console — Design System
 
-The visual authority for console work, documented from the code as built. Direction (binding, user-revised 2026-08-12): a modern dark console with pixel accents. The earlier stacked-echo blueprint look was rejected as over-stylized — never reintroduce it. See PRODUCT.md "Brand Commitments".
+The visual authority for console work, documented from the code as built. Direction (binding, user-pinned 2026-08-12): the Midday dashboard canon (github.com/midday-ai/midday) played straight — full monochrome, dark only, square corners, elevation by hairline border. This supersedes the amber pixel-console look, which itself superseded the stacked-echo blueprint look; both are rejected — never reintroduce either. The grammar is Midday's; the identity is Apollo's. See PRODUCT.md "Brand Commitments" and the direction contract in `index.html`.
 
 ## Color
 
 All tokens live in `src/index.css` under `@theme`; the default Tailwind palette is disabled (`--color-*: initial`), so these are the only colors available.
 
-| Token       | Value                       | Role |
-| ----------- | --------------------------- | ---- |
-| `ground`    | `#0b0b0d`                   | Page background, input background, text on amber buttons |
-| `panel`     | `#111114`                   | Card and dialog surfaces, header (`bg-panel/70` + blur) |
-| `raised`    | `#19191d`                   | Hover fills, active nav item, neutral badge/switch fill |
-| `line`      | `#26262c`                   | Borders everywhere (set as the global `border-color`), grid gap fill, inactive dots |
-| `linefaint` | `rgba(235,235,242,0.05)`    | Dot-grid and pixelfield dots only |
-| `ink`       | `#ececf1`                   | Primary text |
-| `muted`     | `#a3a3ad`                   | Secondary text, panel titles, labels |
-| `faint`     | `#8a8a96`                   | Tertiary text, placeholders, mono metadata, down-state |
-| `amber`     | `#f5a623`                   | The single accent: mark, live states, focus, selection, caret, primary button (`#ffb83d` on hover) |
-| `amberdim`  | `rgba(245,166,35,0.12)`     | Amber tint fills (live chip, amber badge, checked switch) |
-| `danger`    | `#ec5a5f`                   | Errors and destructive actions only |
-| `dangerdim` | `rgba(229,72,77,0.12)`      | Danger tint fills (alert banner, destructive hover) |
+| Token                | Value                    | Role |
+| -------------------- | ------------------------ | ---- |
+| `background`         | `#0d0d0d`                | Page ground, scrollbar track, opened-document wells, header (`bg-background/70` + blur), dialog overlay (`/80`) |
+| `foreground`         | `#fafafa`                | Primary text, live/busy chip dots, selection fill, caret |
+| `card`               | `#0c0c0c`                | Panel, tile, dialog, and form-card surfaces; empty-state message pill |
+| `card-hover`         | `#0f0f0f`                | Hover fill for clickable tiles and list rows |
+| `active`             | `#131313`                | Active nav item fill |
+| `border`             | `#1d1d1d`                | Every border (set as the global `border-color`), scrollbar thumb |
+| `border-hover`       | `#222222`                | Border on hovered tiles/inputs, scrollbar thumb hover |
+| `accent`             | `#1c1c1c`                | Neutral fills: chip/badge/kbd background, ghost-button and search-row hover, unchecked switch track |
+| `primary`            | `#fafafa`                | Solid button fill, checked switch track |
+| `primary-foreground` | `#171717`                | Text on solid buttons, checked switch thumb |
+| `muted-foreground`   | `#878787`                | Secondary text: panel titles, labels, descriptions, placeholders, insight prose |
+| `dim`                | `#666666`                | Tertiary text: metadata, timestamps, inactive nav items, staleness notes |
+| `destructive`        | `hsl(359deg 100% 61%)`   | Failure only: errors, `down` chips, destructive buttons/badges |
+| `ring`               | `hsl(240deg 4.9% 83.9%)` | The global `:focus-visible` outline (1px solid, 2px offset) |
 
-Amber accents pair `text-amber` + `bg-amberdim` + `border-amber/40`; danger mirrors this with its dim. There is no green, blue, or any second accent — "live/online" is amber, not green.
+There is no accent hue. "Live/online" is white (`foreground`), not green; positive/active states are grayscale. Red pairs `text-destructive` + `bg-destructive/10` + `border-destructive/40` and appears only when something failed. Selection is inverted (`foreground` fill, `background` text). One raw value exists outside the table: the `dotted-bg` utility draws 1px `#232323` dots on a 6px grid (used only inside Empty).
 
 ## Typography
 
-Two variable-weight faces, self-hosted in `src/fonts/`:
+Three self-hosted faces in `src/fonts/`, declared in `src/index.css`:
 
-- **Archivo** (`font-sans`, the default) — all UI text: headings, labels, buttons, body. Sentence case throughout. Headings use `font-semibold tracking-[-0.01em]` (page title `text-2xl`, dialog title `text-lg`).
-- **JetBrains Mono** (`font-mono`) — strictly data values: telemetry readings, URLs, device/host identity, tool names, and URL/name inputs. Never for labels or prose.
+- **Hedvig Letters Sans** (`font-sans`, the default) — all UI text. Ships weight 400 only; `font-medium` therefore resolves to 400 by design, matching the Midday source — weight classes are rhythm markers, not visible weight changes. Sentence case throughout.
+- **Hedvig Letters Serif** (`font-serif`) — display moments only. Exactly two exist: the overview greeting (`text-[38px] leading-tight`, `src/status/insights.tsx`) and the connect-screen title (`text-[32px] leading-tight`, `src/connection/screen.tsx`). PRODUCT.md says "the single overview greeting"; the build added the connect title as a second — both are pre-shell display moments, no serif appears inside page content.
+- **JetBrains Mono** (`font-mono`, variable 100–800) — one use: the jobs document viewer `<pre>` (`text-xs leading-relaxed`, `src/jobs/page.tsx`). Never elsewhere, not even for URLs or telemetry values.
 
-The `label-soft` utility (`0.75rem`, weight 500, `+0.01em` tracking) is the label style — panel titles, form labels, `<dt>`s, empty-state messages. Tables get `tabular-nums` globally.
+Scale as used: page `Heading` is `text-xl font-medium tracking-tight`; dialog titles `text-lg font-medium tracking-tight`; body and controls `text-sm`; labels, chips, metadata `text-xs`; the ⌘K kbd hint `text-[10px]`. Labels (`ui/label.tsx`) are `text-xs font-medium text-muted-foreground`, sentence case — no uppercase, no letter-spacing. Tables get `tabular-nums` globally.
 
 ## Radius
 
-- `rounded-xl` (12px) — panels, dialogs
-- `rounded-lg` (8px) — buttons, inputs, nav items, empty states, telemetry grid frame
-- `rounded-md` (6px) — badges, empty-state message pill
-- `rounded-full` — chips, switch
-- `rounded-[1px]` — the tiny square status dots (deliberately near-square, not round)
+Square everywhere — no `rounded-*` class exists in the tree except `rounded-full` in exactly two places: the Switch (track and thumb) and the 1.5-size status dot inside Chip. Panels, buttons, inputs, dialogs, tiles, badges, chips, nav items: all hard corners.
 
-## Pixel motifs
+## Icons
 
-- **Four-square cluster** — the mark: a 2×2 grid of amber squares fading corner to corner (`bg-amber`, `/40`, `/40`, `/15`). Appears at `size-1.5` in the header, `size-1` beside the page heading, and at `size-2` as the device indicator on the status page, where the squares light amber when the desk is connected and fall back to `bg-line` when not.
-- **Dot grid** — the body background: 1px `linefaint` dots on a 26px grid over `ground`.
-- **Pixelfield** — a denser texture (1.5px dots, 10px grid) via the `pixelfield` utility, used inside empty states and the offline device panel.
+One `Icons` object in `src/components/icons.tsx`; nothing imports icon components directly. Nine Material Design **outline** icons from `react-icons/md` (Close, History, Jobs, Logout, Mcp, Memory, Schedules, Search, Status) plus `LogoMark` — the brand: a hand-drawn 20×20 SVG of four squares in a 2×2 grid, `currentColor` at opacities 1 / 0.45 / 0.45 / 0.18 fading corner to corner. Rendered monochrome at 20–22px in the rail and mobile header, 26px on the connect screen. Icon sizes in use: 16, 18, 20, 22, 26.
 
 ## Components
 
 `src/blueprint/` — console-specific primitives:
 
-- **Panel** — `rounded-xl border-line bg-panel`; optional 44px header with a `label-soft text-muted` title and a `meta` slot (usually a Chip).
-- **Chip** — pill status indicator with a square dot. Tones: `live` (amber + 2s signal pulse), `busy` (ink + 1s pulse), `idle` (muted, static), `down` (faint, transparent fill).
-- **Heading** — page title with the four-square mark and an optional muted description.
-- **Empty** — dashed `border-line` box with pixelfield texture and a `label-soft text-faint` message on a `bg-panel` pill.
+- **Panel** — `border bg-card`, square; optional 44px (`h-11`) header with a `text-sm text-muted-foreground` title and a `meta` slot.
+- **Chip** — square status tag (`border px-2 py-0.5 text-xs font-medium`) with a round 1.5 dot. Tones: `live` (accent fill, foreground dot pulsing at 2s), `busy` (same at 1s), `idle` (muted text, static dot), `down` (destructive text and `/40` border on transparent — the only red chip).
+- **Heading** — `text-xl font-medium tracking-tight` h1 with optional muted description. No mark, no ornament.
+- **Empty** — dashed border box with `dotted-bg` texture; the message sits on a `bg-card` pill in `text-xs font-medium text-muted-foreground`.
 
-`src/components/ui/` — vendored shadcn-style primitives on Radix, restyled to the tokens:
+`src/components/ui/` — vendored shadcn-style primitives on Radix, restyled to the tokens (the sanctioned multi-export exception):
 
-- **Button** — variants `default` (solid amber, ground text), `outline`, `ghost`, `destructive` (danger text, transparent until hover); sizes `default` (h-9), `sm` (h-8), `lg` (h-11), `icon` (9×9).
-- **Input** — h-9, `bg-ground`, `border-line`; hover `border-faint`, focus `border-amber`. No shadows or rings.
-- **Label** — `label-soft text-muted`.
-- **Badge** — variants `default`, `amber`, `danger`, `outline`. Static; a Chip is a Badge with a liveness dot.
-- **Switch** — unchecked `border-line bg-raised` with a faint thumb; checked `border-amber bg-amberdim` with an amber thumb.
-- **Dialog** — `bg-ground/80` overlay with 2px blur; content is a max-w-md panel (`rounded-xl border-line bg-panel p-6`) entering with `settle`.
+- **Button** — variants `default` (solid `primary` fill, `primary-foreground` text, `/90` on hover), `outline` (border, transparent, `bg-accent` hover), `ghost` (muted text, `bg-accent` hover), `destructive` (red text on transparent, red-tint hover). Sizes `default` h-9, `sm` h-8 `text-xs`, `lg` h-10, `icon` 9×9. All square, `transition-colors duration-150`.
+- **Badge** — static square tag, same frame as Chip minus the dot. Variants `default` (accent fill), `strong` (`foreground/10` fill), `destructive`, `outline` (muted text).
+- **Input** — h-9, `border bg-transparent`; hover `border-border-hover`, focus `border-dim`. No ring, no shadow, square.
+- **Switch** — the rounded exception: `h-5 w-9 rounded-full`, `bg-accent` track → checked `bg-primary`, `bg-dim` thumb → checked `bg-primary-foreground`.
+- **Dialog** — `bg-background/80` flat overlay (no blur); content is a square `border bg-card p-6` card, max-w-md, entering with `settle`, close icon top-right in `text-dim`.
+- **Sheet** — non-modal reading panel: `fixed top-[70px] right-0 bottom-0 lg:w-1/3 border-l bg-card`, sliding in with the `sheet` keyframe; the page it serves adds a matching right margin so content is pushed, never covered. Outside interaction is allowed and does not dismiss; Escape and the close icon do.
+- **Slider** — square-thumb Radix slider: h-1 `bg-accent` track, `bg-primary` range, `size-3.5 bg-foreground` bordered thumb; commits on release.
+- **Skeleton** — `animate-pulse bg-accent` block, always shaped to the final content's box so nothing shifts on load.
+- **Label** — `text-xs font-medium text-muted-foreground`.
+
+Signature patterns: **stat tiles** (`src/status/tiles.tsx`) are `min-h-[110px] border bg-card p-5` with an xs muted label above a `text-xl font-medium` value; clickable ones hover to `border-border-hover bg-card-hover` over 300ms. **Insight fragments** (`src/status/insights.tsx`) are dashed underlines — `border-b border-dashed border-muted-foreground/40 text-foreground` inside muted sentences; navigable ones are buttons whose dash darkens on hover. **⌘K search** (`src/layout/search.tsx`) is a Dialog pinned to `top-[20%]` with a borderless h-12 input row and a filtered route list.
 
 ## Motion
 
-- `settle` — 0.45s ease-out-quint (cubic-bezier 0.16, 1, 0.3, 1) fade-up from 6px; applied to page roots and dialog content. The only entrance animation.
-- `signal` — opacity pulse for chip dots; 2s on `live`, 1s on `busy`.
-- Everything else is `transition-colors duration-150` (300ms for the device indicator squares). No scale, slide, or spring effects.
-- A global `prefers-reduced-motion` guard collapses all animation and transition durations to 0.01ms.
+- `settle` — 0.45s `cubic-bezier(0.16, 1, 0.3, 1)` fade-up from 6px; applied to every page root, the connect card, and dialog content. The only entrance animation.
+- `signal` — opacity pulse (1 → 0.35) for chip dots; 2s on `live`, 1s on `busy`.
+- Everything else is `transition-colors duration-150`, with two slower cases: stat tiles at 300ms and the rail expansion at 200ms `cubic-bezier(0.4, 0, 0.2, 1)` (width plus label opacity fade).
+- The 3D device auto-rotates at speed 0.9 with damping — disabled when `prefers-reduced-motion` matches.
+- A global reduced-motion guard in `src/index.css` collapses all animation and transition durations to 0.01ms.
+
+Structural motion is limited to three moves: the rail's push (margin animation on the content column), the Sheet's 0.4s slide-in from the right (`sheet` keyframe, same ease family as `settle`), and the Skeleton pulse. No scale, spring, or blur transitions; no spinners.
 
 ## Layout
 
-- Shell: a 56px sticky-feel header (`bg-panel/70 backdrop-blur-sm border-b`), then `lg:grid-cols-[12rem_1fr]` — side nav on desktop, horizontal scroll row on mobile. Main content is `p-4 lg:p-6`.
-- Nav items: h-9 rounded-lg buttons with a square dot that turns amber when active; active state is `bg-raised text-ink`.
-- Cell grids (agent facts, telemetry): `grid gap-px bg-line` with `bg-panel` cells — hairline separation from the gap showing through, not per-cell borders. Uneven rows get an `aria-hidden` filler cell so the grid stays closed.
-- Panels compose with `space-y-5` vertically and `grid gap-4` for column splits.
+- **Rail** (`src/layout/nav.tsx`) — fixed left, full height, `hidden md:flex`; 70px wide collapsed, expanding to 240px (`w-60`) on hover or focus. The expansion pushes: the shell animates the content column's `margin-left` from 70px to 240px in step with the rail, so nothing is ever covered. Three bands: 70px brand row (LogoMark + "Apollo Console"), nav list (h-10 square items, active = `border-border bg-active text-foreground`, inactive = `text-dim` borderless), 70px identity footer (device initial in a bordered `bg-accent` square, device name + worker host).
+- **Header** (`src/layout/shell.tsx`) — sticky, 70px, `border-b bg-background/70 backdrop-blur-xl`, z-40. Left: LogoMark (mobile only) + search trigger; right: connection Chip (`Link up` live / `Linking` busy / `Unauthorized` down) + ghost disconnect button.
+- **Content** — everything offset `md:ml-[70px]`, animating to `md:ml-60` while the rail is expanded. Main is `px-4 py-6 md:px-8`. Section pages: `settle space-y-5`/`space-y-6`, full width. Overview: a single centered `mx-auto max-w-3xl space-y-8` column (greeting → insights → confirm/caption → tiles), vertically centered in the viewport below the header on md+. Device page: `lg:grid-cols-2 gap-6` — the 3D model centered in the left half (`min-h-[28rem]`), a self-centered stack of Mode / Volume & brightness / Weather location panels on the right. The jobs page adds `lg:mr-[calc(100vw/3)]` while its Sheet is open, squeezing in step with the panel.
+- **Mobile** — rail hidden; a `scrollbar-hide` horizontal chip row of h-9 square nav buttons under the header.
+- **Connect screen** — centered `max-w-sm` column: LogoMark, serif title, muted tagline, one bordered form card, `text-dim` privacy note.
+- Scrollbars are themed: 10px, `background` track, `border` thumb with a 2px background inset.
 
 ## States
 
-- **Loading** — plain muted text ("Waiting for state sync…", "Checking…"). No spinners or skeletons.
-- **Empty** — the Empty component with a factual message ("No telemetry received yet").
-- **Inline error** — `role="alert"`, `text-xs text-danger`, states what failed and what happens next ("Status poll failed — retrying every 10s.").
-- **Banner error** — full-width `bg-dangerdim border-danger/40` strip under the header for connection-level failures.
-- **Staleness** — shown honestly as faint text ("Snapshot 3 h ago — stale; …") rather than hidden.
-- **Liveness** — Chip tones map agent `uiState`: listening/speaking → `live`, thinking/confirm/focus → `busy`, idle/dashboard → `idle`; unauthorized → `down`.
+- **Loading** — skeletons everywhere: every async region renders pulse skeletons shaped like its final layout (list rows, tile values, insight lines, slider rows, document paragraphs), so nothing flashes or moves when data arrives. No spinners, no loading text.
+- **Empty** — the Empty component with a factual, actionable message ("No run documents yet — ask the desk to research something").
+- **Inline error** — `role="alert"`, `text-xs text-destructive`, bordered red-tint strip (`border-destructive/40 bg-destructive/10 px-3 py-2`) for form/RPC failures; bare red text for the status-poll notice, which states the retry cadence.
+- **Banner error** — the same red-tint recipe as a full-width strip under the header when the worker refuses the secret.
+- **Staleness** — telemetry older than 5 minutes is called out in `text-dim` ("Snapshot 3 h ago — stale; the device pushes telemetry only while connected"). Never hidden.
+- **Liveness** — Chip tones carry connection truth: shell socket open → `live`, unauthorized → `down` (destructive), connecting → `busy`; MCP servers map ready → `live`, authenticating/connecting/discovering → `busy`, anything else → `down`.
+
+## The 3D device
+
+`src/device/model.tsx`, rendered with three.js via `@react-three/fiber` + `@react-three/drei`, lazy-loaded (`src/device/page.tsx`) behind a Suspense placeholder so the bundle stays off every other page. It owns the Device route alongside the Mode / Volume & brightness / Weather panels; changing the mode there re-colors the ring live, so the model is the mode picker's preview.
+
+- **Geometry** — a black cylinder, radius 1 (diameter equals height, the real 4 × 4 cm proportions): a straight `#2e2e2e` body section, a tapering base (radius 1 → 0.8 over the bottom 0.45) so the foot closes like the real enclosure, and a dark `#0a0a0a` seam band 0.5 below the top (the physical 1 cm separator line). A matte `#030303` screen disc (r 0.86) on top carries two white (`#FAFAFA`) circular eyes (r 0.19 at x ±0.38) and a flat accent ring (inner 0.78 → outer 0.86), `toneMapped={false}` so it reads as emissive. Body hardware matches the device: USB-C and USB-A recesses with `#242424` bezels on the lower front, two `#d4d4d4` charge-light dots above them, a `#242424`/`#3a3a3a` slide switch on the left, two slot buttons on the right.
+- **Blink** — every 10 s the eyes squash to 8% height and back over 0.28 s (sine ease in `useFrame`), skipped under reduced motion.
+- **Ring color** — content truth, not UI accent: `SPEECH_MODE_ACCENT_MAP` keyed by the agent's live `speechMode` — `default` `#FFFFFF`, `nerd` `#F5C518`, `playful` `#C45C26`, `warm` `#B56B7A` — mirroring `apps/agent/src/persona/catalog.ts`, which is the source of truth. Unknown or absent modes fall back to `default`. This is the only place non-grayscale color may appear outside failure red, because the device itself shows it.
+- **Interaction** — OrbitControls rotate-only (no pan, no zoom), polar angle clamped (0.35 to π/2 + 0.2), damping 0.08; auto-rotate 0.9 unless reduced motion. Container is `h-[26rem] max-w-md cursor-grab active:cursor-grabbing` with `role="img"` and a drag-to-rotate aria-label.
+- **Scene** — camera `[3.1, 2.3, 3.1]` fov 34, dpr `[1, 2]`; hemisphere (`#4a4a4a`/`#101010`, 1.4) + ambient 0.5 + three directionals (2.2 key, 1.1 rim, 0.5 low fill) so the black body keeps visible form; a soft black ContactShadows disc under the device (opacity 0.45, blur 2.4) — a 3D grounding shadow inside the canvas, not a UI elevation shadow.
 
 ## Hard rules
 
-- Dark only. `color-scheme: dark`, no light theme, no theme toggle.
-- One accent. Amber for everything positive/active; danger red for errors; nothing else.
-- Sentence case everywhere. No uppercase-tracked labels (`uppercase tracking-widest` is banned).
-- No stacked echo headings and no hard 1px line-grid ornamentation — the rejected blueprint look.
-- Elevation by border, not shadow. Surfaces step `ground → panel → raised`; no drop shadows anywhere.
-- Mono is for data values only, never UI chrome.
-- The dashboard secret is entered via `type="password"` and never rendered anywhere in the UI.
-- Do not copy Cloudflare branding; the register is theirs, the identity is Apollo's.
+- **Monochrome.** No accent color in UI chrome — no amber, no green, no blue. Grayscale carries every positive/active state.
+- **Red means failure.** `destructive` appears only for errors, refusals, and destructive actions — never for emphasis.
+- **The device ring is content, not chrome.** Its colors come from the agent's persona catalog and appear only on the 3D model. Never promote them into buttons, chips, links, or any UI element.
+- **Dark only.** `color-scheme: dark` in CSS and meta; no light theme, no toggle.
+- **Square corners.** `rounded-full` is legal on exactly the Switch and the Chip status dot; every other `rounded-*` class is banned.
+- **Elevation by border.** 1px `border` hairlines separate surfaces; `background` → `card` → `accent` is the full depth range. No drop shadows in the UI (the 3D canvas's ContactShadows is scene lighting, not elevation).
+- **Sentence case everywhere.** No uppercase labels, no tracked-out smallcaps.
+- **Mono only in the jobs document viewer.** URLs, telemetry, and identifiers render in the sans face like everything else.
+- **Serif is a display voice**, limited to the overview greeting and the connect-screen title.
+- **One Icons object.** All glyphs route through `src/components/icons.tsx`; Material outline style only.
+- **The dashboard secret** is entered via `type="password"` and never rendered anywhere in the UI.
+- **Do not copy Midday's logo or name** — the grammar is theirs, the identity is Apollo's. The four-square LogoMark is the only brand mark.

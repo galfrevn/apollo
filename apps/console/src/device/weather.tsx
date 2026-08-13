@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { WeatherLocation } from '@/agent/schema';
 
@@ -39,17 +40,24 @@ export function WeatherPanel({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }
 
   return (
     <div className="space-y-3 p-4">
-      <div>
-        <p className="text-sm">
-          {location === null ? 'Loading…' : location.locationLabel}
-        </p>
-        {location !== null && (
-          <p className="mt-0.5 font-mono text-xs text-faint">
+      {location === null ? (
+        <div>
+          <div className="flex h-5 items-center">
+            <Skeleton className="h-4 w-44" />
+          </div>
+          <div className="mt-0.5 flex h-4 items-center">
+            <Skeleton className="h-3 w-56" />
+          </div>
+        </div>
+      ) : (
+        <div>
+          <p className="text-sm">{location.locationLabel}</p>
+          <p className="mt-0.5 text-xs text-dim">
             {location.latitude.toFixed(2)}, {location.longitude.toFixed(2)} ·{' '}
             {location.timezone}
           </p>
-        )}
-      </div>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="flex gap-2" aria-busy={isSaving}>
         <Input
           value={locationQuery}
@@ -62,7 +70,7 @@ export function WeatherPanel({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }
         </Button>
       </form>
       {errorMessage !== null && (
-        <p role="alert" className="text-xs text-danger">
+        <p role="alert" className="text-xs text-destructive">
           {errorMessage}
         </p>
       )}

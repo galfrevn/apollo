@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Streamdown } from 'streamdown';
 
 import { Empty } from '@/blueprint/empty';
 import { Heading } from '@/blueprint/heading';
 import { Panel } from '@/blueprint/panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/components/utility';
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { JobDocument } from '@/agent/schema';
 
@@ -36,12 +40,6 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
   }, [refreshDocumentList]);
 
   async function handleOpenDocument(documentKey: string) {
-    if (openDocumentKey === documentKey) {
-      openDocumentKeyRef.current = null;
-      setOpenDocumentKey(null);
-      setOpenDocumentContent(null);
-      return;
-    }
     openDocumentKeyRef.current = documentKey;
     setOpenDocumentKey(documentKey);
     setOpenDocumentContent(null);
@@ -57,8 +55,23 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
     }
   }
 
+  function handleCloseDocument() {
+    openDocumentKeyRef.current = null;
+    setOpenDocumentKey(null);
+    setOpenDocumentContent(null);
+  }
+
+  const openDocument =
+    documentList?.find((jobDocument) => jobDocument.documentKey === openDocumentKey) ??
+    null;
+
   return (
-    <div className="settle space-y-5">
+    <div
+      className={cn(
+        'settle space-y-5 lg:transition-[margin-right] lg:duration-[400ms] lg:ease-[cubic-bezier(0.16,1,0.3,1)]',
+        openDocumentKey !== null && 'lg:mr-[calc(100vw/3)]',
+      )}
+    >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <Heading description="Documents produced by research and coding runs">
           Jobs
@@ -71,7 +84,7 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
       {errorMessage !== null && (
         <p
           role="alert"
-          className="rounded-lg border border-danger/40 bg-dangerdim px-3 py-2 text-xs text-danger"
+          className="border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
         >
           {errorMessage}
         </p>
@@ -81,12 +94,23 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
         title="Run documents"
         meta={
           documentList !== null ? (
-            <span className="text-xs text-faint">{documentList.length} documents</span>
+            <span className="text-xs text-dim">{documentList.length} documents</span>
           ) : undefined
         }
       >
         {documentList === null ? (
-          <p className="p-4 text-sm text-muted">Loading…</p>
+          <ul>
+            {[0, 1, 2].map((rowIndex) => (
+              <li
+                key={rowIndex}
+                className="flex items-center gap-3 border-b px-4 py-2.5 last:border-b-0"
+              >
+                <Skeleton className="h-5 w-[4.5rem]" />
+                <Skeleton className="h-4 flex-1" />
+                <Skeleton className="h-3.5 w-44" />
+              </li>
+            ))}
+          </ul>
         ) : documentList.length === 0 ? (
           <Empty
             message="No run documents yet — ask the desk to research something"
@@ -95,43 +119,74 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
         ) : (
           <ul>
             {documentList.map((jobDocument) => (
-              <li
-                key={jobDocument.documentKey}
-                className="border-b border-line last:border-b-0"
-              >
+              <li key={jobDocument.documentKey} className="border-b last:border-b-0">
                 <button
                   type="button"
                   onClick={() => void handleOpenDocument(jobDocument.documentKey)}
-                  aria-expanded={openDocumentKey === jobDocument.documentKey}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors duration-150 hover:bg-raised"
+                  className={cn(
+                    'flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors duration-150 hover:bg-card-hover',
+                    openDocumentKey === jobDocument.documentKey && 'bg-active',
+                  )}
                 >
-                  <Badge variant={jobDocument.kind === 'coding' ? 'amber' : 'outline'}>
+                  <Badge variant={jobDocument.kind === 'coding' ? 'strong' : 'outline'}>
                     {jobDocument.kind}
                   </Badge>
-                  <span className="min-w-0 flex-1 truncate font-mono text-xs">
+                  <span className="min-w-0 flex-1 truncate text-sm">
                     {jobDocument.documentKey.split('/').at(-1)}
                   </span>
-                  <span className="shrink-0 text-xs whitespace-nowrap text-faint">
+                  <span className="shrink-0 text-xs whitespace-nowrap text-dim">
                     {new Date(jobDocument.uploadedAtIso).toLocaleString()} ·{' '}
                     {formatSizeLabel(jobDocument.sizeBytes)}
                   </span>
                 </button>
-                {openDocumentKey === jobDocument.documentKey && (
-                  <div className="border-t border-line bg-ground px-4 py-3">
-                    {openDocumentContent === null ? (
-                      <p className="text-sm text-muted">Loading document…</p>
-                    ) : (
-                      <pre className="max-h-96 overflow-auto font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                        {openDocumentContent}
-                      </pre>
-                    )}
-                  </div>
-                )}
               </li>
             ))}
           </ul>
         )}
       </Panel>
+
+      <Sheet
+        open={openDocumentKey !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            handleCloseDocument();
+          }
+        }}
+      >
+        <SheetContent aria-describedby={undefined}>
+          <header className="flex h-[70px] shrink-0 flex-col justify-center gap-1 border-b px-5 pr-14">
+            <SheetTitle className="truncate">
+              {openDocumentKey?.split('/').at(-1)}
+            </SheetTitle>
+            {openDocument !== null && (
+              <p className="truncate text-xs text-dim">
+                {openDocument.kind} ·{' '}
+                {new Date(openDocument.uploadedAtIso).toLocaleString()} ·{' '}
+                {formatSizeLabel(openDocument.sizeBytes)}
+              </p>
+            )}
+          </header>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            {openDocumentContent === null ? (
+              <div className="space-y-3">
+                <Skeleton className="h-5 w-2/3" />
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-3.5 w-5/6" />
+                <Skeleton className="h-3.5 w-3/4" />
+              </div>
+            ) : openDocumentKey?.endsWith('.md') ? (
+              <div className="text-[13px] leading-relaxed [&_h1]:text-xl [&_h2]:text-lg [&_h3]:text-base [&_h4]:text-sm">
+                <Streamdown>{openDocumentContent}</Streamdown>
+              </div>
+            ) : (
+              <pre className="font-mono text-xs leading-relaxed whitespace-pre-wrap">
+                {openDocumentContent}
+              </pre>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

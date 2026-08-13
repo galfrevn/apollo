@@ -3,12 +3,16 @@ import type { FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 
 const MAX_DELAY_MINUTES = 1_440;
+const DELAY_PRESET_MINUTE_LIST = [5, 15, 60] as const;
 
-export function CreateReminderForm({
+function formatPresetLabel(presetMinutes: number): string {
+  return presetMinutes < 60 ? `${presetMinutes}m` : `${presetMinutes / 60}h`;
+}
+
+export function ScheduleComposer({
   onCreate,
 }: {
   readonly onCreate: (
@@ -18,7 +22,7 @@ export function CreateReminderForm({
   ) => Promise<void>;
 }) {
   const [message, setMessage] = useState('');
-  const [delayMinutes, setDelayMinutes] = useState('');
+  const [delayMinutes, setDelayMinutes] = useState('15');
   const [isTimer, setIsTimer] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -28,9 +32,7 @@ export function CreateReminderForm({
     const trimmedMessage = message.trim();
     const parsedMinutes = Number(delayMinutes);
     if (trimmedMessage.length === 0) {
-      setErrorMessage(
-        isTimer ? 'Give the timer a label.' : 'Write the reminder message.',
-      );
+      setErrorMessage(isTimer ? 'Give the timer a label.' : 'Write the reminder.');
       return;
     }
     if (
@@ -46,7 +48,6 @@ export function CreateReminderForm({
     try {
       await onCreate(trimmedMessage, Math.round(parsedMinutes * 60), isTimer);
       setMessage('');
-      setDelayMinutes('');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Scheduling failed.');
     } finally {
@@ -55,52 +56,57 @@ export function CreateReminderForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 p-4" aria-busy={isCreating}>
-      <div className="grid gap-4 sm:grid-cols-[2fr_8rem_auto_auto] sm:items-end">
-        <div className="space-y-2">
-          <Label htmlFor="reminder-message">{isTimer ? 'Timer label' : 'Message'}</Label>
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-2 border-b p-3"
+      aria-busy={isCreating}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          placeholder={isTimer ? 'Timer label — pasta' : 'Remind me to…'}
+          aria-label={isTimer ? 'Timer label' : 'Reminder message'}
+          className="h-8 min-w-48 flex-1 text-sm"
+        />
+        <div className="flex items-center gap-1">
+          {DELAY_PRESET_MINUTE_LIST.map((presetMinutes) => (
+            <Button
+              key={presetMinutes}
+              type="button"
+              size="sm"
+              variant={delayMinutes === String(presetMinutes) ? 'default' : 'outline'}
+              className="h-8 px-2.5"
+              onClick={() => setDelayMinutes(String(presetMinutes))}
+            >
+              {formatPresetLabel(presetMinutes)}
+            </Button>
+          ))}
           <Input
-            id="reminder-message"
-            value={message}
-            onChange={(event) => setMessage(event.target.value)}
-            placeholder={isTimer ? 'pasta' : 'Sacar la pizza del horno'}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="reminder-minutes">In minutes</Label>
-          <Input
-            id="reminder-minutes"
             type="number"
             min={1}
             max={MAX_DELAY_MINUTES}
             value={delayMinutes}
             onChange={(event) => setDelayMinutes(event.target.value)}
-            placeholder="15"
-            className="font-mono"
+            aria-label="Minutes until it fires"
+            className="h-8 w-16 text-xs"
           />
+          <span className="text-xs text-dim">min</span>
         </div>
-        <div className="flex items-center gap-2 pb-2.5">
+        <label className="flex cursor-pointer items-center gap-2">
           <Switch
-            id="reminder-timer"
             checked={isTimer}
             onCheckedChange={setIsTimer}
             aria-label="Schedule as a timer"
           />
-          <Label htmlFor="reminder-timer" className="cursor-pointer">
-            Timer
-          </Label>
-        </div>
-        <Button type="submit" disabled={isCreating}>
-          {isCreating ? 'Scheduling…' : 'Schedule'}
+          <span className="text-xs font-medium text-muted-foreground">Timer</span>
+        </label>
+        <Button type="submit" size="sm" disabled={isCreating}>
+          {isCreating ? 'Adding…' : 'Add'}
         </Button>
       </div>
-      <p className="text-xs text-faint">
-        {isTimer
-          ? 'Timers show a countdown arc on the desk and announce when done.'
-          : 'The desk speaks the reminder when it fires.'}
-      </p>
       {errorMessage !== null && (
-        <p role="alert" className="text-xs text-danger">
+        <p role="alert" className="text-xs text-destructive">
           {errorMessage}
         </p>
       )}

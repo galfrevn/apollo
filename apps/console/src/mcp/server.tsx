@@ -3,11 +3,12 @@ import { useState } from 'react';
 import { Chip } from '@/blueprint/chip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { SheetTitle } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import type { McpServer } from '@/agent/schema';
 import type { ChipTone } from '@/blueprint/chip';
 
-function resolveServerTone(state: string): ChipTone {
+export function resolveServerTone(state: string): ChipTone {
   if (state === 'ready') {
     return 'live';
   }
@@ -17,17 +18,29 @@ function resolveServerTone(state: string): ChipTone {
   return 'down';
 }
 
-export function ServerCard({
+export function ServerDetail({
   server,
   onToggleTool,
+  onRetry,
   onUninstall,
 }: {
   readonly server: McpServer;
   readonly onToggleTool: (toolName: string, isEnabled: boolean) => Promise<void>;
+  readonly onRetry: () => Promise<void>;
   readonly onUninstall: () => Promise<void>;
 }) {
   const [busyToolName, setBusyToolName] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [isUninstalling, setIsUninstalling] = useState(false);
+
+  async function handleRetry() {
+    setIsRetrying(true);
+    try {
+      await onRetry();
+    } finally {
+      setIsRetrying(false);
+    }
+  }
 
   async function handleToggle(toolName: string, isEnabled: boolean) {
     setBusyToolName(toolName);
@@ -50,43 +63,32 @@ export function ServerCard({
   const enabledCount = server.toolList.filter((tool) => tool.isEnabled).length;
 
   return (
-    <article className="overflow-hidden rounded-xl border border-line bg-panel">
-      <header className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3">
-        <h3 className="text-sm font-semibold">{server.name}</h3>
-        <Chip tone={resolveServerTone(server.state)}>{server.state}</Chip>
-        <span className="min-w-0 flex-1 truncate font-mono text-xs text-faint">
-          {server.url}
-        </span>
-        <span className="text-xs text-faint">
-          {enabledCount}/{server.toolList.length} tools on
-        </span>
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={() => void handleUninstall()}
-          disabled={isUninstalling}
-        >
-          {isUninstalling ? 'Removing…' : 'Uninstall'}
-        </Button>
+    <>
+      <header className="flex h-[70px] shrink-0 flex-col justify-center gap-1 border-b px-5 pr-14">
+        <div className="flex items-center gap-3">
+          <SheetTitle className="truncate">{server.name}</SheetTitle>
+          <Chip tone={resolveServerTone(server.state)}>{server.state}</Chip>
+        </div>
+        <p className="truncate text-xs text-dim">{server.url}</p>
       </header>
 
       {server.error !== null && (
         <p
           role="alert"
-          className="border-b border-danger/40 bg-dangerdim px-4 py-2 text-xs text-danger"
+          className="shrink-0 border-b border-destructive/40 bg-destructive/10 px-5 py-2 text-xs text-destructive"
         >
           {server.error}
         </p>
       )}
 
       {server.authUrl !== null && (
-        <p className="border-b border-amber/40 bg-amberdim px-4 py-2 text-xs text-amber">
+        <p className="shrink-0 border-b bg-accent px-5 py-2 text-xs text-muted-foreground">
           Awaiting authorization —{' '}
           <a
             href={server.authUrl}
             target="_blank"
             rel="noreferrer"
-            className="underline underline-offset-2"
+            className="text-foreground underline underline-offset-2"
           >
             open the auth page
           </a>
@@ -94,38 +96,68 @@ export function ServerCard({
         </p>
       )}
 
-      {server.toolList.length === 0 ? (
-        <p className="pixelfield px-4 py-6 text-center text-xs text-faint">
-          No tools discovered yet
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <p className="border-b px-5 py-2.5 text-xs text-muted-foreground">
+          {enabledCount}/{server.toolList.length} tools enabled
         </p>
-      ) : (
-        <ul>
-          {server.toolList.map((tool) => (
-            <li
-              key={tool.namespacedName}
-              className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0"
-            >
-              <Switch
-                checked={tool.isEnabled}
-                disabled={busyToolName === tool.toolName}
-                onCheckedChange={(isChecked) =>
-                  void handleToggle(tool.toolName, isChecked)
-                }
-                aria-label={`${tool.isEnabled ? 'Disable' : 'Enable'} ${tool.toolName}`}
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-mono text-sm">{tool.toolName}</p>
+        {server.toolList.length === 0 ? (
+          <p className="dotted-bg px-5 py-8 text-center text-xs text-muted-foreground">
+            No tools discovered yet
+          </p>
+        ) : (
+          <ul>
+            {server.toolList.map((tool) => (
+              <li
+                key={tool.namespacedName}
+                className="space-y-1.5 border-b px-5 py-3 last:border-b-0"
+              >
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={tool.isEnabled}
+                    disabled={busyToolName === tool.toolName}
+                    onCheckedChange={(isChecked) =>
+                      void handleToggle(tool.toolName, isChecked)
+                    }
+                    aria-label={`${tool.isEnabled ? 'Disable' : 'Enable'} ${tool.toolName}`}
+                  />
+                  <p className="min-w-0 flex-1 truncate text-sm">{tool.toolName}</p>
+                  <Badge variant={tool.safety === 'safe' ? 'outline' : 'destructive'}>
+                    {tool.safety === 'safe' ? 'Safe' : 'Asks first'}
+                  </Badge>
+                </div>
                 {tool.description.length > 0 && (
-                  <p className="truncate text-xs text-faint">{tool.description}</p>
+                  <p className="line-clamp-4 pl-12 text-xs leading-relaxed text-dim">
+                    {tool.description}
+                  </p>
                 )}
-              </div>
-              <Badge variant={tool.safety === 'safe' ? 'outline' : 'danger'}>
-                {tool.safety === 'safe' ? 'Safe' : 'Asks first'}
-              </Badge>
-            </li>
-          ))}
-        </ul>
-      )}
-    </article>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <footer className="flex shrink-0 gap-2 border-t p-4">
+        {server.state !== 'ready' && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={() => void handleRetry()}
+            disabled={isRetrying}
+          >
+            {isRetrying ? 'Connecting…' : 'Retry connection'}
+          </Button>
+        )}
+        <Button
+          variant="destructive"
+          size="sm"
+          className="flex-1"
+          onClick={() => void handleUninstall()}
+          disabled={isUninstalling}
+        >
+          {isUninstalling ? 'Removing…' : 'Uninstall server'}
+        </Button>
+      </footer>
+    </>
   );
 }
