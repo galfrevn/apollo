@@ -1,17 +1,15 @@
 import { existsSync } from 'node:fs';
 import { z } from 'zod';
 
-const R2_BUCKET_NAME = 'apollo-media';
-const R2_PREVIEW_BUCKET_NAME = 'apollo-media-preview';
-const VECTORIZE_INDEX_NAME = 'apollo-memory';
-// Pinned to OPENROUTER_EMBEDDING_MODEL (openai/text-embedding-3-small): a
-// wrong-dims index rejects every upsert silently and Apollo never remembers.
-const VECTORIZE_DIMENSION_COUNT = 1536;
-const VECTORIZE_METRIC = 'cosine';
-const QUEUE_NAME = 'apollo-jobs';
-const DEVICE_INSTANCE_NAME = 'desk';
+import { readFlagValue } from './flags';
+import { serverMessageSchema } from './messages';
+import { runProvision } from './provision';
+import { reportStep, runWrangler } from './shell';
+import { generateSharedSecret, parseDevelopmentVariableMap } from './vars';
+
 const DEVELOPMENT_VARIABLES_FILE = '.dev.vars';
 const DEPLOYMENT_STATE_FILE = '.apollo.json';
+const DEVICE_INSTANCE_NAME = 'desk';
 const GENERATED_SECRET_NAME_LIST = [
   'DEVICE_SHARED_SECRET',
   'DASHBOARD_SHARED_SECRET',
@@ -27,66 +25,11 @@ const healthResponseSchema = z.object({
 
 const deploymentStateSchema = z.object({ workerUrl: z.string().url() });
 
-const serverMessageSchema = z.object({ type: z.string() });
-
-type CommandResult = {
-  readonly exitCode: number;
-  readonly stdout: string;
-  readonly stderr: string;
-};
-
-function runWrangler(
-  argumentList: readonly string[],
-  standardInputText?: string,
-): CommandResult {
-  const spawnResult = Bun.spawnSync(['bunx', 'wrangler', ...argumentList], {
-    stdin:
-      standardInputText === undefined
-        ? 'ignore'
-        : new TextEncoder().encode(standardInputText),
-    stdout: 'pipe',
-    stderr: 'pipe',
-  });
-  return {
-    exitCode: spawnResult.exitCode,
-    stdout: spawnResult.stdout.toString(),
-    stderr: spawnResult.stderr.toString(),
-  };
-}
-
-function reportStep(stepLabel: string, isOk: boolean, detail?: string): void {
-  const marker = isOk ? 'ok' : 'FAIL';
-  console.log(`[${marker}] ${stepLabel}${detail ? ` — ${detail}` : ''}`);
-  if (!isOk) {
-    process.exitCode = 1;
-  }
-}
-
 async function readDevelopmentVariableMap(): Promise<Map<string, string>> {
-  const variableMap = new Map<string, string>();
   if (!existsSync(DEVELOPMENT_VARIABLES_FILE)) {
-    return variableMap;
+    return new Map();
   }
-  const fileContent = await Bun.file(DEVELOPMENT_VARIABLES_FILE).text();
-  for (const line of fileContent.split('\n')) {
-    const separatorIndex = line.indexOf('=');
-    if (line.startsWith('#') || separatorIndex <= 0) {
-      continue;
-    }
-    const variableName = line.slice(0, separatorIndex).trim();
-    let variableValue = line.slice(separatorIndex + 1).trim();
-    if (variableValue.startsWith('"') && variableValue.endsWith('"')) {
-      variableValue = variableValue.slice(1, -1).replaceAll('\\n', '\n');
-    }
-    variableMap.set(variableName, variableValue);
-  }
-  return variableMap;
-}
-
-function generateSharedSecret(): string {
-  const randomBytes = new Uint8Array(32);
-  crypto.getRandomValues(randomBytes);
-  return Buffer.from(randomBytes).toString('base64url');
+  return parseDevelopmentVariableMap(await Bun.file(DEVELOPMENT_VARIABLES_FILE).text());
 }
 
 async function runPreflight(): Promise<void> {
@@ -118,66 +61,6 @@ async function runPreflight(): Promise<void> {
   }
 }
 
-function ensureResourceExists(input: {
-  readonly resourceLabel: string;
-  readonly createArgumentList: readonly string[];
-  readonly verifyArgumentList: readonly string[];
-}): void {
-  const createResult = runWrangler(input.createArgumentList);
-  if (createResult.exitCode === 0) {
-    reportStep(input.resourceLabel, true, 'created');
-    return;
-  }
-  const verifyResult = runWrangler(input.verifyArgumentList);
-  reportStep(
-    input.resourceLabel,
-    verifyResult.exitCode === 0,
-    verifyResult.exitCode === 0
-      ? 'already exists'
-      : createResult.stderr.trim().split('\n').at(-1),
-  );
-}
-
-function runProvision(): void {
-  ensureResourceExists({
-    resourceLabel: `r2 bucket ${R2_BUCKET_NAME}`,
-    createArgumentList: ['r2', 'bucket', 'create', R2_BUCKET_NAME],
-    verifyArgumentList: ['r2', 'bucket', 'info', R2_BUCKET_NAME],
-  });
-  ensureResourceExists({
-    resourceLabel: `r2 bucket ${R2_PREVIEW_BUCKET_NAME}`,
-    createArgumentList: ['r2', 'bucket', 'create', R2_PREVIEW_BUCKET_NAME],
-    verifyArgumentList: ['r2', 'bucket', 'info', R2_PREVIEW_BUCKET_NAME],
-  });
-  ensureResourceExists({
-    resourceLabel: `vectorize index ${VECTORIZE_INDEX_NAME}`,
-    createArgumentList: [
-      'vectorize',
-      'create',
-      VECTORIZE_INDEX_NAME,
-      `--dimensions=${VECTORIZE_DIMENSION_COUNT}`,
-      `--metric=${VECTORIZE_METRIC}`,
-    ],
-    verifyArgumentList: ['vectorize', 'get', VECTORIZE_INDEX_NAME],
-  });
-  const vectorizeDetails = runWrangler(['vectorize', 'get', VECTORIZE_INDEX_NAME]);
-  if (
-    vectorizeDetails.exitCode === 0 &&
-    !vectorizeDetails.stdout.includes(String(VECTORIZE_DIMENSION_COUNT))
-  ) {
-    reportStep(
-      'vectorize dimensions',
-      false,
-      `index does not report ${VECTORIZE_DIMENSION_COUNT} dimensions — delete it (\`bunx wrangler vectorize delete ${VECTORIZE_INDEX_NAME}\`) and re-run provision`,
-    );
-  }
-  ensureResourceExists({
-    resourceLabel: `queue ${QUEUE_NAME}`,
-    createArgumentList: ['queues', 'create', QUEUE_NAME],
-    verifyArgumentList: ['queues', 'info', QUEUE_NAME],
-  });
-}
-
 async function runSecrets(): Promise<void> {
   if (!existsSync(DEVELOPMENT_VARIABLES_FILE)) {
     reportStep(
@@ -188,7 +71,7 @@ async function runSecrets(): Promise<void> {
     return;
   }
   let fileContent = await Bun.file(DEVELOPMENT_VARIABLES_FILE).text();
-  const variableMap = await readDevelopmentVariableMap();
+  const variableMap = parseDevelopmentVariableMap(fileContent);
   for (const secretName of GENERATED_SECRET_NAME_LIST) {
     const currentValue = variableMap.get(secretName) ?? '';
     if (currentValue !== '' && !currentValue.startsWith('dev-')) {
@@ -340,14 +223,6 @@ async function runVerify(urlFlagValue: string | undefined): Promise<void> {
       error instanceof Error ? error.message : String(error),
     );
   }
-}
-
-function readFlagValue(
-  argumentList: readonly string[],
-  flagName: string,
-): string | undefined {
-  const flagIndex = argumentList.indexOf(flagName);
-  return flagIndex >= 0 ? argumentList[flagIndex + 1] : undefined;
 }
 
 const subcommand = Bun.argv[2];

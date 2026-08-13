@@ -1,41 +1,14 @@
 import { cpSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { z } from 'zod';
+import { join, relative } from 'node:path';
 
 import { findForbiddenPatternViolationList } from '@/guard';
-import { parseJsoncDocument } from '@/jsonc';
 import { starterManifest } from '@/manifest';
+import { buildStarterPackageDocument, buildStarterWranglerDocument } from '@/transform';
 
 const repositoryRootDirectory = join(import.meta.dir, '..', '..');
 const outputDirectory = join(import.meta.dir, 'out');
 const assetsDirectory = join(import.meta.dir, 'assets');
-
-const wranglerConfigurationSchema = z
-  .object({
-    durable_objects: z.object({
-      bindings: z.array(
-        z.object({ name: z.string(), class_name: z.string() }).passthrough(),
-      ),
-    }),
-    migrations: z.array(
-      z
-        .object({
-          tag: z.string(),
-          new_sqlite_classes: z.array(z.string()).optional(),
-        })
-        .passthrough(),
-    ),
-  })
-  .passthrough();
-
-const packageManifestSchema = z
-  .object({
-    packageManager: z.string().optional(),
-    dependencies: z.record(z.string()).optional(),
-    devDependencies: z.record(z.string()).optional(),
-  })
-  .passthrough();
 
 async function readRepositoryTextFile(relativePath: string): Promise<string> {
   return Bun.file(join(repositoryRootDirectory, relativePath)).text();
@@ -45,15 +18,10 @@ async function writeOutputTextFile(relativePath: string, content: string): Promi
   await Bun.write(join(outputDirectory, relativePath), content);
 }
 
-function applyRewriteList(
-  content: string,
-  rewriteList: readonly { readonly from: string; readonly to: string }[],
-): string {
-  let rewrittenContent = content;
-  for (const rewrite of rewriteList) {
-    rewrittenContent = rewrittenContent.replaceAll(rewrite.from, rewrite.to);
-  }
-  return rewrittenContent;
+function listFileRelativePathList(rootDirectory: string): readonly string[] {
+  return readdirSync(rootDirectory, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => relative(rootDirectory, join(entry.parentPath, entry.name)));
 }
 
 function copyAgentSources(): void {
@@ -81,136 +49,27 @@ async function applyIdentityPlaceholderSwap(): Promise<void> {
   await Bun.write(identityFilePath, identityContent.replace(swap.from, swap.to));
 }
 
-async function emitStarterWranglerConfiguration(): Promise<void> {
-  const monorepoConfigurationText = await readRepositoryTextFile(
-    join(starterManifest.agentDirectory, 'wrangler.jsonc'),
-  );
-  const configuration = wranglerConfigurationSchema.parse(
-    parseJsoncDocument(monorepoConfigurationText),
-  );
-  const removedClassSet = new Set<string>(
-    starterManifest.wranglerRemovedDurableObjectClassList,
-  );
-
-  const {
-    routes: _removedRouteList,
-    containers: _removedContainerList,
-    ...keptConfiguration
-  } = configuration;
-  const starterConfiguration = {
-    ...keptConfiguration,
-    workers_dev: true,
-    durable_objects: {
-      bindings: configuration.durable_objects.bindings.filter(
-        (binding) => !removedClassSet.has(binding.class_name),
-      ),
-    },
-    migrations: configuration.migrations
-      .map((migration) => ({
-        ...migration,
-        new_sqlite_classes: migration.new_sqlite_classes?.filter(
-          (className) => !removedClassSet.has(className),
-        ),
-      }))
-      .filter(
-        (migration) =>
-          migration.new_sqlite_classes === undefined ||
-          migration.new_sqlite_classes.length > 0,
-      ),
-  };
-
-  const headerCommentText = [
-    '// apollo-starter wrangler configuration — generated from the Apollo monorepo.',
-    '// Containers and the Sandbox binding (the coding opt-in) are deliberately absent;',
-    '// the re-enable runbook lives in .claude/skills/apollo-tooling/SKILL.md.',
-  ].join('\n');
+async function emitConfiguration(): Promise<void> {
   await writeOutputTextFile(
     'wrangler.jsonc',
-    `${headerCommentText}\n${JSON.stringify(starterConfiguration, null, 2)}\n`,
-  );
-}
-
-async function emitStarterPackageManifest(): Promise<void> {
-  const agentPackage = packageManifestSchema.parse(
-    JSON.parse(
-      await readRepositoryTextFile(join(starterManifest.agentDirectory, 'package.json')),
+    buildStarterWranglerDocument(
+      await readRepositoryTextFile(
+        join(starterManifest.agentDirectory, 'wrangler.jsonc'),
+      ),
     ),
   );
-  const rootPackage = packageManifestSchema.parse(
-    JSON.parse(await readRepositoryTextFile('package.json')),
-  );
-  const wizardPackage = packageManifestSchema.parse(
-    JSON.parse(
-      await readRepositoryTextFile(join(starterManifest.wizardDirectory, 'package.json')),
-    ),
-  );
-  const wizardOnlyDependencyEntryList = Object.entries(
-    wizardPackage.dependencies ?? {},
-  ).filter(
-    ([dependencyName]) => agentPackage.dependencies?.[dependencyName] === undefined,
-  );
-  const wranglerVersion = agentPackage.devDependencies?.wrangler;
-  const typescriptVersion = rootPackage.devDependencies?.typescript;
-  const bunTypesVersion = rootPackage.devDependencies?.['@types/bun'];
-  if (
-    wranglerVersion === undefined ||
-    typescriptVersion === undefined ||
-    bunTypesVersion === undefined
-  ) {
-    throw new Error(
-      'package manifest drift: expected wrangler, typescript, and @types/bun versions upstream',
-    );
-  }
-
-  const starterPackage = {
-    name: starterManifest.starterName,
-    private: true,
-    type: 'module',
-    packageManager: rootPackage.packageManager,
-    scripts: {
-      dev: 'wrangler dev',
-      deploy: 'wrangler deploy',
-      types: 'wrangler types',
-      typecheck: 'tsc --noEmit',
-      test: 'bun test',
-      check: 'bun run types && bun run typecheck && bun run test',
-      bootstrap: 'bun scripts/bootstrap.ts',
-      probe: 'bun scripts/probe.ts',
-      setup: `bun ${starterManifest.wizardOutputDirectory}/index.ts`,
-    },
-    dependencies: agentPackage.dependencies,
-    devDependencies: {
-      '@types/bun': bunTypesVersion,
-      typescript: typescriptVersion,
-      wrangler: wranglerVersion,
-      ...Object.fromEntries(wizardOnlyDependencyEntryList),
-    },
-  };
   await writeOutputTextFile(
     'package.json',
-    `${JSON.stringify(starterPackage, null, 2)}\n`,
+    buildStarterPackageDocument({
+      agentPackageText: await readRepositoryTextFile(
+        join(starterManifest.agentDirectory, 'package.json'),
+      ),
+      rootPackageText: await readRepositoryTextFile('package.json'),
+      wizardPackageText: await readRepositoryTextFile(
+        join(starterManifest.wizardDirectory, 'package.json'),
+      ),
+    }),
   );
-}
-
-function listFilesRecursively(rootDirectory: string): readonly string[] {
-  const relativePathList: string[] = [];
-  const walkDirectory = (currentRelativePath: string): void => {
-    const entryList = readdirSync(join(rootDirectory, currentRelativePath), {
-      withFileTypes: true,
-    });
-    for (const entry of entryList) {
-      const entryRelativePath = currentRelativePath
-        ? join(currentRelativePath, entry.name)
-        : entry.name;
-      if (entry.isDirectory()) {
-        walkDirectory(entryRelativePath);
-      } else {
-        relativePathList.push(entryRelativePath);
-      }
-    }
-  };
-  walkDirectory('');
-  return relativePathList;
 }
 
 async function emitDocumentation(): Promise<void> {
@@ -219,7 +78,7 @@ async function emitDocumentation(): Promise<void> {
     starterManifest.documentationDirectory,
   );
   const excludedPathList = starterManifest.documentationExcludeList;
-  for (const relativePath of listFilesRecursively(documentationRoot)) {
+  for (const relativePath of listFileRelativePathList(documentationRoot)) {
     const isExcluded = excludedPathList.some(
       (excludedPath) =>
         relativePath === excludedPath || relativePath.startsWith(`${excludedPath}/`),
@@ -227,11 +86,10 @@ async function emitDocumentation(): Promise<void> {
     if (isExcluded) {
       continue;
     }
-    const originalContent = await Bun.file(join(documentationRoot, relativePath)).text();
-    const rewrittenContent = applyRewriteList(
-      originalContent,
-      starterManifest.documentationRewriteList,
-    );
+    let rewrittenContent = await Bun.file(join(documentationRoot, relativePath)).text();
+    for (const rewrite of starterManifest.documentationRewriteList) {
+      rewrittenContent = rewrittenContent.replaceAll(rewrite.from, rewrite.to);
+    }
     const keptLineList = rewrittenContent
       .split('\n')
       .filter(
@@ -302,7 +160,7 @@ async function emitAssets(): Promise<void> {
 
 async function runForbiddenPatternGuard(): Promise<void> {
   const fileContentByRelativePath = new Map<string, string>();
-  for (const relativePath of listFilesRecursively(outputDirectory)) {
+  for (const relativePath of listFileRelativePathList(outputDirectory)) {
     fileContentByRelativePath.set(
       relativePath,
       await Bun.file(join(outputDirectory, relativePath)).text(),
@@ -351,8 +209,7 @@ async function buildStarter(): Promise<void> {
   mkdirSync(outputDirectory, { recursive: true });
   copyAgentSources();
   await applyIdentityPlaceholderSwap();
-  await emitStarterWranglerConfiguration();
-  await emitStarterPackageManifest();
+  await emitConfiguration();
   await emitDocumentation();
   await emitSkills();
   await emitWizard();

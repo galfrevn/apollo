@@ -1,16 +1,7 @@
-import { z } from 'zod';
+import { readFlagValue } from './flags';
+import { serverMessageSchema } from './messages';
 
 const DEFAULT_PROBE_TIMEOUT_MILLISECONDS = 15_000;
-
-const serverMessageSchema = z.object({ type: z.string() }).passthrough();
-
-function readFlagValue(
-  argumentList: readonly string[],
-  flagName: string,
-): string | undefined {
-  const flagIndex = argumentList.indexOf(flagName);
-  return flagIndex >= 0 ? argumentList[flagIndex + 1] : undefined;
-}
 
 function formatBinaryFrameForLog(frameBytes: Uint8Array): string {
   const decodedText = new TextDecoder().decode(frameBytes);

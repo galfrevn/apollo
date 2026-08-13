@@ -16,7 +16,7 @@ apps/wizard/src ───────┤        guard + smoke                (gi
 tooling/starter/assets ┘
 ```
 
-`bun tooling/starter/build.ts` generates; `--smoke` additionally copies the output to a temp directory, runs `bun install`, the starter's own `bun run check` (types + typecheck + the full agent test suite against the container-less config), and `wrangler deploy --dry-run`. The declarative inputs live in `tooling/starter/manifest.ts`; `build.ts` only copies, substitutes, and deletes — a transform that would need real code surgery is a signal to genericize `apps/agent` instead.
+`bun tooling/starter/build.ts` generates; `--smoke` additionally copies the output to a temp directory, runs `bun install`, the starter's own `bun run check` (types + typecheck + the full agent test suite against the container-less config), and `wrangler deploy --dry-run`. The declarative inputs live in `tooling/starter/manifest.ts`, the pure config transforms in `tooling/starter/transform.ts`; `build.ts` only copies, substitutes, and deletes — a transform that would need real code surgery is a signal to genericize `apps/agent` instead.
 
 ## Transforms
 
@@ -36,7 +36,7 @@ tooling/starter/assets ┘
 
 ## npm distribution: `create-heyapollo`
 
-`tooling/create` publishes the one-command path — `bun create heyapollo` / `npm create heyapollo`. The package embeds the generated starter as its `template/` directory (no cloning, no network fetch at scaffold time): `prepack` regenerates the starter and copies `tooling/starter/out` in, then bundles the Node-target bin. The bin scaffolds, renames the undotted `gitignore` back (npm drops `.gitignore` files from packages), initializes git, runs `bun install`, and hands off to the wizard; `--no-install`, `--no-setup`, and `--no-git` opt out. Publishing is `cd tooling/create && npm publish` from a logged-in npm account — bump the package version alongside the starter tag so a published CLI always carries the template it was tested with.
+`tooling/create` publishes the one-command path — `bun create heyapollo` / `npm create heyapollo`. The package embeds the generated starter as its `template/` directory (no cloning, no network fetch at scaffold time): `prepack` regenerates the starter and copies `tooling/starter/out` in, then bundles the Node-target bin. The bin scaffolds, renames the undotted `gitignore` back (npm drops `.gitignore` files from packages), initializes git, runs `bun install`, and hands off to the wizard; `--no-install`, `--no-setup`, and `--no-git` opt out. The **first** publish is `cd tooling/create && npm publish` from a logged-in npm account; after that, configure npm Trusted Publishing for the package (GitHub Actions, repository `galfrevn/apollo`, workflow `publish.yml`) and every release is a tag: push `create-v<version>` matching the package version and `.github/workflows/publish.yml` smoke-builds the embedded starter and publishes with provenance over OIDC — no npm token secret anywhere. Bump the package version alongside the starter tag so a published CLI always carries the template it was tested with.
 
 ## Releasing
 
