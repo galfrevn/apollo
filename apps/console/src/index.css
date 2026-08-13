@@ -53,6 +53,13 @@
     color-scheme: dark;
   }
 
+  /* Crawlers and no-JS readers get the prerendered landing block; humans with
+     scripting see a quiet background until React mounts, never a content swap.
+     main.tsx removes the attribute if the landing chunk fails to load. */
+  html[data-scripting] [data-landing-static] {
+    display: none;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
