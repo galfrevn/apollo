@@ -55,8 +55,10 @@ export function LandingFooter() {
           })}
         </p>
         <div className="flex flex-wrap items-center justify-between gap-5 text-xs text-dim">
-          <span className="font-serif text-sm">{footerMessages.wakePhrase}</span>
-          <LocaleToggle />
+          <span className="flex items-center gap-5">
+            <span className="font-serif text-sm">{footerMessages.wakePhrase}</span>
+            <LocaleToggle />
+          </span>
           <span>
             {footerMessages.builtByPrefix}
             <a
