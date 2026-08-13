@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 
 import { mapGeocodeResponseToCandidateList } from '@/geocode';
-import { mapVoicesResponseToChoiceList, MAXIMUM_VOICE_CHOICE_COUNT } from '@/keys';
+import {
+  describeOpenRouterKeyStatus,
+  mapVoicesResponseToChoiceList,
+  MAXIMUM_VOICE_CHOICE_COUNT,
+} from '@/keys';
 
 describe('mapGeocodeResponseToCandidateList', () => {
   it('labels candidates and drops entries without a timezone', () => {
@@ -43,7 +47,8 @@ describe('mapVoicesResponseToChoiceList', () => {
     });
     expect(choiceList[0]).toEqual({
       voiceId: 'voice-1',
-      displayLabel: 'Malena (argentine, es, cloned)',
+      displayLabel: 'Malena',
+      detailHint: 'argentine, es, cloned',
     });
     expect(choiceList[1]).toEqual({ voiceId: 'voice-2', displayLabel: 'Plain' });
   });
@@ -56,5 +61,24 @@ describe('mapVoicesResponseToChoiceList', () => {
     expect(mapVoicesResponseToChoiceList({ voices: oversizedVoiceList })).toHaveLength(
       MAXIMUM_VOICE_CHOICE_COUNT,
     );
+  });
+});
+
+describe('describeOpenRouterKeyStatus', () => {
+  it('prefers remaining credit when the key has a limit', () => {
+    expect(
+      describeOpenRouterKeyStatus({ data: { usage: 1.2, limit_remaining: 8.766 } }),
+    ).toBe('$8.77 credit remaining');
+  });
+
+  it('falls back to usage for unlimited keys', () => {
+    expect(
+      describeOpenRouterKeyStatus({ data: { usage: 4.821, limit_remaining: null } }),
+    ).toBe('$4.82 used so far');
+  });
+
+  it('returns undefined for an unexpected payload', () => {
+    expect(describeOpenRouterKeyStatus({ unexpected: true })).toBeUndefined();
+    expect(describeOpenRouterKeyStatus({ data: {} })).toBeUndefined();
   });
 });

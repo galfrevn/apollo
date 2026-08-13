@@ -4,7 +4,7 @@ const KEY_VALIDATION_TIMEOUT_MILLISECONDS = 10_000;
 export const MAXIMUM_VOICE_CHOICE_COUNT = 30;
 
 export type KeyValidationResult =
-  | { readonly isValid: true }
+  | { readonly isValid: true; readonly successDetail?: string }
   | { readonly isValid: false; readonly reason: string };
 
 async function fetchWithTimeout(
@@ -23,6 +23,29 @@ function describeHttpFailure(response: Response): string {
     : `unexpected status ${response.status}`;
 }
 
+const openRouterKeyResponseSchema = z.object({
+  data: z.object({
+    usage: z.number().optional(),
+    limit_remaining: z.number().nullable().optional(),
+  }),
+});
+
+export function describeOpenRouterKeyStatus(rawResponse: unknown): string | undefined {
+  const parsedResponse = openRouterKeyResponseSchema.safeParse(rawResponse);
+  if (!parsedResponse.success) {
+    return undefined;
+  }
+  const remainingCredit = parsedResponse.data.data.limit_remaining;
+  if (typeof remainingCredit === 'number') {
+    return `$${remainingCredit.toFixed(2)} credit remaining`;
+  }
+  const usedCredit = parsedResponse.data.data.usage;
+  if (typeof usedCredit === 'number') {
+    return `$${usedCredit.toFixed(2)} used so far`;
+  }
+  return undefined;
+}
+
 export async function validateOpenRouterApiKey(
   apiKey: string,
 ): Promise<KeyValidationResult> {
@@ -30,9 +53,11 @@ export async function validateOpenRouterApiKey(
     const response = await fetchWithTimeout('https://openrouter.ai/api/v1/key', {
       headers: { Authorization: `Bearer ${apiKey}` },
     });
-    return response.ok
-      ? { isValid: true }
-      : { isValid: false, reason: describeHttpFailure(response) };
+    if (!response.ok) {
+      return { isValid: false, reason: describeHttpFailure(response) };
+    }
+    const responseBody: unknown = await response.json().catch(() => undefined);
+    return { isValid: true, successDetail: describeOpenRouterKeyStatus(responseBody) };
   } catch (error) {
     return {
       isValid: false,
@@ -55,6 +80,7 @@ const elevenLabsVoicesResponseSchema = z.object({
 export type VoiceChoice = {
   readonly voiceId: string;
   readonly displayLabel: string;
+  readonly detailHint?: string;
 };
 
 export function mapVoicesResponseToChoiceList(
@@ -69,10 +95,8 @@ export function mapVoicesResponseToChoiceList(
     ].filter((detail): detail is string => detail !== undefined && detail.length > 0);
     return {
       voiceId: voice.voice_id,
-      displayLabel:
-        labelDetailList.length > 0
-          ? `${voice.name} (${labelDetailList.join(', ')})`
-          : voice.name,
+      displayLabel: voice.name,
+      ...(labelDetailList.length > 0 ? { detailHint: labelDetailList.join(', ') } : {}),
     };
   });
 }
