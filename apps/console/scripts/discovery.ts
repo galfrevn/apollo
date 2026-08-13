@@ -1,3 +1,5 @@
+import { mkdir } from 'node:fs/promises';
+
 import { buildConsoleDocument, buildLandingDocument } from '@/landing/static';
 import { CONSOLE_ROUTE_LIST } from '@/router/route';
 
@@ -13,6 +15,7 @@ await Bun.write(
 );
 
 const consoleDocumentHtml = buildConsoleDocument(templateHtml);
+await mkdir(new URL('console/', distDirectoryUrl), { recursive: true });
 await Bun.write(new URL('console.html', distDirectoryUrl), consoleDocumentHtml);
 for (const consoleRoute of CONSOLE_ROUTE_LIST) {
   await Bun.write(
