@@ -35,4 +35,4 @@ Thin map from handbook topics to code folders. Prefer the narrative chapters for
 
 ## Navigation
 
-Prev: [Design](../console/design.md) · Next: [Roadmap](roadmap.md)
+Prev: [Landing](../console/landing.md) · Next: [Roadmap](roadmap.md)

@@ -76,6 +76,8 @@ Signature patterns: **stat tiles** (`apps/console/src/status/tiles.tsx`) are `mi
 
 Structural motion is limited to three moves: the rail's push (margin animation on the content column), the Sheet's 0.4s slide-in from the right (`sheet` keyframe, same ease family as `settle`), and the Skeleton pulse. No scale, spring, or blur transitions; no spinners.
 
+GSAP is sanctioned only on the landing surface (`src/landing/`), never in the console chrome — see [Landing](landing.md) for its motion policy.
+
 ## Layout
 
 - **Rail** (`apps/console/src/layout/nav.tsx`) — fixed left, full height, `hidden md:flex`; 70px wide collapsed, expanding to 240px (`w-60`) on hover or focus. The expansion pushes: the shell animates the content column's `margin-left` from 70px to 240px in step with the rail, so nothing is ever covered. Three bands: 70px brand row (LogoMark + "Apollo Console"), nav list (h-10 square items, active = `border-border bg-active text-foreground`, inactive = `text-dim` borderless), 70px identity footer (device initial in a bordered `bg-accent` square, device name + worker host).
@@ -121,4 +123,4 @@ Structural motion is limited to three moves: the rail's push (margin animation o
 
 ## Navigation
 
-Prev: [Product](product.md) · Next: [Mapping](../reference/mapping.md)
+Prev: [Product](product.md) · Next: [Landing](landing.md)

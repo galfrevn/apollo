@@ -117,6 +117,67 @@
   background-size: 6px 6px;
 }
 
+@utility underline-reveal {
+  position: relative;
+  padding-bottom: 3px;
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 1px;
+    width: 100%;
+    background: var(--color-foreground);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  &:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+@keyframes waveform {
+  0%,
+  100% {
+    height: 20%;
+  }
+  50% {
+    height: 90%;
+  }
+}
+
+@keyframes settlerow {
+  0% {
+    transform: scaleX(0);
+  }
+  35%,
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes scanline {
+  from {
+    left: -30%;
+  }
+  to {
+    left: 100%;
+  }
+}
+
+@keyframes caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
 @keyframes signal {
   0%,
   100% {

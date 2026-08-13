@@ -20,7 +20,7 @@ A management dashboard for the Apollo agent. It connects directly to the owner's
 
 ## Positioning
 
-The only UI for Apollo. It explains the agent's internal state rather than configuring infrastructure — panels answer "what does my agent know/see/plan" — and it is stateless: the console stores nothing server-side; every fact shown comes live from the owner's own worker.
+The worker serves two surfaces: the marketing landing at `/` (see [Landing](landing.md)) and the console at `/console`. The console is the management UI for Apollo. It explains the agent's internal state rather than configuring infrastructure — panels answer "what does my agent know/see/plan" — and it is stateless: the console stores nothing server-side; every fact shown comes live from the owner's own worker.
 
 ## Operating Context
 
@@ -40,7 +40,7 @@ Name: "Apollo Console". Binding visual direction (user-revised 2026-08-12, super
 
 ## Evidence on Hand
 
-The agent's real data models in `apps/agent/src/`: `ApolloState`, `McpServerSummary`, `DeskTelemetrySnapshot`, `ConsoleStatusSnapshot`, `MemoryRecord`, `OwnerFact`, `ListItemRecord`, `ScheduledReminderRow`. Reference screenshot of the aesthetic: user-supplied Cloudflare Sandbox landing image (not in repo). No testimonials, logos, or marketing claims exist — the console has no marketing surface.
+The agent's real data models in `apps/agent/src/`: `ApolloState`, `McpServerSummary`, `DeskTelemetrySnapshot`, `ConsoleStatusSnapshot`, `MemoryRecord`, `OwnerFact`, `ListItemRecord`, `ScheduledReminderRow`. Reference screenshot of the aesthetic: user-supplied Cloudflare Sandbox landing image (not in repo). No testimonials, logos, or invented marketing claims exist — the landing at `/` is the only marketing surface, and it states repo facts only.
 
 ## Product Principles
 

@@ -9,6 +9,7 @@ import {
   MdOutlineSearch,
   MdOutlineSpaceDashboard,
   MdOutlineSpeaker,
+  MdOutlineStarBorder,
 } from 'react-icons/md';
 import type { IconBaseProps } from 'react-icons';
 
@@ -41,5 +42,6 @@ export const Icons = {
   Memory: MdOutlinePsychology,
   Schedules: MdOutlineSchedule,
   Search: MdOutlineSearch,
+  Star: MdOutlineStarBorder,
   Status: MdOutlineSpaceDashboard,
 };
