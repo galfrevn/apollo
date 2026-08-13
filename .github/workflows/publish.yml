@@ -45,14 +45,10 @@ jobs:
       - name: Smoke-build the starter that will be embedded
         run: bun tooling/starter/build.ts --smoke
 
-      - name: Setup Node for npm publishing
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
-
-      # Trusted Publishing needs a recent npm; provenance is attested from the
-      # OIDC-verified workflow identity.
+      # Trusted Publishing needs a recent npm and NO configured auth token:
+      # setup-node's registry-url writes a placeholder-token .npmrc that
+      # overrides the OIDC exchange and turns the publish into a 404. The
+      # runner's preinstalled Node is enough to bootstrap npm@latest.
       - name: Publish with provenance
         working-directory: tooling/create
         run: |
