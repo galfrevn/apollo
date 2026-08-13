@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Slider } from '@/components/ui/slider';
@@ -17,6 +17,14 @@ function SliderRow({
   const [pendingValue, setPendingValue] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isApplying, setIsApplying] = useState(false);
+
+  // Telemetry is the source of truth: once a fresh reading arrives, the
+  // optimistic value has done its job and must stop shadowing the device.
+  useEffect(() => {
+    if (currentValue !== undefined) {
+      setPendingValue(null);
+    }
+  }, [currentValue]);
 
   const displayedValue = pendingValue ?? currentValue;
 
