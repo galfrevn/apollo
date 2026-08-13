@@ -26,4 +26,4 @@ Allow: /
 User-agent: CCBot
 Allow: /
 
-Sitemap: https://apollo-console.galfre-vn.workers.dev/sitemap.xml
+Sitemap: https://heyapollo.dev/sitemap.xml
