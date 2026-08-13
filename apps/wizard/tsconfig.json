@@ -2,8 +2,16 @@
   "extends": "@apollo/typescript-config/script.json",
   "compilerOptions": {
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*", "./cli/*", "./generator/*"]
     }
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "cli/**/*.ts",
+    "generator/**/*.ts",
+    "scripts/**/*.ts",
+    "__tests__/**/*.ts",
+    "build.ts",
+    "template.ts"
+  ]
 }

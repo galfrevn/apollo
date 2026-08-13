@@ -30,14 +30,14 @@ jobs:
           worker-types: 'false'
 
       - name: Generate starter and smoke-build it
-        run: bun tooling/starter/build.ts --smoke
+        run: bun apps/wizard/generator/build.ts --smoke
 
       - name: Push snapshot to apollo-starter
         env:
           STARTER_DEPLOY_TOKEN: ${{ secrets.STARTER_DEPLOY_TOKEN }}
         run: |
           starterVersionTag="${GITHUB_REF_NAME#starter-}"
-          cd tooling/starter/out
+          cd apps/wizard/generator/out
           git init --initial-branch=main
           git config user.name 'apollo-starter-bot'
           git config user.email 'noreply@users.noreply.github.com'

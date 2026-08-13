@@ -82,7 +82,7 @@ describe('skill freshness anchors', () => {
 
   it('the Vectorize dimensions match between the bootstrap script and the setup skill', async () => {
     const bootstrapContent = await readRepositoryFile(
-      'tooling/starter/assets/scripts/provision.ts',
+      'apps/wizard/generator/assets/scripts/provision.ts',
     );
     const setupSkillContent = await readRepositoryFile('documentation/skills/setup.md');
     expect(bootstrapContent).toContain('VECTORIZE_DIMENSION_COUNT = 1536');

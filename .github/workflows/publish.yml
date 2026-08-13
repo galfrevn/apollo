@@ -1,5 +1,5 @@
 # Publishes create-heyapollo to npm. Trigger: push a tag like `create-v0.1.0`
-# whose version must match tooling/create/package.json.
+# whose version must match apps/wizard/package.json.
 #
 # Auth is npm Trusted Publishing (OIDC) — no long-lived npm token secret.
 # One-time setup, after the FIRST manual publish from a logged-in machine:
@@ -35,7 +35,7 @@ jobs:
 
       - name: Verify the tag matches the package version
         run: |
-          packageVersion=$(bun -e "console.log(JSON.parse(await Bun.file('tooling/create/package.json').text()).version)")
+          packageVersion=$(bun -e "console.log(JSON.parse(await Bun.file('apps/wizard/package.json').text()).version)")
           tagVersion="${GITHUB_REF_NAME#create-v}"
           if [ "$packageVersion" != "$tagVersion" ]; then
             echo "tag $GITHUB_REF_NAME does not match package version $packageVersion" >&2
@@ -43,14 +43,14 @@ jobs:
           fi
 
       - name: Smoke-build the starter that will be embedded
-        run: bun tooling/starter/build.ts --smoke
+        run: bun apps/wizard/generator/build.ts --smoke
 
       # Trusted Publishing needs a recent npm and NO configured auth token:
       # setup-node's registry-url writes a placeholder-token .npmrc that
       # overrides the OIDC exchange and turns the publish into a 404. The
       # runner's preinstalled Node is enough to bootstrap npm@latest.
       - name: Publish with provenance
-        working-directory: tooling/create
+        working-directory: apps/wizard
         run: |
           npm install -g npm@latest
           npm publish --provenance --access public

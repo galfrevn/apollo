@@ -1,7 +1,7 @@
 import { chmodSync } from 'node:fs';
 import { join } from 'node:path';
 
-const entryFilePath = join(import.meta.dir, 'src', 'index.ts');
+const entryFilePath = join(import.meta.dir, 'cli', 'index.ts');
 const outputFilePath = join(import.meta.dir, 'dist', 'index.js');
 
 const bundleResult = Bun.spawnSync(

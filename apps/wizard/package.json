@@ -1,9 +1,29 @@
 {
-  "name": "@apollo/wizard",
-  "private": true,
+  "name": "create-heyapollo",
+  "version": "0.2.0",
+  "description": "Scaffold your own Apollo — a personal desk agent on your Cloudflare account — and walk through its setup wizard.",
+  "license": "MIT",
+  "author": "Valentín Galfre",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/galfrevn/apollo.git",
+    "directory": "apps/wizard"
+  },
   "type": "module",
+  "bin": {
+    "create-heyapollo": "dist/index.js"
+  },
+  "files": ["dist", "template"],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "bun scripts/sandbox.ts",
+    "generate": "bun generator/build.ts",
+    "smoke": "bun generator/build.ts --smoke",
+    "template": "bun template.ts",
+    "build": "bun build.ts",
+    "prepack": "bun run template && bun run build",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },

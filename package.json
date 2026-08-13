@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "packageManager": "bun@1.3.13",
-  "workspaces": ["apps/*", "packages/*", "tooling/*"],
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "dev": "turbo run dev --filter=!@apollo/wizard",
+    "dev": "turbo run dev --filter=!create-heyapollo",
     "dev:agent": "turbo run dev --filter=@apollo/agent",
     "dev:console": "turbo run dev --filter=@apollo/console",
     "dev:wizard": "bun run --cwd apps/wizard dev",

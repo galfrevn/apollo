@@ -6,7 +6,7 @@ import { findForbiddenPatternViolationList } from '@/guard';
 import { starterManifest } from '@/manifest';
 import { buildStarterPackageDocument, buildStarterWranglerDocument } from '@/transform';
 
-const repositoryRootDirectory = join(import.meta.dir, '..', '..');
+const repositoryRootDirectory = join(import.meta.dir, '..', '..', '..');
 const outputDirectory = join(import.meta.dir, 'out');
 const assetsDirectory = join(import.meta.dir, 'assets');
 

@@ -48,7 +48,6 @@ export const starterManifest = {
     'console/landing.md',
     'reference/roadmap.md',
     'reference/starter.md',
-    'tooling/starter/',
     'apps/wizard/',
     'documentation/skills/',
   ],
