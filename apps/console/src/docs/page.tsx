@@ -22,15 +22,19 @@ export function DocsPage() {
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-10 flex h-[60px] items-center justify-between gap-4 border-b bg-background/70 px-5 backdrop-blur-xl">
-        <a
-          href={DOCS_BASE_PATH}
-          onClick={(event) => handleChapterLinkClick(event, null)}
-          className="flex items-center gap-2.5 text-sm"
-        >
-          <Icons.LogoMark size={20} />
-          Apollo
-          <span className="text-muted-foreground">{docsMessages.brandSectionLabel}</span>
-        </a>
+        <div className="flex items-center gap-2.5 text-sm">
+          <a href="/" className="flex items-center gap-2.5">
+            <Icons.LogoMark size={20} />
+            Apollo
+          </a>
+          <a
+            href={DOCS_BASE_PATH}
+            onClick={(event) => handleChapterLinkClick(event, null)}
+            className="text-muted-foreground transition-colors duration-150 hover:text-foreground"
+          >
+            {docsMessages.brandSectionLabel}
+          </a>
+        </div>
         <div className="flex items-center gap-5">
           <DocsSearch />
           <a
