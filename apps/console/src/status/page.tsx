@@ -1,29 +1,13 @@
 import { useEffect, useState } from 'react';
 
-import { Chip } from '@/blueprint/chip';
-import { Heading } from '@/blueprint/heading';
-import { Panel } from '@/blueprint/panel';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/components/utility';
-import { DeviceControls } from '@/status/device';
-import { TelemetryGrid } from '@/status/telemetry';
-import { WeatherPanel } from '@/status/weather';
+import { Insights } from '@/status/insights';
+import { TileGrid } from '@/status/tiles';
 import type { ApolloAgentHandle } from '@/agent/hook';
-import type { ApolloAgentState, ConsoleStatus } from '@/agent/schema';
 import type { ConsoleRpc } from '@/agent/rpc';
-import type { ChipTone } from '@/blueprint/chip';
+import type { ConsoleStatus } from '@/agent/schema';
 
 const STATUS_POLL_INTERVAL_MS = 10_000;
-
-const UI_STATE_TONE_MAP: Record<ApolloAgentState['uiState'], ChipTone> = {
-  idle: 'idle',
-  listening: 'live',
-  thinking: 'busy',
-  confirm: 'busy',
-  speaking: 'live',
-  focus: 'busy',
-  dashboard: 'idle',
-};
 
 export function StatusPage({
   agent,
@@ -69,146 +53,46 @@ export function StatusPage({
   }, [consoleRpc]);
 
   const agentState = agent.state;
-  const isDeviceConnected = status?.isDeviceConnected ?? false;
 
   return (
-    <div className="settle space-y-5">
-      <Heading description="Live picture of the desk and its agent">Status</Heading>
+    <div className="settle mx-auto flex max-w-3xl flex-col space-y-8 pt-4 md:min-h-[calc(100dvh-118px)] md:justify-center md:pt-0">
+      <Insights agentState={agentState} status={status} />
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(16rem,1fr)_2fr]">
-        <Panel title="Device link">
-          <div
-            className={cn(
-              'flex min-h-40 flex-col items-center justify-center gap-3 p-6 transition-colors duration-300',
-              !isDeviceConnected && 'pixelfield',
-            )}
-          >
-            <span aria-hidden className="grid grid-cols-2 gap-0.5">
-              <span
-                className={cn(
-                  'size-2 transition-colors duration-300',
-                  isDeviceConnected ? 'bg-amber' : 'bg-line',
-                )}
-              />
-              <span
-                className={cn(
-                  'size-2 transition-colors duration-300',
-                  isDeviceConnected ? 'bg-amber/60' : 'bg-line',
-                )}
-              />
-              <span
-                className={cn(
-                  'size-2 transition-colors duration-300',
-                  isDeviceConnected ? 'bg-amber/60' : 'bg-line',
-                )}
-              />
-              <span
-                className={cn(
-                  'size-2 transition-colors duration-300',
-                  isDeviceConnected ? 'bg-amber/25' : 'bg-line',
-                )}
-              />
-            </span>
-            <p className="label-soft text-muted">
-              {status === null
-                ? 'Checking…'
-                : isDeviceConnected
-                  ? 'Desk online'
-                  : 'Desk offline'}
-            </p>
-            {status !== null && status.deviceConnectionCount > 1 && (
-              <p className="text-xs text-faint">
-                {status.deviceConnectionCount} device connections
-              </p>
-            )}
+      {agentState?.pendingConfirmSummary != null && (
+        <section className="border bg-card p-5">
+          <p className="text-xs text-muted-foreground">Awaiting confirmation</p>
+          <p className="mt-2 text-sm">{agentState.pendingConfirmSummary}</p>
+          <div className="mt-4 flex gap-2">
+            <Button
+              size="sm"
+              disabled={isResolvingConfirm}
+              onClick={() => void handleResolveConfirm(true)}
+            >
+              Approve
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={isResolvingConfirm}
+              onClick={() => void handleResolveConfirm(false)}
+            >
+              Reject
+            </Button>
           </div>
-          <DeviceControls consoleRpc={consoleRpc} isDeviceConnected={isDeviceConnected} />
-        </Panel>
+        </section>
+      )}
 
-        <Panel
-          title="Agent"
-          meta={
-            agentState !== undefined ? (
-              <Chip tone={UI_STATE_TONE_MAP[agentState.uiState]}>
-                {agentState.uiState}
-              </Chip>
-            ) : undefined
-          }
-        >
-          {agentState === undefined ? (
-            <p className="p-4 text-sm text-muted">Waiting for state sync…</p>
-          ) : (
-            <dl className="grid grid-cols-2 gap-px bg-line sm:grid-cols-3">
-              <div className="bg-panel p-4">
-                <dt className="label-soft text-faint">Speech mode</dt>
-                <dd className="mt-1.5 text-sm">{agentState.speechMode}</dd>
-              </div>
-              <div className="bg-panel p-4">
-                <dt className="label-soft text-faint">Focus</dt>
-                <dd className="mt-1.5 text-sm">
-                  {agentState.focusEndsAt === null
-                    ? 'Off'
-                    : `Until ${new Date(agentState.focusEndsAt).toLocaleTimeString()}`}
-                </dd>
-              </div>
-              <div className="bg-panel p-4">
-                <dt className="label-soft text-faint">Reminders</dt>
-                <dd className="mt-1.5 text-sm">
-                  {status === null ? '—' : status.pendingReminderCount}
-                </dd>
-              </div>
-              <div aria-hidden className="bg-panel sm:hidden" />
-              {agentState.caption !== null && (
-                <div className="col-span-full bg-panel p-4">
-                  <dt className="label-soft text-faint">Caption</dt>
-                  <dd className="mt-1.5 text-sm text-muted">{agentState.caption}</dd>
-                </div>
-              )}
-              {agentState.pendingConfirmSummary !== null && (
-                <div className="col-span-full bg-panel p-4">
-                  <dt className="label-soft text-amber">Awaiting confirmation</dt>
-                  <dd className="mt-1.5 text-sm">{agentState.pendingConfirmSummary}</dd>
-                  <dd className="mt-3 flex gap-2">
-                    <Button
-                      size="sm"
-                      disabled={isResolvingConfirm}
-                      onClick={() => void handleResolveConfirm(true)}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      disabled={isResolvingConfirm}
-                      onClick={() => void handleResolveConfirm(false)}
-                    >
-                      Reject
-                    </Button>
-                  </dd>
-                </div>
-              )}
-            </dl>
-          )}
-        </Panel>
-      </div>
+      {agentState?.caption != null && (
+        <p className="text-center text-xs text-dim">“{agentState.caption}”</p>
+      )}
 
-      <Panel title="Weather location">
-        <WeatherPanel consoleRpc={consoleRpc} />
-      </Panel>
+      <TileGrid agentState={agentState} status={status} />
 
-      <Panel title="Telemetry">
-        <div className="p-4">
-          <TelemetryGrid
-            telemetry={status?.telemetry ?? null}
-            nowMilliseconds={status?.nowMilliseconds ?? Date.now()}
-          />
-          {didPollFail && (
-            <p role="alert" className="mt-3 text-xs text-danger">
-              Status poll failed — retrying every {STATUS_POLL_INTERVAL_MS / 1000}s.
-            </p>
-          )}
-        </div>
-      </Panel>
+      {didPollFail && (
+        <p role="alert" className="text-xs text-destructive">
+          Status poll failed — retrying every {STATUS_POLL_INTERVAL_MS / 1000}s.
+        </p>
+      )}
     </div>
   );
 }

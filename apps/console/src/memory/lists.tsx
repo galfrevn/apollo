@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 
-import { XIcon } from 'lucide-react';
-
 import { Empty } from '@/blueprint/empty';
+import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { ListItem } from '@/agent/schema';
@@ -34,7 +33,7 @@ function AddItemForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-wrap gap-2 border-b border-line p-3"
+      className="flex flex-wrap gap-2 border-b p-3"
       aria-busy={isAdding}
     >
       <Input
@@ -94,26 +93,26 @@ export function ListsBlock({
           className="m-3"
         />
       ) : (
-        <div className="grid gap-px bg-line sm:grid-cols-2">
+        <div className="grid gap-px bg-border sm:grid-cols-2">
           {[...groupedListMap.entries()].map(([listName, listGroupItemList]) => (
-            <section key={listName} className="bg-panel p-4">
-              <h3 className="label-soft flex items-baseline justify-between text-muted">
+            <section key={listName} className="bg-card p-4">
+              <h3 className="flex items-baseline justify-between text-xs font-medium text-muted-foreground">
                 {listName}
-                <span className="text-faint">{listGroupItemList.length}</span>
+                <span className="text-dim">{listGroupItemList.length}</span>
               </h3>
               <ul className="mt-3 space-y-1">
                 {listGroupItemList.map((item) => (
                   <li key={item.id} className="group flex items-center gap-2 text-sm">
-                    <span aria-hidden className="size-1 shrink-0 bg-faint" />
+                    <span aria-hidden className="size-1 shrink-0 bg-dim" />
                     <span className="min-w-0 flex-1">{item.content}</span>
                     <button
                       type="button"
                       onClick={() => void handleRemove(item.id)}
                       disabled={busyItemId === item.id}
                       aria-label={`Remove ${item.content}`}
-                      className="text-faint opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-danger focus-visible:opacity-100 disabled:opacity-40"
+                      className="text-dim opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100 disabled:opacity-50"
                     >
-                      <XIcon className="size-3.5" />
+                      <Icons.Close size={14} />
                     </button>
                   </li>
                 ))}
@@ -121,7 +120,7 @@ export function ListsBlock({
             </section>
           ))}
           {groupedListMap.size % 2 === 1 && (
-            <div aria-hidden className="hidden bg-panel sm:block" />
+            <div aria-hidden className="hidden bg-card sm:block" />
           )}
         </div>
       )}
