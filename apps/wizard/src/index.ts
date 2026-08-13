@@ -12,6 +12,7 @@ import {
 import { existsSync } from 'node:fs';
 import { z } from 'zod';
 
+import { printWizardBanner } from '@/banner';
 import {
   readCurrentTtsVoiceId,
   rewriteTimeZone,
@@ -24,6 +25,7 @@ import {
   validateResendApiKey,
   validateTavilyApiKey,
 } from '@/keys';
+import { announceWizardPhase, WIZARD_PHASE_LIST } from '@/phases';
 import {
   inspectWranglerAuthState,
   isR2Enabled,
@@ -44,7 +46,18 @@ const IDENTITY_FILE = 'src/configuration/identity.ts';
 const deploymentStateSchema = z.object({ workerUrl: z.string().url() }).partial();
 
 async function runWizard(): Promise<void> {
-  intro('Apollo setup — from nothing to a talking worker');
+  printWizardBanner('from nothing to a talking worker');
+  intro('Apollo setup');
+  note(
+    [
+      ...WIZARD_PHASE_LIST.map(
+        (phaseName, phaseIndex) => `${phaseIndex + 1}. ${phaseName}`,
+      ),
+      '',
+      'About five minutes end to end. Trial mode needs zero API keys.',
+    ].join('\n'),
+    'What happens next',
+  );
 
   if (!existsSync(DEVELOPMENT_VARIABLES_FILE)) {
     await Bun.write(
@@ -53,6 +66,7 @@ async function runWizard(): Promise<void> {
     );
   }
 
+  announceWizardPhase('Cloudflare account');
   let authState = inspectWranglerAuthState();
   if (!authState.isLoggedIn) {
     const shouldLogin = requireAnswer(
@@ -92,6 +106,7 @@ async function runWizard(): Promise<void> {
   let developmentVariablesContent = await Bun.file(DEVELOPMENT_VARIABLES_FILE).text();
   let identityContent = await Bun.file(IDENTITY_FILE).text();
 
+  announceWizardPhase('API keys');
   const setupMode = requireAnswer(
     await select({
       message: 'Do you have your API keys ready?',
@@ -232,6 +247,7 @@ async function runWizard(): Promise<void> {
     );
   }
 
+  announceWizardPhase('Persona & location');
   const chosenCity = await chooseCity();
   if (chosenCity !== undefined) {
     const cityName = chosenCity.label.split(',')[0];
@@ -255,6 +271,7 @@ async function runWizard(): Promise<void> {
   await Bun.write(DEVELOPMENT_VARIABLES_FILE, developmentVariablesContent);
   await Bun.write(IDENTITY_FILE, identityContent);
 
+  announceWizardPhase('Deploy');
   const shouldDeploy = requireAnswer(
     await confirm({
       message: 'Provision the Cloudflare resources and deploy now? (bootstrap all)',
@@ -284,17 +301,19 @@ async function runWizard(): Promise<void> {
     }
   }
   const deviceWebSocketUrl = `${workerUrl.replace(/^https/, 'wss')}/agents/apollo/desk?token=<DEVICE_SHARED_SECRET>`;
-  outro(
+  note(
     [
-      'Apollo is live.',
-      `  Worker:  ${workerUrl}`,
-      `  Device:  ${deviceWebSocketUrl}`,
-      '  Secrets: DEVICE_SHARED_SECRET and DASHBOARD_SHARED_SECRET are in .dev.vars',
-      '  Console: https://heyapollo.dev/console → your worker URL + instance `desk` + DASHBOARD_SHARED_SECRET',
-      variableMap.get('MOCK_VOICE') === '1'
-        ? '  Trial mode: replies are mocked — re-run `bun run setup` when you have keys.'
-        : `  Try it:  bun run probe -- --url ${workerUrl.replace(/^https/, 'wss')}/agents/apollo/desk --token <DEVICE_SHARED_SECRET> --text "hola"`,
+      `Worker   ${workerUrl}`,
+      `Device   ${deviceWebSocketUrl}`,
+      'Secrets  DEVICE_SHARED_SECRET and DASHBOARD_SHARED_SECRET are in .dev.vars',
+      'Console  https://heyapollo.dev/console → your worker URL + instance `desk` + DASHBOARD_SHARED_SECRET',
     ].join('\n'),
+    'Apollo is live',
+  );
+  outro(
+    variableMap.get('MOCK_VOICE') === '1'
+      ? 'Trial mode: replies are mocked — re-run `bun run setup` when you have keys.'
+      : `Try it: bun run probe -- --url ${workerUrl.replace(/^https/, 'wss')}/agents/apollo/desk --token <DEVICE_SHARED_SECRET> --text "hola"`,
   );
 }
 
