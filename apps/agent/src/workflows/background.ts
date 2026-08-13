@@ -65,13 +65,14 @@ export class ApolloBackground extends WorkflowEntrypoint<Env, ApolloBackgroundPa
     // owner's inbox. Best-effort: no email config (or a send failure) must not
     // sink the research that already succeeded.
     await step.do('email-report', async () => {
-      if (!this.env.RESEND_API_KEY) {
+      const ownerEmailAddress = this.env.APOLLO_OWNER_EMAIL;
+      if (!this.env.RESEND_API_KEY || !ownerEmailAddress) {
         return false;
       }
       try {
         await sendEmailWithResend({
           resendApiKey: this.env.RESEND_API_KEY,
-          toAddress: this.env.APOLLO_OWNER_EMAIL,
+          toAddress: ownerEmailAddress,
           subject: `Informe de Apollo: ${event.payload.prompt.slice(0, 120)}`,
           textBody: reportMarkdown,
         });

@@ -20,6 +20,13 @@ class is exported from `apps/agent/src/index.ts` because `Env['Sandbox']` in
 
 Containers require the Workers Paid plan to deploy. Local development does not: `wrangler dev` builds and runs the image in your own Docker, so the full path is exercisable on the free plan.
 
+The capability is optional by design: `Env['Sandbox']` is declared optional in
+`apps/agent/src/configuration/environment.d.ts`, so a deployment whose `wrangler.jsonc` drops the
+`containers` block and the `Sandbox` binding still typechecks and deploys. Without the binding,
+`sandbox_run_code`/`sandbox_exec` and the coding tools answer with the spoken summaries in
+`apps/agent/src/sandbox/capability.ts` instead of failing, and `/health` omits `coding` from its
+feature list.
+
 ## Product fit
 
 Use the sandbox when the user needs computation or inspection that should not block or endanger the desk agent process. Prefer returning a concise spoken summary over dumping raw logs to TTS.

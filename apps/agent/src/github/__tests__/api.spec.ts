@@ -43,13 +43,13 @@ function createFetchMock(
   return { fetchImplementation, callList };
 }
 
-const apolloRepository = parseGithubRepositoryReference('galfrevn/apollo');
+const apolloRepository = parseGithubRepositoryReference('example/apollo');
 
 describe('resolveGithubDefaultBranch', () => {
   it('reads the default branch off the repository', async () => {
     const { fetchImplementation } = createFetchMock([
       {
-        fragment: '/repos/galfrevn/apollo',
+        fragment: '/repos/example/apollo',
         status: 200,
         body: { default_branch: 'main' },
       },
@@ -66,7 +66,7 @@ describe('resolveGithubDefaultBranch', () => {
 
   it('fails loudly when the repository cannot be read', async () => {
     const { fetchImplementation } = createFetchMock([
-      { fragment: '/repos/galfrevn/apollo', status: 403, body: {} },
+      { fragment: '/repos/example/apollo', status: 403, body: {} },
     ]);
 
     await expect(
@@ -85,7 +85,7 @@ describe('createGithubPullRequest', () => {
       {
         fragment: '/pulls',
         status: 201,
-        body: { number: 7, html_url: 'https://github.com/galfrevn/apollo/pull/7' },
+        body: { number: 7, html_url: 'https://github.com/example/apollo/pull/7' },
       },
     ]);
 
@@ -101,7 +101,7 @@ describe('createGithubPullRequest', () => {
 
     expect(pullRequest).toEqual({
       number: 7,
-      url: 'https://github.com/galfrevn/apollo/pull/7',
+      url: 'https://github.com/example/apollo/pull/7',
     });
     const requestBody = JSON.parse(String(callList[0].init.body));
     expect(requestBody.head).toBe('apollo/arreglar-typo-a1b2');

@@ -2,6 +2,7 @@ import type { Connection } from 'agents';
 import type { Session } from 'agents/experimental/memory/session';
 
 import type { ApolloState } from '@/agents/apollo';
+import { APOLLO_TTS_VOICE } from '@/configuration/identity';
 import { createInactiveDeskFocusState, tickDeskFocus } from '@/focus/logic';
 import { isNamespacedMcpToolName } from '@/mcp/naming';
 import {
@@ -12,7 +13,7 @@ import type { MemorySqlExecutor } from '@/memory/store';
 import { recallSemanticMemoryContent } from '@/memory/vector';
 import { resolveDeskSpeechMode } from '@/persona/catalog';
 import { resolveDeskFaceEmotion } from '@/persona/face';
-import { APOLLO_TTS_VOICE, buildInstalledToolPromptNote } from '@/persona/soul';
+import { buildInstalledToolPromptNote } from '@/persona/soul';
 import {
   encodeServerToDeviceMessage,
   type ServerToDeviceMessage,

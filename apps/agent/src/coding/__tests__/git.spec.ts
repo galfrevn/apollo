@@ -18,7 +18,7 @@ import {
 } from '@/coding/git';
 import { parseGithubRepositoryReference } from '@/github/repository';
 
-const apolloRepository = parseGithubRepositoryReference('galfrevn/apollo');
+const apolloRepository = parseGithubRepositoryReference('example/apollo');
 
 describe('quoteShellArgument', () => {
   it('neutralizes quotes and shell metacharacters', () => {
@@ -61,7 +61,7 @@ describe('git command builders', () => {
 
     expect(command).toContain('--depth 1');
     expect(command).toContain("--branch 'main'");
-    expect(command).toContain("'https://github.com/galfrevn/apollo.git'");
+    expect(command).toContain("'https://github.com/example/apollo.git'");
     // The credential helper reads the token from the environment at run time,
     // so no secret is ever present in argv.
     expect(command).toContain(`$${CODING_TOKEN_ENVIRONMENT_NAME}`);

@@ -4,7 +4,7 @@ Apollo can clone a GitHub repository, change it, run its tests, and open a pull 
 
 ## The shape of a run
 
-`start_coding_task` is `unsafe`, so one spoken confirmation authorizes the whole task; confirming every `git` and `npm` command by voice would be unusable. The handler only enqueues, so nothing starts before you approve. The job goes to the `apollo-coding` Workflow (`apps/agent/src/workflows/coding.ts`), which:
+`start_coding_task` is `unsafe`, so one spoken confirmation authorizes the whole task; confirming every `git` and `npm` command by voice would be unusable. The handler only enqueues, so nothing starts before you approve. Coding rides the sandbox: on a deployment without the `Sandbox` binding (see [Sandbox](sandbox.md)), both coding tools refuse with a spoken "not enabled" summary before anything is enqueued. The job goes to the `apollo-coding` Workflow (`apps/agent/src/workflows/coding.ts`), which:
 
 1. Mints a GitHub App installation token and reads the default branch.
 2. Clones fresh into `/workspace/repo` in the agent sandbox.

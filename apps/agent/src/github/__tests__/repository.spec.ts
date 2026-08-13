@@ -8,68 +8,64 @@ import {
 } from '@/github/repository';
 
 describe('resolveSpokenRepositoryReference', () => {
-  const installedList = [
-    'galfrevn/apollo',
-    'galfrevn/apollo-firmware',
-    'galfrevn/dotfiles',
-  ];
+  const installedList = ['example/apollo', 'example/apollo-firmware', 'example/dotfiles'];
 
   it('matches a bare spoken name regardless of case and separators', () => {
     expect(resolveSpokenRepositoryReference('dotfiles', installedList)).toEqual({
       kind: 'match',
-      fullName: 'galfrevn/dotfiles',
+      fullName: 'example/dotfiles',
     });
     expect(resolveSpokenRepositoryReference('Apollo Firmware', installedList)).toEqual({
       kind: 'match',
-      fullName: 'galfrevn/apollo-firmware',
+      fullName: 'example/apollo-firmware',
     });
     expect(resolveSpokenRepositoryReference('apollo_firmware', installedList)).toEqual({
       kind: 'match',
-      fullName: 'galfrevn/apollo-firmware',
+      fullName: 'example/apollo-firmware',
     });
   });
 
   it('prefers an exact name over a partial containment', () => {
     expect(resolveSpokenRepositoryReference('apollo', installedList)).toEqual({
       kind: 'match',
-      fullName: 'galfrevn/apollo',
+      fullName: 'example/apollo',
     });
   });
 
   it('matches a spoken full name with the owner attached', () => {
     expect(
-      resolveSpokenRepositoryReference('galfrevn apollo firmware', installedList),
-    ).toEqual({ kind: 'match', fullName: 'galfrevn/apollo-firmware' });
+      resolveSpokenRepositoryReference('example apollo firmware', installedList),
+    ).toEqual({ kind: 'match', fullName: 'example/apollo-firmware' });
   });
 
   it('ignores surrounding words in any language without a stopword list', () => {
     expect(resolveSpokenRepositoryReference('el repo apollo', installedList)).toEqual({
       kind: 'match',
-      fullName: 'galfrevn/apollo',
+      fullName: 'example/apollo',
     });
     expect(
       resolveSpokenRepositoryReference('the apollo firmware repository', installedList),
-    ).toEqual({ kind: 'match', fullName: 'galfrevn/apollo-firmware' });
+    ).toEqual({ kind: 'match', fullName: 'example/apollo-firmware' });
     expect(
       resolveSpokenRepositoryReference('mis dotfiles de siempre', installedList),
-    ).toEqual({ kind: 'match', fullName: 'galfrevn/dotfiles' });
+    ).toEqual({ kind: 'match', fullName: 'example/dotfiles' });
   });
 
   it('prefers the widest window over its inner names', () => {
     expect(resolveSpokenRepositoryReference('apollo firmware', installedList)).toEqual({
       kind: 'match',
-      fullName: 'galfrevn/apollo-firmware',
+      fullName: 'example/apollo-firmware',
     });
   });
 
   it('prefers the longer match when a generically named repository also matches', () => {
-    const listWithGenericName = ['galfrevn/repo', 'galfrevn/apollo'];
+    const listWithGenericName = ['example/repo', 'example/apollo'];
     expect(
       resolveSpokenRepositoryReference('el repo apollo', listWithGenericName),
-    ).toEqual({ kind: 'match', fullName: 'galfrevn/apollo' });
+    ).toEqual({ kind: 'match', fullName: 'example/apollo' });
     expect(resolveSpokenRepositoryReference('el repo', listWithGenericName)).toEqual({
       kind: 'match',
-      fullName: 'galfrevn/repo',
+      fullName: 'example/repo',
     });
   });
 
@@ -78,8 +74,8 @@ describe('resolveSpokenRepositoryReference', () => {
     expect(resolution.kind).toBe('ambiguous');
     if (resolution.kind === 'ambiguous') {
       expect(resolution.candidateFullNameList).toEqual([
-        'galfrevn/apollo',
-        'galfrevn/apollo-firmware',
+        'example/apollo',
+        'example/apollo-firmware',
       ]);
     }
   });
@@ -96,15 +92,15 @@ describe('resolveSpokenRepositoryReference', () => {
 
 describe('parseGithubRepositoryReference', () => {
   it('accepts the shapes a user might say or paste', () => {
-    const expected = { owner: 'galfrevn', repository: 'apollo' };
+    const expected = { owner: 'example', repository: 'apollo' };
     for (const rawReference of [
-      'galfrevn/apollo',
-      '  galfrevn/apollo  ',
-      'github.com/galfrevn/apollo',
-      'https://github.com/galfrevn/apollo',
-      'https://www.github.com/galfrevn/apollo.git',
-      'git@github.com:galfrevn/apollo.git',
-      'https://github.com/galfrevn/apollo/',
+      'example/apollo',
+      '  example/apollo  ',
+      'github.com/example/apollo',
+      'https://github.com/example/apollo',
+      'https://www.github.com/example/apollo.git',
+      'git@github.com:example/apollo.git',
+      'https://github.com/example/apollo/',
     ]) {
       expect(parseGithubRepositoryReference(rawReference)).toEqual(expected);
     }
@@ -115,10 +111,10 @@ describe('parseGithubRepositoryReference', () => {
       '',
       '   ',
       'apollo',
-      'galfrevn/apollo/tree/main',
-      'galfrevn//apollo',
+      'example/apollo/tree/main',
+      'example//apollo',
       'gal frevn/apollo',
-      'galfrevn/apo llo',
+      'example/apo llo',
       '../../etc/passwd',
     ]) {
       expect(() => parseGithubRepositoryReference(rawReference)).toThrow();
@@ -127,8 +123,8 @@ describe('parseGithubRepositoryReference', () => {
 
   it('round-trips through the display format', () => {
     expect(
-      formatGithubRepositoryReference(parseGithubRepositoryReference('galfrevn/apollo')),
-    ).toBe('galfrevn/apollo');
+      formatGithubRepositoryReference(parseGithubRepositoryReference('example/apollo')),
+    ).toBe('example/apollo');
   });
 });
 

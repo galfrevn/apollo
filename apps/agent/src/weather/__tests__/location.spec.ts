@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { DEFAULT_DESK_WEATHER_LOCATION } from '@/weather/defaults';
+import { DEFAULT_DESK_WEATHER_LOCATION } from '@/configuration/identity';
 import {
   parseStoredWeatherLocation,
   resolveDeskWeatherLocationFromPreferences,

@@ -33,7 +33,14 @@ export default {
         {
           ok: true,
           name: 'apollo',
-          features: ['session', 'vectorize', 'r2', 'queues', 'workflows'],
+          features: [
+            'session',
+            'vectorize',
+            'r2',
+            'queues',
+            'workflows',
+            ...(environment.Sandbox !== undefined ? ['coding'] : []),
+          ],
         },
         { headers: CONSOLE_CORS_HEADER_MAP },
       );

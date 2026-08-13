@@ -1,3 +1,4 @@
+import { SANDBOX_UNAVAILABLE_SPOKEN_SUMMARY } from '@/sandbox/capability';
 import {
   buildApolloSandboxId,
   formatSandboxCodeSummary,
@@ -25,12 +26,19 @@ export async function runCodeInApolloSandbox(input: {
   readonly code: string;
   readonly language: SandboxCodeLanguage;
 }): Promise<SandboxCodeRunResult> {
+  const sandboxNamespace = input.environment.Sandbox;
+  if (sandboxNamespace === undefined) {
+    return {
+      ok: false,
+      summary: SANDBOX_UNAVAILABLE_SPOKEN_SUMMARY,
+      stdout: '',
+      stderr: '',
+    };
+  }
   const { getSandbox } = await import('@cloudflare/sandbox');
-  const sandbox = getSandbox(
-    input.environment.Sandbox,
-    buildApolloSandboxId(input.deviceId),
-    { normalizeId: true },
-  );
+  const sandbox = getSandbox(sandboxNamespace, buildApolloSandboxId(input.deviceId), {
+    normalizeId: true,
+  });
   const codeContext = await sandbox.createCodeContext({
     language: input.language,
   });
@@ -70,12 +78,20 @@ export async function execCommandInApolloSandbox(input: {
   readonly command: string;
   readonly timeoutMilliseconds?: number;
 }): Promise<SandboxCommandRunResult> {
+  const sandboxNamespace = input.environment.Sandbox;
+  if (sandboxNamespace === undefined) {
+    return {
+      ok: false,
+      summary: SANDBOX_UNAVAILABLE_SPOKEN_SUMMARY,
+      stdout: '',
+      stderr: '',
+      exitCode: 1,
+    };
+  }
   const { getSandbox } = await import('@cloudflare/sandbox');
-  const sandbox = getSandbox(
-    input.environment.Sandbox,
-    buildApolloSandboxId(input.deviceId),
-    { normalizeId: true },
-  );
+  const sandbox = getSandbox(sandboxNamespace, buildApolloSandboxId(input.deviceId), {
+    normalizeId: true,
+  });
   const execResult = await sandbox.exec(input.command, {
     cwd: '/workspace',
     timeout: input.timeoutMilliseconds ?? DEFAULT_SANDBOX_COMMAND_TIMEOUT_MILLISECONDS,

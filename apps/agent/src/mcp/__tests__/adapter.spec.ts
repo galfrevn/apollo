@@ -201,14 +201,14 @@ describe('installed mcp tool definitions', () => {
       callInstalledMcpTool,
     });
     const result = await definition?.handler(
-      { repository: 'galfrevn/apollo' },
+      { repository: 'example/apollo' },
       { environment: createFakeApolloEnvironment(), nowMilliseconds: 0 },
     );
     expect(readCallList()).toEqual([
       {
         serverId: 'github',
         toolName: 'list_issues',
-        argumentRecord: { repository: 'galfrevn/apollo' },
+        argumentRecord: { repository: 'example/apollo' },
       },
     ]);
     expect(result).toEqual({ ok: true, summary: 'done' });

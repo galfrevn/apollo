@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { DEFAULT_DESK_WEATHER_LOCATION } from '@/weather/defaults';
+import { DEFAULT_DESK_WEATHER_LOCATION } from '@/configuration/identity';
 import type { DeskWeatherLocation } from '@/weather/geocode';
 
 export const WEATHER_LOCATION_PREFERENCE_KEY = 'weatherLocation';
