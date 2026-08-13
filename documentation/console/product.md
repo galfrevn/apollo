@@ -29,6 +29,7 @@ The owner enters their worker URL, device instance name (default `desk`), and th
 ## Capabilities and Constraints
 
 - V1 areas (user-confirmed): MCP servers & tools, live status & telemetry, memory browser, schedules & reminders.
+- Broadcast (added 2026-08-13): typed phrases spoken by Apollo or owner-recorded audio played on the device, immediate and policy-free, queued while the device is offline. The browser produces the wire PCM (24 kHz s16le mono) and uploads it as chunked base64 RPCs — the read-and-RPC constraint holds.
 - The console must never take the device's protocol path (dashboard connections are deliberately excluded from device message handling) and never call agent state writes; it is read-and-RPC only.
 - MCP servers can require OAuth: install returns an authUrl the owner must open; server state may be `authenticating`/`failed`; tool enablement is opt-in with safety levels (`safe`/`confirm`/`unsafe`).
 - Telemetry is a snapshot with staleness (receivedAtMs), not a stream; the device pushes it only while connected.

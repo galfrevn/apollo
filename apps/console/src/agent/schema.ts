@@ -174,3 +174,17 @@ export const jobDocumentContentSchema = z.object({
 });
 
 export type JobDocumentContent = z.infer<typeof jobDocumentContentSchema>;
+
+export const broadcastResultSchema = z.object({
+  outcome: z.enum(['delivered', 'queued']),
+});
+
+export type BroadcastResult = z.infer<typeof broadcastResultSchema>;
+
+export const broadcastUploadBeginSchema = z.object({
+  uploadId: z.string(),
+});
+
+export const broadcastUploadChunkSchema = z.object({
+  receivedChunkCount: z.number(),
+});

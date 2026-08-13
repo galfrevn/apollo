@@ -74,7 +74,7 @@ function extractNotificationSpokenText(notification: DeskDeviceNotification): st
   return notification.type === 'reminder' ? notification.message : notification.summary;
 }
 
-function encodeMockSpeechAudio(spokenText: string): ArrayBuffer {
+export function encodeMockSpeechAudio(spokenText: string): ArrayBuffer {
   const encodedSpokenTextBytes = new TextEncoder().encode(spokenText);
   const mockSpeechAudioBuffer = new ArrayBuffer(encodedSpokenTextBytes.byteLength);
   new Uint8Array(mockSpeechAudioBuffer).set(encodedSpokenTextBytes);
@@ -135,10 +135,25 @@ async function announceNotificationWithTts(input: {
         voiceId: input.ttsVoiceId,
       });
 
+  await announcePcmToConnections({
+    audioBuffer: ttsAudio,
+    connectionList: input.connectionList,
+  });
+}
+
+// Structurally just `send` so broadcast tests can stand in a plain recorder
+// object for a live WebSocket connection.
+export type AnnounceableConnection = Pick<Connection, 'send'>;
+
+export async function announcePcmToConnections(input: {
+  readonly audioBuffer: ArrayBuffer;
+  readonly connectionList: readonly AnnounceableConnection[];
+  readonly wait?: (milliseconds: number) => Promise<void>;
+}): Promise<void> {
   const ttsStartMessage = encodeServerToDeviceMessage({
     type: 'tts_start',
     format: 'pcm',
-    bytes: ttsAudio.byteLength,
+    bytes: input.audioBuffer.byteLength,
     sampleRate: TTS_PCM_SAMPLE_RATE_HZ,
     channels: TTS_PCM_CHANNEL_COUNT,
   });
@@ -150,9 +165,10 @@ async function announceNotificationWithTts(input: {
   // the same announcement at the same time. Open-loop on purpose — a broadcast
   // has no single device whose acks could steer it.
   await streamAudioChunksAtPlaybackPace({
-    audioBuffer: ttsAudio,
+    audioBuffer: input.audioBuffer,
     sampleRateHz: TTS_PCM_SAMPLE_RATE_HZ,
     channelCount: TTS_PCM_CHANNEL_COUNT,
+    wait: input.wait,
     send: (audioChunk) => {
       for (const connection of input.connectionList) {
         connection.send(audioChunk);

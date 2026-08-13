@@ -1,7 +1,36 @@
 import { z } from 'zod';
 
+import {
+  BROADCAST_MAX_AUDIO_BYTES,
+  BROADCAST_UPLOAD_CHUNK_MAX_BASE64_LENGTH,
+  BROADCAST_UPLOAD_MAX_CHUNK_COUNT,
+} from '@/broadcast/logic';
+
 export const consoleSecretInputSchema = z.object({
   secret: z.string().min(1),
+});
+
+export const consoleBroadcastTextInputSchema = consoleSecretInputSchema.extend({
+  message: z.string().min(1).max(500),
+});
+
+export const consoleBroadcastUploadBeginInputSchema = consoleSecretInputSchema.extend({
+  totalBytes: z.number().int().positive().max(BROADCAST_MAX_AUDIO_BYTES),
+  chunkCount: z.number().int().min(1).max(BROADCAST_UPLOAD_MAX_CHUNK_COUNT),
+});
+
+export const consoleBroadcastUploadChunkInputSchema = consoleSecretInputSchema.extend({
+  uploadId: z.string().min(1),
+  chunkIndex: z
+    .number()
+    .int()
+    .min(0)
+    .max(BROADCAST_UPLOAD_MAX_CHUNK_COUNT - 1),
+  base64Chunk: z.string().min(1).max(BROADCAST_UPLOAD_CHUNK_MAX_BASE64_LENGTH),
+});
+
+export const consoleBroadcastUploadCommitInputSchema = consoleSecretInputSchema.extend({
+  uploadId: z.string().min(1),
 });
 
 export const consoleMemoryBrowseInputSchema = consoleSecretInputSchema.extend({

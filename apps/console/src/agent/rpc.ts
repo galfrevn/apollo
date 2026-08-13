@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 import {
   apolloStateSchema,
+  broadcastResultSchema,
+  broadcastUploadBeginSchema,
+  broadcastUploadChunkSchema,
   consoleStatusSchema,
   deviceCommandResultSchema,
   historyTurnListSchema,
@@ -56,6 +59,25 @@ export function createConsoleRpc(call: AgentCall, secret: string) {
         delaySeconds,
         isTimer,
       }),
+    sendBroadcastText: (message: string) =>
+      invoke('sendConsoleBroadcastText', broadcastResultSchema, { message }),
+    beginBroadcastAudioUpload: (totalBytes: number, chunkCount: number) =>
+      invoke('beginConsoleBroadcastAudioUpload', broadcastUploadBeginSchema, {
+        totalBytes,
+        chunkCount,
+      }),
+    appendBroadcastAudioChunk: (
+      uploadId: string,
+      chunkIndex: number,
+      base64Chunk: string,
+    ) =>
+      invoke('appendConsoleBroadcastAudioChunk', broadcastUploadChunkSchema, {
+        uploadId,
+        chunkIndex,
+        base64Chunk,
+      }),
+    commitBroadcastAudioUpload: (uploadId: string) =>
+      invoke('commitConsoleBroadcastAudioUpload', broadcastResultSchema, { uploadId }),
     setDeviceVolume: (volume: number) =>
       invoke('setConsoleDeviceVolume', deviceCommandResultSchema, { volume }),
     setSpeechMode: (speechModeId: string) =>

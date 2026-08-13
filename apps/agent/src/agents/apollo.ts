@@ -28,6 +28,20 @@ import {
 } from '@/agents/rpc';
 import { concatenateArrayBufferList, executeApolloTurn } from '@/agents/runtime';
 import {
+  deliverBroadcastAudio,
+  deliverBroadcastText,
+  replayPendingBroadcast,
+  sweepExpiredBroadcasts,
+} from '@/broadcast/deliver';
+import {
+  appendBroadcastUploadChunk,
+  assembleBroadcastUploadAudio,
+  createBroadcastUploadSession,
+  isBroadcastUploadSessionExpired,
+  type BroadcastDeliveryOutcome,
+  type BroadcastUploadSession,
+} from '@/broadcast/logic';
+import {
   DEVICE_CONNECTION_TAG,
   hasDeviceConnectionTag,
   resolveApolloConnectionRole,
@@ -52,6 +66,10 @@ import {
 import {
   consoleAddListItemInputSchema,
   consoleAddMemoryInputSchema,
+  consoleBroadcastTextInputSchema,
+  consoleBroadcastUploadBeginInputSchema,
+  consoleBroadcastUploadChunkInputSchema,
+  consoleBroadcastUploadCommitInputSchema,
   consoleCancelReminderInputSchema,
   consoleCreateReminderInputSchema,
   consoleDeleteMemoryInputSchema,
@@ -233,6 +251,16 @@ type ConsoleSecretInput = z.infer<typeof consoleSecretInputSchema>;
 type ConsoleMemoryBrowseInput = z.infer<typeof consoleMemoryBrowseInputSchema>;
 type ConsoleCancelReminderInput = z.infer<typeof consoleCancelReminderInputSchema>;
 type ConsoleCreateReminderInput = z.infer<typeof consoleCreateReminderInputSchema>;
+type ConsoleBroadcastTextInput = z.infer<typeof consoleBroadcastTextInputSchema>;
+type ConsoleBroadcastUploadBeginInput = z.infer<
+  typeof consoleBroadcastUploadBeginInputSchema
+>;
+type ConsoleBroadcastUploadChunkInput = z.infer<
+  typeof consoleBroadcastUploadChunkInputSchema
+>;
+type ConsoleBroadcastUploadCommitInput = z.infer<
+  typeof consoleBroadcastUploadCommitInputSchema
+>;
 type ConsoleDeviceVolumeInput = z.infer<typeof consoleDeviceVolumeInputSchema>;
 type ConsoleDeviceBrightnessInput = z.infer<typeof consoleDeviceBrightnessInputSchema>;
 type ConsoleAddMemoryInput = z.infer<typeof consoleAddMemoryInputSchema>;
@@ -313,6 +341,7 @@ export class Apollo extends Agent<Env, ApolloState> {
   #isDeliveringInitiative = false;
   #isConsolidatingMemory = false;
   #deviceMcpRequestRegistry = createDeviceMcpRequestRegistry();
+  #broadcastUploadSessionMap = new Map<string, BroadcastUploadSession>();
   #ttsSequence = 0;
   #lastPlaybackAck: {
     readonly sequence: number;
@@ -869,6 +898,97 @@ export class Apollo extends Agent<Env, ApolloState> {
       });
     }
     return this.#listConsoleReminderRowList();
+  }
+
+  @callable()
+  async sendConsoleBroadcastText(
+    rawInput: ConsoleBroadcastTextInput,
+  ): Promise<{ readonly outcome: BroadcastDeliveryOutcome }> {
+    const input = consoleBroadcastTextInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    const outcome = await deliverBroadcastText({
+      message: input.message,
+      connectionList: [...this.getConnections(DEVICE_CONNECTION_TAG)],
+      sqlExecutor: this.#sqlExecutor(),
+      environment: this.env,
+      ttsVoiceId: APOLLO_TTS_VOICE,
+      isMockVoice: this.env.MOCK_VOICE === '1',
+      playChimeEffect: () => this.#broadcastPlayEffect('chime'),
+    });
+    return { outcome };
+  }
+
+  @callable()
+  async beginConsoleBroadcastAudioUpload(
+    rawInput: ConsoleBroadcastUploadBeginInput,
+  ): Promise<{ readonly uploadId: string }> {
+    const input = consoleBroadcastUploadBeginInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    this.#evictExpiredBroadcastUploadSessions();
+    const uploadId = crypto.randomUUID();
+    this.#broadcastUploadSessionMap.set(
+      uploadId,
+      createBroadcastUploadSession({
+        totalBytes: input.totalBytes,
+        expectedChunkCount: input.chunkCount,
+        nowMilliseconds: Date.now(),
+      }),
+    );
+    return { uploadId };
+  }
+
+  @callable()
+  async appendConsoleBroadcastAudioChunk(
+    rawInput: ConsoleBroadcastUploadChunkInput,
+  ): Promise<{ readonly receivedChunkCount: number }> {
+    const input = consoleBroadcastUploadChunkInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    const uploadSession = this.#requireBroadcastUploadSession(input.uploadId);
+    const receivedChunkCount = appendBroadcastUploadChunk(
+      uploadSession,
+      input.chunkIndex,
+      input.base64Chunk,
+    );
+    return { receivedChunkCount };
+  }
+
+  @callable()
+  async commitConsoleBroadcastAudioUpload(
+    rawInput: ConsoleBroadcastUploadCommitInput,
+  ): Promise<{ readonly outcome: BroadcastDeliveryOutcome }> {
+    const input = consoleBroadcastUploadCommitInputSchema.parse(rawInput);
+    await this.#assertDashboardSecret(input.secret);
+    const uploadSession = this.#requireBroadcastUploadSession(input.uploadId);
+    const audioBuffer = assembleBroadcastUploadAudio(uploadSession);
+    this.#broadcastUploadSessionMap.delete(input.uploadId);
+    const outcome = await deliverBroadcastAudio({
+      audioBuffer,
+      broadcastId: crypto.randomUUID(),
+      connectionList: [...this.getConnections(DEVICE_CONNECTION_TAG)],
+      sqlExecutor: this.#sqlExecutor(),
+      mediaBucket: this.env.MEDIA,
+      playChimeEffect: () => this.#broadcastPlayEffect('chime'),
+    });
+    return { outcome };
+  }
+
+  #requireBroadcastUploadSession(uploadId: string): BroadcastUploadSession {
+    const uploadSession = this.#broadcastUploadSessionMap.get(uploadId);
+    if (uploadSession === undefined) {
+      // The map is in-memory: a Durable Object restart mid-upload loses it and
+      // the console has to start the upload over from the first chunk.
+      throw new Error('La subida expiró; volvé a enviar el audio');
+    }
+    return uploadSession;
+  }
+
+  #evictExpiredBroadcastUploadSessions(): void {
+    const nowMilliseconds = Date.now();
+    for (const [uploadId, uploadSession] of this.#broadcastUploadSessionMap) {
+      if (isBroadcastUploadSessionExpired(uploadSession, nowMilliseconds)) {
+        this.#broadcastUploadSessionMap.delete(uploadId);
+      }
+    }
   }
 
   @callable()
@@ -1697,13 +1817,35 @@ export class Apollo extends Agent<Env, ApolloState> {
   }
 
   async #flushPendingDeviceMessages(connection: Connection): Promise<void> {
-    const pendingMessageList = await listPendingDeviceMessages(this.#sqlExecutor());
+    const pendingMessageList = await sweepExpiredBroadcasts({
+      pendingMessageList: await listPendingDeviceMessages(this.#sqlExecutor()),
+      sqlExecutor: this.#sqlExecutor(),
+      mediaBucket: this.env.MEDIA,
+      nowMilliseconds: Date.now(),
+    });
     for (const pendingMessage of pendingMessageList) {
-      connection.send(
-        encodeServerToDeviceMessage(
-          parsePendingDeviceMessageAsNotification(pendingMessage),
-        ),
-      );
+      if (
+        pendingMessage.type === 'broadcast_text' ||
+        pendingMessage.type === 'broadcast_audio'
+      ) {
+        // Queued broadcasts replay with sound: the owner left a message for
+        // whoever is near the desk, not a silent card.
+        await replayPendingBroadcast({
+          pendingMessage,
+          connectionList: [connection],
+          mediaBucket: this.env.MEDIA,
+          environment: this.env,
+          ttsVoiceId: APOLLO_TTS_VOICE,
+          isMockVoice: this.env.MOCK_VOICE === '1',
+          playChimeEffect: () => this.#broadcastPlayEffect('chime'),
+        });
+      } else {
+        connection.send(
+          encodeServerToDeviceMessage(
+            parsePendingDeviceMessageAsNotification(pendingMessage),
+          ),
+        );
+      }
       await deletePendingDeviceMessage(this.#sqlExecutor(), pendingMessage.id);
     }
   }

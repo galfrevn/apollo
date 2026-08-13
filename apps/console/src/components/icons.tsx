@@ -1,4 +1,5 @@
 import {
+  MdOutlineCampaign,
   MdOutlineClose,
   MdOutlineDescription,
   MdOutlineExtension,
@@ -32,6 +33,7 @@ function LogoMark({ size = 20, ...props }: IconBaseProps) {
 }
 
 export const Icons = {
+  Broadcast: MdOutlineCampaign,
   Close: MdOutlineClose,
   Device: MdOutlineSpeaker,
   History: MdOutlineQuestionAnswer,

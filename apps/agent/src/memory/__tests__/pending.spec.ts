@@ -28,13 +28,18 @@ function createInMemorySqlExecutor(): MemorySqlExecutor {
       });
       return [];
     }
-    if (query.startsWith('SELECT id, type, payload_json FROM pending_device_messages')) {
+    if (
+      query.startsWith(
+        'SELECT id, type, payload_json, created_at FROM pending_device_messages',
+      )
+    ) {
       return [...pendingRowList]
         .toSorted((left, right) => left.created_at - right.created_at)
         .map((row) => ({
           id: row.id,
           type: row.type,
           payload_json: row.payload_json,
+          created_at: row.created_at,
         }));
     }
     if (query.startsWith('DELETE FROM pending_device_messages WHERE id = ?')) {
@@ -69,7 +74,29 @@ describe('pending device messages', () => {
         id: 'pending-1',
         type: 'reminder',
         payload: { message: 'tomá agua' },
+        createdAtMilliseconds: 1000,
       },
+    ]);
+  });
+
+  it('round-trips the broadcast message types', async () => {
+    const sqlExecutor = createInMemorySqlExecutor();
+    await enqueuePendingDeviceMessage(sqlExecutor, {
+      type: 'broadcast_text',
+      payload: { message: 'vuelvo a las ocho' },
+      nowMilliseconds: 1000,
+      createIdentifier: () => 'broadcast-text-1',
+    });
+    await enqueuePendingDeviceMessage(sqlExecutor, {
+      type: 'broadcast_audio',
+      payload: { audioKey: 'broadcast-audio/abc.pcm', byteLength: 48_000 },
+      nowMilliseconds: 2000,
+      createIdentifier: () => 'broadcast-audio-1',
+    });
+    const pendingList = await listPendingDeviceMessages(sqlExecutor);
+    expect(pendingList.map((message) => message.type)).toEqual([
+      'broadcast_text',
+      'broadcast_audio',
     ]);
   });
 
