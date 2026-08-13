@@ -5,6 +5,16 @@ export type DeskWeatherIdentityLocation = {
   readonly timezone: string;
 };
 
+// Values are interpolated into single-quoted TypeScript literals, so a city
+// like L'Hospitalet must arrive escaped or the rewritten file stops parsing.
+function escapeForSingleQuotedLiteral(value: string): string {
+  return value.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+}
+
+// Matches a single-quoted literal whose content may contain escaped quotes,
+// so a rewrite stays re-runnable on its own output.
+const QUOTED_LITERAL_PATTERN_TEXT = String.raw`'(?:[^'\\]|\\.)*'`;
+
 // Every rewrite is anchored to the exact shape the starter generator ships.
 // A miss means the file was hand-edited, and silently skipping would deploy a
 // half-applied identity — so every miss throws with a manual-edit hint.
@@ -19,14 +29,14 @@ function replaceAnchoredPattern(
       `identity anchor missing (${anchorLabel}) — src/configuration/identity.ts was edited by hand; apply the change there directly`,
     );
   }
-  return fileContent.replace(anchorPattern, replacementText);
+  return fileContent.replace(anchorPattern, () => replacementText);
 }
 
 export function rewriteTtsVoiceId(fileContent: string, voiceId: string): string {
   return replaceAnchoredPattern(
     fileContent,
-    /export const APOLLO_TTS_VOICE = '[^']*';/,
-    `export const APOLLO_TTS_VOICE = '${voiceId}';`,
+    new RegExp(`export const APOLLO_TTS_VOICE = ${QUOTED_LITERAL_PATTERN_TEXT};`),
+    `export const APOLLO_TTS_VOICE = '${escapeForSingleQuotedLiteral(voiceId)}';`,
     'APOLLO_TTS_VOICE',
   );
 }
@@ -38,14 +48,16 @@ export function rewriteTimeZone(
 ): string {
   const withTimezone = replaceAnchoredPattern(
     fileContent,
-    /export const APOLLO_TIME_ZONE = '[^']*';/,
-    `export const APOLLO_TIME_ZONE = '${timezone}';`,
+    new RegExp(`export const APOLLO_TIME_ZONE = ${QUOTED_LITERAL_PATTERN_TEXT};`),
+    `export const APOLLO_TIME_ZONE = '${escapeForSingleQuotedLiteral(timezone)}';`,
     'APOLLO_TIME_ZONE',
   );
   return replaceAnchoredPattern(
     withTimezone,
-    /export const APOLLO_TIME_ZONE_SPOKEN_LABEL = '[^']*';/,
-    `export const APOLLO_TIME_ZONE_SPOKEN_LABEL = '${spokenLabel}';`,
+    new RegExp(
+      `export const APOLLO_TIME_ZONE_SPOKEN_LABEL = ${QUOTED_LITERAL_PATTERN_TEXT};`,
+    ),
+    `export const APOLLO_TIME_ZONE_SPOKEN_LABEL = '${escapeForSingleQuotedLiteral(spokenLabel)}';`,
     'APOLLO_TIME_ZONE_SPOKEN_LABEL',
   );
 }
@@ -61,8 +73,8 @@ export function rewriteWeatherLocation(
       'export const DEFAULT_DESK_WEATHER_LOCATION = {',
       `  latitude: ${location.latitude},`,
       `  longitude: ${location.longitude},`,
-      `  locationLabel: '${location.locationLabel}',`,
-      `  timezone: '${location.timezone}',`,
+      `  locationLabel: '${escapeForSingleQuotedLiteral(location.locationLabel)}',`,
+      `  timezone: '${escapeForSingleQuotedLiteral(location.timezone)}',`,
       '} as const;',
     ].join('\n'),
     'DEFAULT_DESK_WEATHER_LOCATION',
@@ -70,5 +82,9 @@ export function rewriteWeatherLocation(
 }
 
 export function readCurrentTtsVoiceId(fileContent: string): string | undefined {
-  return fileContent.match(/export const APOLLO_TTS_VOICE = '([^']*)';/)?.[1];
+  return fileContent
+    .match(
+      new RegExp(`export const APOLLO_TTS_VOICE = (${QUOTED_LITERAL_PATTERN_TEXT});`),
+    )?.[1]
+    ?.slice(1, -1);
 }

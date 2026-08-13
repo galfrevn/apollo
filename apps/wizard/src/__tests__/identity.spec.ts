@@ -66,6 +66,37 @@ describe('identity rewriters against the shipped file shape', () => {
     expect(rewrittenContent).not.toContain("locationLabel: 'Buenos Aires',");
   });
 
+  it('escapes apostrophes so the rewritten module still parses', async () => {
+    const identityContent = await readGeneratedShapeIdentityContent();
+    const rewrittenContent = rewriteWeatherLocation(
+      rewriteTimeZone(identityContent, 'Europe/Madrid', "hora de L'Hospitalet"),
+      {
+        latitude: 41.36,
+        longitude: 2.1,
+        locationLabel: "L'Hospitalet de Llobregat",
+        timezone: 'Europe/Madrid',
+      },
+    );
+    expect(rewrittenContent).toContain("= 'hora de L\\'Hospitalet';");
+    expect(rewrittenContent).toContain("locationLabel: 'L\\'Hospitalet de Llobregat',");
+    const parseProbe = new Function(
+      rewrittenContent.replaceAll('export const', 'const').replaceAll(' as const', ''),
+    );
+    expect(parseProbe).toBeInstanceOf(Function);
+  });
+
+  it('stays re-runnable on output that contains escaped quotes', async () => {
+    const identityContent = await readGeneratedShapeIdentityContent();
+    const firstPass = rewriteTimeZone(
+      identityContent,
+      'Europe/Madrid',
+      "hora de L'Hospitalet",
+    );
+    const secondPass = rewriteTimeZone(firstPass, 'Europe/Lisbon', 'hora de Lisboa');
+    expect(secondPass).toContain("export const APOLLO_TIME_ZONE = 'Europe/Lisbon';");
+    expect(secondPass).toContain("= 'hora de Lisboa';");
+  });
+
   it('throws loudly when an anchor is missing', () => {
     expect(() => rewriteTtsVoiceId('const somethingElse = 1;', 'voice-123')).toThrow(
       /identity anchor missing/,
