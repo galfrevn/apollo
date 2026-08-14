@@ -19,23 +19,295 @@
         font-family: system-ui, sans-serif;
         text-align: center;
       }
-      p {
-        color: #878787;
-        margin: 0.5rem 0 1.5rem;
+      main {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem 1.25rem;
       }
-      a {
+      #device {
+        margin: 0;
+        font-family: ui-monospace, 'SFMono-Regular', 'JetBrains Mono', monospace;
+        font-size: 10px;
+        line-height: 1;
+        letter-spacing: 0;
+        color: #8f8f8f;
+        white-space: pre;
+        user-select: none;
+      }
+      .label {
+        margin: 1.75rem 0 0;
+        font-family: 'Hedvig Letters Serif', Georgia, serif;
+        font-size: clamp(2.25rem, 6vw, 3.25rem);
+        font-weight: 400;
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+      }
+      .message {
+        max-width: 34ch;
+        margin: 0.85rem 0 0;
+        font-size: 0.9375rem;
+        line-height: 1.6;
+        color: #878787;
+      }
+      .return {
+        margin-top: 1.75rem;
+        display: inline-block;
         color: #fafafa;
+        font-size: 0.875rem;
         border: 1px solid #1d1d1d;
-        padding: 0.6rem 1.2rem;
+        padding: 0.65rem 1.5rem;
         text-decoration: none;
+        transition:
+          border-color 0.15s ease,
+          background-color 0.15s ease;
+      }
+      .return:hover {
+        border-color: #333333;
+        background-color: #0f0f0f;
+      }
+      @media (max-width: 640px) {
+        #device {
+          font-size: 6px;
+        }
       }
     </style>
   </head>
   <body>
     <main>
-      <h1>404</h1>
-      <p>Aquí no vive nada. Nothing lives here.</p>
-      <a href="/">Apollo</a>
+      <pre id="device" aria-hidden="true"></pre>
+      <h1 class="label">Error 404</h1>
+      <p class="message">
+        Apollo no encontró esta página. Apollo could not find this page.
+      </p>
+      <a class="return" href="/">Return</a>
     </main>
+    <script>
+      (function renderAsciiDevice() {
+        var target = document.getElementById('device');
+        if (target === null) {
+          return;
+        }
+
+        var COLUMN_COUNT = 80;
+        var ROW_COUNT = 34;
+        var CHARACTER_ASPECT = 0.6;
+        var GLYPH_RAMP = ' .:-=+*#%@';
+        var CAMERA_DISTANCE = 4;
+        var FOCAL_LENGTH = 2.7;
+        var MAX_MARCH_STEPS = 72;
+        var SURFACE_EPSILON = 0.0015;
+        var MAX_MARCH_DISTANCE = 9;
+
+        var viewAspect = (COLUMN_COUNT * CHARACTER_ASPECT) / ROW_COUNT;
+        var lightX = 0.46;
+        var lightY = 0.74;
+        var lightZ = 0.49;
+
+        function roundedBoxDistance(x, y, z, halfX, halfY, halfZ, cornerRadius) {
+          var offsetX = Math.abs(x) - halfX;
+          var offsetY = Math.abs(y) - halfY;
+          var offsetZ = Math.abs(z) - halfZ;
+          var outsideX = Math.max(offsetX, 0);
+          var outsideY = Math.max(offsetY, 0);
+          var outsideZ = Math.max(offsetZ, 0);
+          var outsideLength = Math.sqrt(
+            outsideX * outsideX + outsideY * outsideY + outsideZ * outsideZ,
+          );
+          var insideDistance = Math.min(Math.max(offsetX, offsetY, offsetZ), 0);
+          return outsideLength + insideDistance - cornerRadius;
+        }
+
+        // A corner radius larger than the inner half-extents keeps every face
+        // curved, which is what gives the glyph ramp something to gradate
+        // across; a hard-edged box would shade as flat blocks of one glyph.
+        function sceneDistance(x, y, z) {
+          return roundedBoxDistance(x, y, z, 0.58, 0.44, 0.32, 0.52);
+        }
+
+        function isInsideScreenPanel(x, y) {
+          return Math.abs(x) < 0.46 && Math.abs(y) < 0.34;
+        }
+
+        function isInsideEye(x, y, centerX, centerY, halfWidth, halfHeight) {
+          var deltaX = Math.abs(x - centerX);
+          var deltaY = Math.abs(y - centerY);
+          if (deltaX > halfWidth || deltaY > halfHeight) {
+            return false;
+          }
+          var cornerRadius = Math.min(halfWidth, halfHeight);
+          var innerX = halfWidth - cornerRadius;
+          var innerY = halfHeight - cornerRadius;
+          if (deltaX <= innerX || deltaY <= innerY) {
+            return true;
+          }
+          var reachX = deltaX - innerX;
+          var reachY = deltaY - innerY;
+          return reachX * reachX + reachY * reachY <= cornerRadius * cornerRadius;
+        }
+
+        // One eye taller than the other: the face is asking a question it will
+        // not get an answer to, which is the whole joke of a 404.
+        function isInsideScreenEye(x, y) {
+          return (
+            isInsideEye(x, y, -0.21, 0.03, 0.085, 0.21) ||
+            isInsideEye(x, y, 0.21, -0.03, 0.085, 0.11)
+          );
+        }
+
+        // A 4x4 ordered dither nudges each cell a fraction of a ramp step, which
+        // breaks the banding that flat shading would otherwise show as blocks.
+        var DITHER_MATRIX = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+
+        function ditherOffset(columnIndex, rowIndex) {
+          var matrixIndex = (rowIndex % 4) * 4 + (columnIndex % 4);
+          return DITHER_MATRIX[matrixIndex] / 16 - 0.5;
+        }
+
+        function renderFrame(elapsedSeconds) {
+          var spinAngle = Math.sin(elapsedSeconds * 0.42) * 0.62;
+          var spinCos = Math.cos(spinAngle);
+          var spinSin = Math.sin(spinAngle);
+          var tiltAngle = -0.14;
+          var tiltCos = Math.cos(tiltAngle);
+          var tiltSin = Math.sin(tiltAngle);
+          var bobOffset = Math.sin(elapsedSeconds * 0.9) * 0.045;
+          var rowTextList = [];
+
+          for (var rowIndex = 0; rowIndex < ROW_COUNT; rowIndex++) {
+            var rowGlyphList = [];
+            for (var columnIndex = 0; columnIndex < COLUMN_COUNT; columnIndex++) {
+              var screenX = (((columnIndex + 0.5) / COLUMN_COUNT) * 2 - 1) * viewAspect;
+              var screenY = -(((rowIndex + 0.5) / ROW_COUNT) * 2 - 1);
+              var directionLength = Math.sqrt(
+                screenX * screenX + screenY * screenY + FOCAL_LENGTH * FOCAL_LENGTH,
+              );
+              var rayX = screenX / directionLength;
+              var rayY = screenY / directionLength;
+              var rayZ = -FOCAL_LENGTH / directionLength;
+
+              var travelled = 0;
+              var hitObjectX = 0;
+              var hitObjectY = 0;
+              var hitObjectZ = 0;
+              var didHit = false;
+
+              for (var stepIndex = 0; stepIndex < MAX_MARCH_STEPS; stepIndex++) {
+                var worldX = rayX * travelled;
+                var worldY = rayY * travelled - bobOffset;
+                var worldZ = CAMERA_DISTANCE + rayZ * travelled;
+
+                var tiltedY = worldY * tiltCos - worldZ * tiltSin;
+                var tiltedZ = worldY * tiltSin + worldZ * tiltCos;
+                var objectX = worldX * spinCos - tiltedZ * spinSin;
+                var objectZ = worldX * spinSin + tiltedZ * spinCos;
+
+                var distance = sceneDistance(objectX, tiltedY, objectZ);
+                if (distance < SURFACE_EPSILON) {
+                  hitObjectX = objectX;
+                  hitObjectY = tiltedY;
+                  hitObjectZ = objectZ;
+                  didHit = true;
+                  break;
+                }
+                travelled += distance;
+                if (travelled > MAX_MARCH_DISTANCE) {
+                  break;
+                }
+              }
+
+              if (!didHit) {
+                rowGlyphList.push(' ');
+                continue;
+              }
+
+              var normalStep = 0.0015;
+              var normalX =
+                sceneDistance(hitObjectX + normalStep, hitObjectY, hitObjectZ) -
+                sceneDistance(hitObjectX - normalStep, hitObjectY, hitObjectZ);
+              var normalY =
+                sceneDistance(hitObjectX, hitObjectY + normalStep, hitObjectZ) -
+                sceneDistance(hitObjectX, hitObjectY - normalStep, hitObjectZ);
+              var normalZ =
+                sceneDistance(hitObjectX, hitObjectY, hitObjectZ + normalStep) -
+                sceneDistance(hitObjectX, hitObjectY, hitObjectZ - normalStep);
+              var normalLength =
+                Math.sqrt(normalX * normalX + normalY * normalY + normalZ * normalZ) || 1;
+              normalX /= normalLength;
+              normalY /= normalLength;
+              normalZ /= normalLength;
+
+              if (normalZ > 0.7 && isInsideScreenPanel(hitObjectX, hitObjectY)) {
+                var isEyePixel = isInsideScreenEye(hitObjectX, hitObjectY);
+                rowGlyphList.push(
+                  isEyePixel ? GLYPH_RAMP.charAt(GLYPH_RAMP.length - 1) : '.',
+                );
+                continue;
+              }
+
+              var lambert = Math.max(
+                0,
+                normalX * lightX + normalY * lightY + normalZ * lightZ,
+              );
+              var viewX = -rayX;
+              var viewY = -rayY;
+              var viewZ = -rayZ;
+              var halfwayX = lightX + viewX;
+              var halfwayY = lightY + viewY;
+              var halfwayZ = lightZ + viewZ;
+              var halfwayLength =
+                Math.sqrt(
+                  halfwayX * halfwayX + halfwayY * halfwayY + halfwayZ * halfwayZ,
+                ) || 1;
+              var specularAngle = Math.max(
+                0,
+                (normalX * halfwayX + normalY * halfwayY + normalZ * halfwayZ) /
+                  halfwayLength,
+              );
+              var specular = Math.pow(specularAngle, 28) * 0.7;
+              var facingCamera = Math.max(
+                0,
+                normalX * viewX + normalY * viewY + normalZ * viewZ,
+              );
+              var rimLight = Math.pow(1 - facingCamera, 3) * 0.4;
+              var shadedIntensity =
+                0.04 + Math.pow(lambert, 0.85) * 0.86 + specular + rimLight;
+              // Dithering the near-black underside would scatter lone glyphs
+              // that read as dirt rather than shading, so it only breaks up
+              // banding once the surface is genuinely lit.
+              var intensity =
+                shadedIntensity > 0.14
+                  ? shadedIntensity + ditherOffset(columnIndex, rowIndex) * 0.07
+                  : shadedIntensity;
+              var glyphIndex = Math.round(
+                Math.max(0, Math.min(1, intensity)) * (GLYPH_RAMP.length - 1),
+              );
+              rowGlyphList.push(GLYPH_RAMP.charAt(glyphIndex));
+            }
+            rowTextList.push(rowGlyphList.join(''));
+          }
+
+          target.textContent = rowTextList.join('\n');
+        }
+
+        var prefersReducedMotion =
+          window.matchMedia &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (prefersReducedMotion) {
+          renderFrame(1.1);
+          return;
+        }
+
+        var startTimestamp = null;
+        function step(timestamp) {
+          if (startTimestamp === null) {
+            startTimestamp = timestamp;
+          }
+          renderFrame((timestamp - startTimestamp) / 1000);
+          window.requestAnimationFrame(step);
+        }
+        window.requestAnimationFrame(step);
+      })();
+    </script>
   </body>
 </html>

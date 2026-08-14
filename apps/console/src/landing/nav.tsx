@@ -4,9 +4,23 @@ import { z } from 'zod';
 import { Icons } from '@/components/icons';
 import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { MagneticLink } from '@/landing/magnet';
-import { LANDING_LINK_MAP } from '@/landing/metadata';
+import { LANDING_LINK_MAP, LANDING_LOCALE_PATH_MAP } from '@/landing/metadata';
+import { scrollLandingToTop } from '@/landing/motion';
 import { warmConsoleChunk, warmDocsChunk } from '@/landing/prefetch';
-import { useMessages } from '@/locale/context';
+import { useLocale, useMessages } from '@/locale/context';
+
+import type { MouseEvent } from 'react';
+
+function isPlainLeftClick(event: MouseEvent<HTMLAnchorElement>): boolean {
+  return (
+    !event.defaultPrevented &&
+    event.button === 0 &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey
+  );
+}
 
 const REPOSITORY_API_URL = 'https://api.github.com/repos/galfrevn/apollo';
 const STAR_COUNT_STORAGE_KEY = 'apollo:github-star-count';
@@ -67,7 +81,9 @@ function useGithubStarCount(): number | null {
 
 export function LandingNav() {
   const landingMessages = useMessages(LANDING_MESSAGE_CATALOG);
+  const { locale } = useLocale();
   const starCount = useGithubStarCount();
+  const landingPath = LANDING_LOCALE_PATH_MAP[locale];
 
   return (
     <nav aria-label="Apollo" className="fixed inset-x-0 top-0 z-10">
@@ -76,7 +92,17 @@ export function LandingNav() {
         className="absolute inset-0 -bottom-4 bg-gradient-to-b from-background/70 to-background/0 backdrop-blur-md [mask-image:linear-gradient(to_bottom,black_40%,transparent)]"
       />
       <div className="relative mx-auto flex h-[68px] max-w-[1180px] items-center justify-between px-5 sm:px-8">
-        <a href="/" className="flex items-center gap-3 font-serif text-lg">
+        <a
+          href={landingPath}
+          onClick={(event) => {
+            if (!isPlainLeftClick(event)) {
+              return;
+            }
+            event.preventDefault();
+            scrollLandingToTop();
+          }}
+          className="flex items-center gap-3 font-serif text-lg"
+        >
           <Icons.LogoMark size={26} />
           <span className="max-sm:hidden">Apollo</span>
         </a>

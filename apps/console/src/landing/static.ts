@@ -8,10 +8,7 @@ import type { Locale } from '@/locale/detect';
 export const LANDING_STATIC_OPEN_MARKER = '<!-- landing-static -->';
 export const LANDING_STATIC_CLOSE_MARKER = '<!-- /landing-static -->';
 
-export const LANDING_LOCALE_PATH_MAP: Record<Locale, string> = {
-  es: '/',
-  en: '/en',
-};
+export { LANDING_LOCALE_PATH_MAP } from '@/landing/metadata';
 
 export const LANDING_SOCIAL_DESCRIPTION_MAP: Record<Locale, string> = {
   es: 'Tu agente personal de escritorio. Un cerebro en tu cuenta de Cloudflare, un cuerpo en tu escritorio, nada en el medio.',

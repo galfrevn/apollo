@@ -28,7 +28,7 @@ const PUPIL_OFFSET_LIMIT = 0.9;
 
 export const DEFAULT_FACE_GRID_RESOLUTION = 32;
 
-function isInsideCapsule(
+export function isInsideCapsule(
   pointX: number,
   pointY: number,
   centerX: number,

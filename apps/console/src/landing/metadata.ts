@@ -3,10 +3,17 @@ import { useEffect } from 'react';
 import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { useLocale } from '@/locale/context';
 
+import type { Locale } from '@/locale/detect';
+
 export const LANDING_LINK_MAP = {
   github: 'https://github.com/galfrevn/apollo',
   documentation: '/docs',
   console: '/console',
+};
+
+export const LANDING_LOCALE_PATH_MAP: Record<Locale, string> = {
+  es: '/',
+  en: '/en',
 };
 
 export const LANDING_COMMAND_MAP = {
