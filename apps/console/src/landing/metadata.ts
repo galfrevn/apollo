@@ -9,6 +9,13 @@ export const LANDING_LINK_MAP = {
   console: '/console',
 };
 
+export const LANDING_COMMAND_MAP = {
+  bun: 'bun create heyapollo',
+  npm: 'npm create heyapollo',
+} as const;
+
+export const LANDING_START_ANCHOR_ID = 'start';
+
 export function useLandingMetadata(): void {
   const { locale } = useLocale();
 

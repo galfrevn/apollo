@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 
+import { LandingCommand } from '@/landing/command';
 import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { MagneticLink } from '@/landing/magnet';
 import { LANDING_LINK_MAP } from '@/landing/metadata';
@@ -69,13 +70,7 @@ export function LandingHero() {
             >
               {landingMessages.nav.docsLabel}
             </MagneticLink>
-            <MagneticLink
-              href={LANDING_LINK_MAP.documentation}
-              onWarm={warmDocsChunk}
-              className="border px-4 py-2.5 transition-colors hover:border-border-hover hover:bg-card"
-            >
-              {landingMessages.hero.gettingStartedLabel}
-            </MagneticLink>
+            <LandingCommand />
           </div>
         </div>
       </div>

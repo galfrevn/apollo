@@ -16,7 +16,6 @@ export const LANDING_MESSAGES_EN: LandingMessages = {
     lineTwo: 'desk agent',
     subhead:
       'The open-source brain for physical agentic devices. It lives in your Cloudflare account; the body sits on your desk.',
-    gettingStartedLabel: 'Getting started →',
   },
   showcase: {
     actIndexLabel: '01 · Listen',
@@ -149,12 +148,14 @@ export const LANDING_MESSAGES_EN: LandingMessages = {
       {
         label: 'The brain',
         description: 'Voice turns, memory, tools, and schedules in one Durable Object.',
-        action: 'One command to deploy.',
+        action: 'One command to deploy →',
+        actionTargetId: 'start',
       },
       {
         label: 'The body',
         description: 'The firmware for the device on your desk.',
         action: 'Flash it. Set it down.',
+        actionTargetId: null,
       },
     ],
     docsCardLabel: 'The docs',
@@ -164,6 +165,19 @@ export const LANDING_MESSAGES_EN: LandingMessages = {
     consoleCardLabel: 'The console',
     consoleCardDescription: 'Everything it knows and plans, live from your worker.',
     consoleCardAction: 'Open console →',
+  },
+  start: {
+    title: 'Two ways in',
+    terminalTabLabel: 'The terminal',
+    agentTabLabel: 'Your coding agent',
+    terminalCaption: 'About five minutes; trial mode needs zero API keys.',
+    agentPromptLabel: 'Paste into any agent that reads AGENTS.md',
+    agentPrompt:
+      'Run `bun create heyapollo`, open the new folder, read AGENTS.md, and follow the apollo-setup skill to provision my Cloudflare account and deploy. I will paste API keys into .dev.vars myself; never ask for them in chat.',
+    agentCaption: 'Keys never enter the chat; they go straight into .dev.vars.',
+    copyCommandLabel: 'Copy the command',
+    copyPromptLabel: 'Copy the prompt',
+    copiedLabel: 'Copied',
   },
   footer: {
     echoWordList: ['The', 'desk', 'is', 'listening'],

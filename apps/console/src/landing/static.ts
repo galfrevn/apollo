@@ -1,5 +1,5 @@
 import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
-import { LANDING_LINK_MAP } from '@/landing/metadata';
+import { LANDING_COMMAND_MAP, LANDING_LINK_MAP } from '@/landing/metadata';
 import { LANDING_PUBLIC_ORIGIN } from '@/landing/origin';
 
 import type { LandingMessages } from '@/landing/copy/messages';
@@ -65,15 +65,20 @@ function renderOwnershipList(landingMessages: LandingMessages): string {
   return `<ul class="mt-6 space-y-5">${ownershipItemList.join('')}${docsItem}${consoleItem}</ul>`;
 }
 
+function renderStartBlock(landingMessages: LandingMessages): string {
+  const startMessages = landingMessages.start;
+  return `<h3 class="mt-6 text-base">${escapeHtmlText(startMessages.title)}</h3><p class="mt-1 font-mono text-sm">$ ${LANDING_COMMAND_MAP.bun} · $ ${LANDING_COMMAND_MAP.npm}</p><p class="mt-1 text-sm text-muted-foreground">${escapeHtmlText(startMessages.terminalCaption)}</p><p class="mt-2 text-sm text-muted-foreground">${escapeHtmlText(startMessages.agentPromptLabel)}: ${escapeHtmlText(startMessages.agentPrompt)}</p><p class="mt-1 text-sm text-muted-foreground">${escapeHtmlText(startMessages.agentCaption)}</p>`;
+}
+
 export function renderLandingStaticBlock(locale: Locale): string {
   const landingMessages = LANDING_MESSAGE_CATALOG[locale];
   const heroHeading = `${escapeHtmlText(landingMessages.hero.lineOne)} ${escapeHtmlText(landingMessages.hero.lineTwo)}`;
   const navigation = `<nav aria-label="Apollo" class="flex flex-wrap gap-6 text-sm text-muted-foreground"><a class="underline underline-offset-4" href="${LANDING_LINK_MAP.github}">${escapeHtmlText(landingMessages.nav.githubLabel)}</a> <a class="underline underline-offset-4" href="${LANDING_LINK_MAP.documentation}">${escapeHtmlText(landingMessages.nav.docsLabel)}</a> <a class="underline underline-offset-4" href="${LANDING_LINK_MAP.console}">${escapeHtmlText(landingMessages.nav.openConsoleLabel)}</a></nav>`;
-  const hero = `<header class="mt-14"><h1 class="font-serif text-5xl leading-[1.05] tracking-[-0.02em]">${heroHeading}</h1><p class="mt-6 max-w-[44ch] text-sm text-muted-foreground">${escapeHtmlText(landingMessages.hero.subhead)}</p></header>`;
+  const hero = `<header class="mt-14"><h1 class="font-serif text-5xl leading-[1.05] tracking-[-0.02em]">${heroHeading}</h1><p class="mt-6 max-w-[44ch] text-sm text-muted-foreground">${escapeHtmlText(landingMessages.hero.subhead)}</p><p class="mt-4 font-mono text-sm">$ ${LANDING_COMMAND_MAP.bun}</p></header>`;
   const showcaseSection = `<section class="mt-16 border-t pt-8"><h2 class="font-serif text-2xl">${escapeHtmlText(landingMessages.showcase.actTitle)}</h2>${renderEmphasizedParagraph(landingMessages.showcase.intro)}</section>`;
   const architectureSection = `<section class="mt-16 border-t pt-8"><h2 class="font-serif text-2xl">${escapeHtmlText(landingMessages.architecture.actTitle)}</h2>${renderEmphasizedParagraph(landingMessages.architecture.intro)}<p class="mt-4 leading-relaxed text-muted-foreground">${escapeHtmlText(landingMessages.architecture.bodyNodeHeadline)} ${escapeHtmlText(landingMessages.architecture.brainNodeHeadline)}</p></section>`;
   const capabilitiesSection = `<section class="mt-16 border-t pt-8"><h2 class="font-serif text-2xl">${escapeHtmlText(landingMessages.capabilities.actTitle)}</h2>${renderEmphasizedParagraph(landingMessages.capabilities.intro)}${renderCapabilityList(landingMessages)}</section>`;
-  const yoursSection = `<section class="mt-16 border-t pt-8"><h2 class="font-serif text-2xl">${escapeHtmlText(landingMessages.yours.actTitle)}</h2><p class="mt-4 leading-relaxed text-muted-foreground">${escapeHtmlText(landingMessages.yours.introLead)}<em class="not-italic text-foreground">${escapeHtmlText(landingMessages.yours.introEmphasis)}</em></p>${renderOwnershipList(landingMessages)}</section>`;
+  const yoursSection = `<section class="mt-16 border-t pt-8"><h2 class="font-serif text-2xl">${escapeHtmlText(landingMessages.yours.actTitle)}</h2><p class="mt-4 leading-relaxed text-muted-foreground">${escapeHtmlText(landingMessages.yours.introLead)}<em class="not-italic text-foreground">${escapeHtmlText(landingMessages.yours.introEmphasis)}</em></p>${renderStartBlock(landingMessages)}${renderOwnershipList(landingMessages)}</section>`;
   const footer = `<footer class="mt-20 border-t pt-8 text-sm text-muted-foreground"><p>${escapeHtmlText(landingMessages.footer.echoWordList.join(' '))}. ${escapeHtmlText(landingMessages.footer.wakePhrase)}</p><p class="mt-2">${escapeHtmlText(landingMessages.footer.builtByPrefix)}<a class="underline underline-offset-4" href="https://github.com/galfrevn">Valentín Galfre</a></p></footer>`;
   return `<div data-landing-static class="mx-auto max-w-3xl px-6 py-16">${navigation}<main>${hero}${showcaseSection}${architectureSection}${capabilitiesSection}${yoursSection}</main>${footer}</div>`;
 }

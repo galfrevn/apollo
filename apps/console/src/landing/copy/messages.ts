@@ -20,6 +20,7 @@ export interface OwnershipCard {
   readonly label: string;
   readonly description: string;
   readonly action: string;
+  readonly actionTargetId: string | null;
 }
 
 export interface EmphasizedParagraph {
@@ -42,7 +43,6 @@ export interface LandingMessages {
     readonly lineOne: string;
     readonly lineTwo: string;
     readonly subhead: string;
-    readonly gettingStartedLabel: string;
   };
   readonly showcase: {
     readonly actIndexLabel: string;
@@ -103,6 +103,18 @@ export interface LandingMessages {
     readonly consoleCardLabel: string;
     readonly consoleCardDescription: string;
     readonly consoleCardAction: string;
+  };
+  readonly start: {
+    readonly title: string;
+    readonly terminalTabLabel: string;
+    readonly agentTabLabel: string;
+    readonly terminalCaption: string;
+    readonly agentPromptLabel: string;
+    readonly agentPrompt: string;
+    readonly agentCaption: string;
+    readonly copyCommandLabel: string;
+    readonly copyPromptLabel: string;
+    readonly copiedLabel: string;
   };
   readonly footer: {
     readonly echoWordList: readonly string[];

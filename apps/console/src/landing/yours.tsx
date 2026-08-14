@@ -1,12 +1,68 @@
+import { useEffect } from 'react';
+import type { MouseEvent } from 'react';
+
 import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { ActHeading } from '@/landing/heading';
 import { MagneticLink } from '@/landing/magnet';
 import { LANDING_LINK_MAP } from '@/landing/metadata';
+import { ScrollSmoother } from '@/landing/motion';
 import { warmConsoleChunk, warmDocsChunk } from '@/landing/prefetch';
+import { LandingStart } from '@/landing/start';
 import { useMessages } from '@/locale/context';
+
+// ScrollSmoother transforms the pinned content instead of scrolling the page,
+// so native hash navigation lands at the wrong position while it is active.
+function handleAnchorActivation(clickEvent: MouseEvent<HTMLAnchorElement>): void {
+  const isPlainLeftClick =
+    clickEvent.button === 0 &&
+    !clickEvent.metaKey &&
+    !clickEvent.ctrlKey &&
+    !clickEvent.shiftKey &&
+    !clickEvent.altKey;
+  if (!isPlainLeftClick) {
+    return;
+  }
+  const smoother = ScrollSmoother.get();
+  if (smoother) {
+    clickEvent.preventDefault();
+    const targetHash = clickEvent.currentTarget.hash;
+    smoother.scrollTo(targetHash, true);
+    if (window.location.hash !== targetHash) {
+      window.history.pushState(null, '', targetHash);
+    }
+  }
+}
+
+// The hash can arrive from outside this page, so it is not guaranteed to be a
+// valid selector; querySelector throws on malformed input.
+function findAnchorTargetElement(targetHash: string): Element | null {
+  try {
+    return targetHash === '' ? null : document.querySelector(targetHash);
+  } catch {
+    return null;
+  }
+}
+
+function useAnchorHistoryRestoration(): void {
+  useEffect(() => {
+    const handleHistoryTraversal = () => {
+      const smoother = ScrollSmoother.get();
+      if (!smoother) {
+        return;
+      }
+      smoother.scrollTo(findAnchorTargetElement(window.location.hash) ?? 0, true);
+    };
+    if (window.location.hash !== '') {
+      handleHistoryTraversal();
+    }
+    window.addEventListener('popstate', handleHistoryTraversal);
+    return () => window.removeEventListener('popstate', handleHistoryTraversal);
+  }, []);
+}
 
 export function LandingYours() {
   const yoursMessages = useMessages(LANDING_MESSAGE_CATALOG).yours;
+  useAnchorHistoryRestoration();
   return (
     <section id="yours" className="border-t py-[130px]">
       <div className="mx-auto w-full max-w-[1180px] px-8">
@@ -22,6 +78,7 @@ export function LandingYours() {
             <span className="text-foreground">{yoursMessages.introEmphasis}</span>
           </p>
         </div>
+        <LandingStart />
         <div className="mt-14 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           {yoursMessages.ownershipCardList.map((ownershipCard, cardIndex) => (
             <div
@@ -33,7 +90,17 @@ export function LandingYours() {
               <h3 className="text-xs font-normal text-dim">{ownershipCard.label}</h3>
               <p className="text-sm text-muted-foreground">{ownershipCard.description}</p>
               <div className="mt-auto pt-4">
-                <p className="text-sm">{ownershipCard.action}</p>
+                {ownershipCard.actionTargetId === null ? (
+                  <p className="text-sm">{ownershipCard.action}</p>
+                ) : (
+                  <a
+                    href={`#${ownershipCard.actionTargetId}`}
+                    onClick={handleAnchorActivation}
+                    className="underline-reveal text-sm"
+                  >
+                    {ownershipCard.action}
+                  </a>
+                )}
               </div>
             </div>
           ))}

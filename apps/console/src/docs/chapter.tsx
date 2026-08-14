@@ -15,7 +15,10 @@ const PROSE_CLASS_LIST = [
   '[&_a]:border-b [&_a]:border-dashed [&_a]:border-muted-foreground/40 [&_a]:text-foreground [&_a:hover]:border-muted-foreground',
   '[&_blockquote]:my-5 [&_blockquote]:border-l [&_blockquote]:border-border-hover [&_blockquote]:pl-5 [&_blockquote_p]:text-muted-foreground',
   '[&_code]:rounded-none [&_code]:font-mono [&_code]:text-[0.82em]',
-  '[&_pre]:my-5 [&_pre]:overflow-x-auto [&_pre]:rounded-none [&_pre]:border [&_pre]:bg-card [&_pre]:p-4 [&_pre]:text-[12.5px] [&_pre]:leading-[1.7]',
+  '[&_[data-streamdown=code-block]]:my-5 [&_[data-streamdown=code-block]]:gap-0 [&_[data-streamdown=code-block]]:rounded-none [&_[data-streamdown=code-block]]:bg-card [&_[data-streamdown=code-block]]:p-0',
+  '[&_[data-streamdown=code-block-header]]:h-10 [&_[data-streamdown=code-block-header]]:border-b [&_[data-streamdown=code-block-header]]:px-4 [&_[data-streamdown=code-block-header]]:text-dim',
+  '[&_[data-streamdown=code-block-actions]]:rounded-none [&_[data-streamdown=code-block-actions]]:border-0 [&_[data-streamdown=code-block-actions]]:bg-transparent [&_[data-streamdown=code-block-actions]]:p-0 [&_[data-streamdown=code-block-actions]]:pr-2 [&_[data-streamdown=code-block-actions]]:backdrop-blur-none',
+  '[&_[data-streamdown=code-block-body]]:rounded-none [&_[data-streamdown=code-block-body]]:border-0 [&_[data-streamdown=code-block-body]]:bg-transparent [&_[data-streamdown=code-block-body]]:p-4 [&_[data-streamdown=code-block-body]]:text-[12.5px] [&_[data-streamdown=code-block-body]]:leading-[1.7]',
   '[&_ul]:my-3.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-3.5 [&_ol]:list-decimal [&_ol]:pl-5',
   '[&_li]:my-1.5 [&_li]:text-[15.5px] [&_li]:leading-[1.7] [&_li]:text-foreground/80',
   '[&_hr]:my-8 [&_hr]:border-border [&_img]:rounded-none [&_table]:rounded-none',
@@ -48,7 +51,20 @@ export function DocsChapter({
       <hr className="my-10 w-12 border-border-hover" />
 
       <div className={PROSE_CLASS_LIST}>
-        <Streamdown>{chapterSource}</Streamdown>
+        <Streamdown
+          controls={{
+            code: { copy: true, download: false },
+            table: false,
+            mermaid: false,
+          }}
+          lineNumbers={false}
+          translations={{
+            copyCode: docsMessages.copyCodeLabel,
+            copied: docsMessages.copiedCodeLabel,
+          }}
+        >
+          {chapterSource}
+        </Streamdown>
       </div>
 
       <footer className="mt-20 border-t pt-3.5">
