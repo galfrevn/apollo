@@ -87,8 +87,21 @@ export function useWakeEcho(): { wakeSignal: number; isAwake: boolean } {
         setWakeSignal((previousSignal) => previousSignal + 1);
       }
     };
+    // Clicking, scrolling or leaving the page abandons the word just as surely
+    // as a keystroke does, and only the keyboard path would otherwise clear it.
+    const abandonCurrentWord = () => {
+      currentWord = '';
+    };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('pointerdown', abandonCurrentWord, { passive: true });
+    window.addEventListener('wheel', abandonCurrentWord, { passive: true });
+    window.addEventListener('blur', abandonCurrentWord);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('pointerdown', abandonCurrentWord);
+      window.removeEventListener('wheel', abandonCurrentWord);
+      window.removeEventListener('blur', abandonCurrentWord);
+    };
   }, []);
 
   useEffect(() => {
