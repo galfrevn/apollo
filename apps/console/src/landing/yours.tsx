@@ -41,6 +41,9 @@ function useAnchorHistoryRestoration(): void {
       }
       smoother.scrollTo(findAnchorTargetElement(window.location.hash) ?? 0, true);
     };
+    if (window.location.hash !== '') {
+      handleHistoryTraversal();
+    }
     window.addEventListener('popstate', handleHistoryTraversal);
     return () => window.removeEventListener('popstate', handleHistoryTraversal);
   }, []);
