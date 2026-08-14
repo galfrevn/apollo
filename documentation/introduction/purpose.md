@@ -1,6 +1,6 @@
 # Purpose
 
-Apollo is a personal desk agent designed for an ESP32 device on your desk. The device captures gestures and audio; the Cloudflare Workers backend runs the agent loop, tools, memory, and speech pipeline.
+Apollo is a personal agent with a body: instead of a chat window, it lives in a physical device, an ESP32 in the reference build. The device captures gestures and audio; the Cloudflare Workers backend runs the agent loop, tools, memory, and speech pipeline.
 
 ## What it is
 

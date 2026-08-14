@@ -4,16 +4,15 @@ import {
   DOCS_PART_LIST,
   formatDocsChapterNumber,
 } from '@/docs/catalog';
-import { DOCS_MESSAGE_CATALOG } from '@/docs/copy';
+import { DOCS_MESSAGES } from '@/docs/copy';
 import { buildChapterPath, handleChapterLinkClick } from '@/docs/route';
-import { useMessages } from '@/locale/context';
 
 export function DocsNav({
   activeChapterSlug,
 }: {
   readonly activeChapterSlug: string | null;
 }) {
-  const docsMessages = useMessages(DOCS_MESSAGE_CATALOG);
+  const docsMessages = DOCS_MESSAGES;
 
   return (
     <nav

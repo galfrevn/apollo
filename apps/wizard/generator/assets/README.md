@@ -14,9 +14,9 @@
   <h3 align="center">Apollo Starter</h3>
 
   <p align="center">
-    Your own personal desk agent, on your Cloudflare account.
+    Your own personal agent with a body, on your Cloudflare account.
     <br />
-    Voice turns, tools, memory, reminders, and background research for an ESP32 desk companion. You bring the body.
+    Voice turns, tools, memory, reminders, and background research for an ESP32 companion. You bring the body.
     <br />
     <br />
     <a href="https://github.com/galfrevn/apollo/tree/main/documentation"><strong>Explore the docs »</strong></a>

@@ -85,6 +85,16 @@ export const DOCS_PART_LIST: readonly DocsPart[] = [
       },
     ],
   },
+  {
+    title: 'Part VI — What is next',
+    chapterList: [
+      {
+        slug: 'roadmap',
+        title: 'Roadmap',
+        description: 'Where Apollo is going, and how far along it is.',
+      },
+    ],
+  },
 ];
 
 function flattenDocsPartList(partList: readonly DocsPart[]): readonly DocsChapterEntry[] {

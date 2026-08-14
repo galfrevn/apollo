@@ -1,9 +1,8 @@
-import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
+import { LANDING_MESSAGES } from '@/landing/copy/text';
 import { ActHeading } from '@/landing/heading';
-import { useMessages } from '@/locale/context';
 
 export function LandingCapabilities() {
-  const capabilitiesMessages = useMessages(LANDING_MESSAGE_CATALOG).capabilities;
+  const capabilitiesMessages = LANDING_MESSAGES.capabilities;
   return (
     <section id="act" className="border-t py-[130px]">
       <div className="mx-auto w-full max-w-[1180px] px-8">

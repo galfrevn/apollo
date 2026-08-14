@@ -3,10 +3,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icons } from '@/components/icons';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { DOCS_CHAPTER_LIST, formatDocsChapterNumber } from '@/docs/catalog';
-import { DOCS_MESSAGE_CATALOG } from '@/docs/copy';
+import { DOCS_MESSAGES } from '@/docs/copy';
 import { buildDocsSearchCorpus, foldSearchText, searchDocsSections } from '@/docs/corpus';
 import { navigateToChapter, navigateToChapterHeading } from '@/docs/route';
-import { useMessages } from '@/locale/context';
 
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 
@@ -55,7 +54,7 @@ export function DocsSearch() {
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const listReference = useRef<HTMLUListElement | null>(null);
-  const docsMessages = useMessages(DOCS_MESSAGE_CATALOG);
+  const docsMessages = DOCS_MESSAGES;
   const sectionList = useMemo(() => buildDocsSearchCorpus(), []);
   const resultList = useMemo(
     () => buildResultList(sectionList, query),

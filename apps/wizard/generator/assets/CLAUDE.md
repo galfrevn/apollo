@@ -1,6 +1,6 @@
 # Apollo Starter
 
-A personal desk agent: this Cloudflare Worker handles voice turns, tools, memory, and background work for an ESP32 device (or any client speaking the Apollo protocol). Entry point `src/index.ts`.
+A personal agent with a body: this Cloudflare Worker handles voice turns, tools, memory, and background work for an ESP32 device (or any client speaking the Apollo protocol). Entry point `src/index.ts`.
 
 **Read the skills first.** `.claude/skills/` holds the task playbooks — route by task before touching code:
 

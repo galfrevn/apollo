@@ -2,21 +2,20 @@ import { Icons } from '@/components/icons';
 import { findDocsChapterBySlug } from '@/docs/catalog';
 import { DocsChapter } from '@/docs/chapter';
 import { DocsContents } from '@/docs/contents';
-import { DOCS_MESSAGE_CATALOG } from '@/docs/copy';
+import { DOCS_MESSAGES } from '@/docs/copy';
 import { useDocsMetadata } from '@/docs/metadata';
 import { DocsNav } from '@/docs/nav';
 import { DOCS_BASE_PATH, handleChapterLinkClick, useDocsChapterSlug } from '@/docs/route';
 import { DocsSearch } from '@/docs/search';
 import { LANDING_REPOSITORY_URL } from '@/landing/origin';
-import { useMessages } from '@/locale/context';
-import { LocaleToggle } from '@/locale/toggle';
+
 import { CONSOLE_BASE_PATH } from '@/router/route';
 
 export function DocsPage() {
   const activeChapterSlug = useDocsChapterSlug();
   const activeChapter =
     activeChapterSlug === null ? null : findDocsChapterBySlug(activeChapterSlug);
-  const docsMessages = useMessages(DOCS_MESSAGE_CATALOG);
+  const docsMessages = DOCS_MESSAGES;
   useDocsMetadata(activeChapter);
 
   return (
@@ -51,7 +50,6 @@ export function DocsPage() {
           >
             {docsMessages.openConsoleLabel}
           </a>
-          <LocaleToggle />
         </div>
       </header>
 

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
 
-import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
+import { LANDING_MESSAGES } from '@/landing/copy/text';
 import { LANDING_PUBLIC_ORIGIN, LANDING_REPOSITORY_URL } from '@/landing/origin';
 import {
-  LANDING_SOCIAL_DESCRIPTION_MAP,
+  LANDING_SOCIAL_DESCRIPTION,
   LANDING_STATIC_CLOSE_MARKER,
   LANDING_STATIC_OPEN_MARKER,
   buildConsoleDocument,
@@ -39,16 +39,14 @@ const structuredDataSchema = z.object({
 describe('landing discovery template', () => {
   it('carries the complete crawler-facing head', async () => {
     const templateHtml = await readApplicationFile('index.html');
-    const spanishMetadata = LANDING_MESSAGE_CATALOG.es.metadata;
-    expect(templateHtml).toContain('<html lang="es">');
-    expect(templateHtml).toContain(`<title>${spanishMetadata.documentTitle}</title>`);
-    expect(templateHtml).toContain(spanishMetadata.documentDescription);
+    const landingMetadata = LANDING_MESSAGES.metadata;
+    expect(templateHtml).toContain('<html lang="en">');
+    expect(templateHtml).toContain(`<title>${landingMetadata.documentTitle}</title>`);
+    expect(templateHtml).toContain(landingMetadata.documentDescription);
     expect(templateHtml).toContain(
       `<link rel="canonical" href="${LANDING_PUBLIC_ORIGIN}/" />`,
     );
-    expect(templateHtml).toContain(`hreflang="es"`);
-    expect(templateHtml).toContain(`hreflang="en"`);
-    expect(templateHtml).toContain(`hreflang="x-default"`);
+    expect(templateHtml).not.toContain('hreflang');
     expect(templateHtml).toContain('property="og:site_name"');
     expect(templateHtml).toContain('property="og:image:alt"');
     expect(templateHtml).toContain('name="twitter:title"');
@@ -56,14 +54,14 @@ describe('landing discovery template', () => {
     expect(templateHtml).toContain('name="twitter:image"');
     expect(templateHtml).toContain('name="theme-color"');
     expect(templateHtml).toContain('rel="manifest"');
-    expect(templateHtml).toContain(LANDING_SOCIAL_DESCRIPTION_MAP.es);
+    expect(templateHtml).toContain(LANDING_SOCIAL_DESCRIPTION);
     expect(templateHtml).toContain(LANDING_STATIC_OPEN_MARKER);
     expect(templateHtml).toContain(LANDING_STATIC_CLOSE_MARKER);
     expect(templateHtml).toContain("setAttribute('data-scripting', '')");
     expect(templateHtml).not.toContain('THESIS:');
   });
 
-  it('declares valid structured data matching the spanish catalog', async () => {
+  it('declares valid structured data matching the copy', async () => {
     const templateHtml = await readApplicationFile('index.html');
     const structuredDataMatch = templateHtml.match(
       /<script type="application\/ld\+json">([\s\S]*?)<\/script>/,
@@ -78,58 +76,53 @@ describe('landing discovery template', () => {
       (graphEntry) => graphEntry['@type'] === 'SoftwareApplication',
     );
     expect(softwareEntry?.description).toBe(
-      LANDING_MESSAGE_CATALOG.es.metadata.documentDescription,
+      LANDING_MESSAGES.metadata.documentDescription,
     );
-    const spanishFeatureList = LANDING_MESSAGE_CATALOG.es.capabilities.capabilityRowList
+    const featureList = LANDING_MESSAGES.capabilities.capabilityRowList
       .map((capabilityRow) => capabilityRow.name)
       .join(', ');
-    expect(softwareEntry?.featureList).toBe(spanishFeatureList);
+    expect(softwareEntry?.featureList).toBe(featureList);
   });
 });
 
 describe('landing document generation', () => {
-  it('renders every crawler-relevant copy string per locale', () => {
-    for (const locale of ['es', 'en'] as const) {
-      const staticBlock = renderLandingStaticBlock(locale);
-      const landingMessages = LANDING_MESSAGE_CATALOG[locale];
-      expect(staticBlock).toContain('<h1 ');
-      expect(staticBlock).toContain('data-landing-static');
-      expect(staticBlock).toContain('font-serif');
-      expect(staticBlock).toContain(landingMessages.hero.subhead);
-      expect(staticBlock).toContain(landingMessages.showcase.actTitle);
-      expect(staticBlock).toContain(landingMessages.architecture.actTitle);
-      expect(staticBlock).toContain(landingMessages.capabilities.actTitle);
-      expect(staticBlock).toContain(landingMessages.yours.actTitle);
-      for (const capabilityRow of landingMessages.capabilities.capabilityRowList) {
-        expect(staticBlock).toContain(`${capabilityRow.name}</h3>`);
-        expect(staticBlock).toContain(capabilityRow.description);
-      }
-      for (const ownershipCard of landingMessages.yours.ownershipCardList) {
-        expect(staticBlock).toContain(`${ownershipCard.label}</h3>`);
-      }
-      expect(staticBlock).toContain(`${landingMessages.start.title}</h3>`);
-      expect(staticBlock).toContain('$ bun create heyapollo');
-      expect(staticBlock).toContain('$ npm create heyapollo');
-      expect(staticBlock).toContain(landingMessages.start.terminalCaption);
-      expect(staticBlock).toContain(landingMessages.start.agentPrompt);
-      expect(staticBlock).toContain(landingMessages.start.agentCaption);
-      expect(staticBlock).toContain('<h3 class=');
-      expect(staticBlock).toContain(LANDING_REPOSITORY_URL);
+  it('renders every crawler-relevant copy string', () => {
+    const staticBlock = renderLandingStaticBlock();
+    const landingMessages = LANDING_MESSAGES;
+    expect(staticBlock).toContain('<h1 ');
+    expect(staticBlock).toContain('data-landing-static');
+    expect(staticBlock).toContain('font-serif');
+    expect(staticBlock).toContain(landingMessages.hero.subhead);
+    expect(staticBlock).toContain(landingMessages.showcase.actTitle);
+    expect(staticBlock).toContain(landingMessages.architecture.actTitle);
+    expect(staticBlock).toContain(landingMessages.capabilities.actTitle);
+    expect(staticBlock).toContain(landingMessages.yours.actTitle);
+    for (const capabilityRow of landingMessages.capabilities.capabilityRowList) {
+      expect(staticBlock).toContain(`${capabilityRow.name}</h3>`);
+      expect(staticBlock).toContain(capabilityRow.description);
     }
+    for (const ownershipCard of landingMessages.yours.ownershipCardList) {
+      expect(staticBlock).toContain(`${ownershipCard.label}</h3>`);
+    }
+    expect(staticBlock).toContain(`${landingMessages.start.title}</h3>`);
+    expect(staticBlock).toContain('$ bun create heyapollo');
+    expect(staticBlock).toContain('$ npm create heyapollo');
+    expect(staticBlock).toContain(landingMessages.start.terminalCaption);
+    expect(staticBlock).toContain(landingMessages.start.agentPrompt);
+    expect(staticBlock).toContain(landingMessages.start.agentCaption);
+    expect(staticBlock).toContain('<h3 class=');
+    expect(staticBlock).toContain(LANDING_REPOSITORY_URL);
   });
 
-  it('builds the localized english document from the spanish template', async () => {
+  it('injects the static block into the single landing document', async () => {
     const templateHtml = await readApplicationFile('index.html');
-    const englishDocument = buildLandingDocument(templateHtml, 'en');
-    const englishMetadata = LANDING_MESSAGE_CATALOG.en.metadata;
-    expect(englishDocument).toContain('<html lang="en">');
-    expect(englishDocument).toContain(`<title>${englishMetadata.documentTitle}</title>`);
-    expect(englishDocument).toContain(englishMetadata.documentDescription);
-    expect(englishDocument).toContain(
-      `<link rel="canonical" href="${LANDING_PUBLIC_ORIGIN}/en" />`,
+    const landingDocument = buildLandingDocument(templateHtml);
+    expect(landingDocument).toContain('<html lang="en">');
+    expect(landingDocument).toContain(
+      `<link rel="canonical" href="${LANDING_PUBLIC_ORIGIN}/" />`,
     );
-    expect(englishDocument).toContain(LANDING_SOCIAL_DESCRIPTION_MAP.en);
-    expect(englishDocument).toContain(LANDING_MESSAGE_CATALOG.en.hero.subhead);
+    expect(landingDocument).toContain(LANDING_SOCIAL_DESCRIPTION);
+    expect(landingDocument).toContain(LANDING_MESSAGES.hero.subhead);
   });
 
   it('builds a noindexed console shell without landing copy', async () => {
@@ -156,19 +149,17 @@ describe('crawl control files', () => {
     }
   });
 
-  it('lists both locale urls with reciprocal hreflang in the sitemap', async () => {
+  it('lists a single landing url with no locale alternates', async () => {
     const sitemapDocument = await readApplicationFile('public/sitemap.xml');
     expect(sitemapDocument).toContain(`<loc>${LANDING_PUBLIC_ORIGIN}/</loc>`);
-    expect(sitemapDocument).toContain(`<loc>${LANDING_PUBLIC_ORIGIN}/en</loc>`);
-    expect(sitemapDocument.match(/hreflang="x-default"/g)).toHaveLength(2);
+    expect(sitemapDocument).not.toContain('hreflang');
   });
 
-  it('describes apollo for language models in both languages', async () => {
+  it('describes apollo for language models', async () => {
     const llmsDocument = await readApplicationFile('public/llms.txt');
     expect(llmsDocument).toContain('# Apollo');
-    expect(llmsDocument).toContain('## English');
     expect(llmsDocument).toContain(LANDING_REPOSITORY_URL);
-    expect(llmsDocument).toContain(`${LANDING_PUBLIC_ORIGIN}/en`);
+    expect(llmsDocument).toContain(`${LANDING_PUBLIC_ORIGIN}/docs`);
     expect(llmsDocument).not.toContain('—');
   });
 

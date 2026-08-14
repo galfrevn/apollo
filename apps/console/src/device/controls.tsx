@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Slider } from '@/components/ui/slider';
-import { DEVICE_MESSAGE_CATALOG } from '@/device/copy';
-import { useMessages } from '@/locale/context';
+import { DEVICE_MESSAGES } from '@/device/copy';
+
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { DeviceCommandResult } from '@/agent/schema';
 
@@ -16,7 +16,7 @@ function SliderRow({
   readonly currentValue?: number;
   readonly onApply: (value: number) => Promise<DeviceCommandResult>;
 }) {
-  const deviceMessages = useMessages(DEVICE_MESSAGE_CATALOG);
+  const deviceMessages = DEVICE_MESSAGES;
   const [pendingValue, setPendingValue] = useState<number | null>(null);
   const [commandFailure, setCommandFailure] = useState<{
     readonly serverMessage: string | null;
@@ -90,7 +90,7 @@ export function DeviceControls({
   readonly isLoading?: boolean;
   readonly onApplied?: () => void;
 }) {
-  const deviceMessages = useMessages(DEVICE_MESSAGE_CATALOG);
+  const deviceMessages = DEVICE_MESSAGES;
   if (isLoading) {
     return (
       <div className="space-y-5 p-4">

@@ -1,6 +1,6 @@
 # Apollo Handbook
 
-Apollo is a personal desk agent designed for an ESP32 client, with a Cloudflare Workers backend that handles voice turns, tools, memory, and background work.
+Apollo is a personal agent with a body: it lives in a physical device rather than a chat window. The reference client is an ESP32, and a Cloudflare Workers backend handles voice turns, tools, memory, and background work.
 
 This handbook is meant to be read in order. Later chapters assume the concepts introduced earlier.
 

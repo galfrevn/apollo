@@ -1,14 +1,13 @@
 import { useEffect } from 'react';
 import type { MouseEvent } from 'react';
 
-import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
+import { LANDING_MESSAGES } from '@/landing/copy/text';
 import { ActHeading } from '@/landing/heading';
 import { MagneticLink } from '@/landing/magnet';
 import { LANDING_LINK_MAP } from '@/landing/metadata';
 import { ScrollSmoother } from '@/landing/motion';
 import { warmConsoleChunk, warmDocsChunk } from '@/landing/prefetch';
 import { LandingStart } from '@/landing/start';
-import { useMessages } from '@/locale/context';
 
 // ScrollSmoother transforms the pinned content instead of scrolling the page,
 // so native hash navigation lands at the wrong position while it is active.
@@ -61,7 +60,7 @@ function useAnchorHistoryRestoration(): void {
 }
 
 export function LandingYours() {
-  const yoursMessages = useMessages(LANDING_MESSAGE_CATALOG).yours;
+  const yoursMessages = LANDING_MESSAGES.yours;
   useAnchorHistoryRestoration();
   return (
     <section id="yours" className="border-t py-[130px]">

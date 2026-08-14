@@ -13,17 +13,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useLocale, useMessages } from '@/locale/context';
 import {
   formatClockTime,
   formatDayTimestamp,
   formatRemainingDuration,
 } from '@/locale/format';
-import { SCHEDULES_MESSAGE_CATALOG } from '@/schedules/copy';
+import { SCHEDULES_MESSAGES } from '@/schedules/copy';
 import { ScheduleComposer } from '@/schedules/create';
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { Reminder } from '@/agent/schema';
-import type { Locale } from '@/locale/detect';
 
 // Mirrors the worker's own timer convention: the "Timer" message prefix plus a
 // numeric delay, both required (apps/agent/src/agents/apollo.ts).
@@ -31,22 +29,15 @@ function isTimerReminder(reminder: Reminder): boolean {
   return reminder.message.startsWith('Timer') && reminder.delayInSeconds !== undefined;
 }
 
-function formatFireTimeLabel(
-  firesAtIso: string,
-  nowMilliseconds: number,
-  locale: Locale,
-): string {
+function formatFireTimeLabel(firesAtIso: string, nowMilliseconds: number): string {
   const firesAtDate = new Date(firesAtIso);
   const isSameDay =
     firesAtDate.toDateString() === new Date(nowMilliseconds).toDateString();
-  return isSameDay
-    ? formatClockTime(firesAtDate, locale)
-    : formatDayTimestamp(firesAtDate, locale);
+  return isSameDay ? formatClockTime(firesAtDate) : formatDayTimestamp(firesAtDate);
 }
 
 export function SchedulesPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
-  const { locale } = useLocale();
-  const schedulesMessages = useMessages(SCHEDULES_MESSAGE_CATALOG);
+  const schedulesMessages = SCHEDULES_MESSAGES;
   const [reminderList, setReminderList] = useState<readonly Reminder[] | null>(null);
   const [pendingCancel, setPendingCancel] = useState<Reminder | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -164,11 +155,10 @@ export function SchedulesPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc 
                       ? schedulesMessages.dueLabel
                       : formatRemainingDuration(
                           new Date(reminder.firesAtIso).getTime() - nowMilliseconds,
-                          locale,
                         )}
                   </p>
                   <p className="mt-0.5 text-xs whitespace-nowrap text-dim">
-                    {formatFireTimeLabel(reminder.firesAtIso, nowMilliseconds, locale)}
+                    {formatFireTimeLabel(reminder.firesAtIso, nowMilliseconds)}
                   </p>
                 </div>
                 <div className="min-w-0 flex-1">

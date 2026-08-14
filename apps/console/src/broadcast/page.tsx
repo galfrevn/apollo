@@ -4,7 +4,7 @@ import type { FormEvent } from 'react';
 import { Chip } from '@/blueprint/chip';
 import { Heading } from '@/blueprint/heading';
 import { Panel } from '@/blueprint/panel';
-import { BROADCAST_MESSAGE_CATALOG } from '@/broadcast/copy';
+import { BROADCAST_MESSAGES } from '@/broadcast/copy';
 import {
   BROADCAST_MAX_RECORDING_SECONDS,
   computeRecordingDurationSeconds,
@@ -17,7 +17,7 @@ import {
 import { uploadBroadcastAudio } from '@/broadcast/upload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useMessages } from '@/locale/context';
+
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { BroadcastResult } from '@/agent/schema';
 import type { BroadcastRecorderHandle } from '@/broadcast/recorder';
@@ -25,7 +25,7 @@ import type { BroadcastRecorderHandle } from '@/broadcast/recorder';
 type RecorderPhase = 'idle' | 'recording' | 'recorded' | 'uploading';
 
 export function BroadcastPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
-  const broadcastMessages = useMessages(BROADCAST_MESSAGE_CATALOG);
+  const broadcastMessages = BROADCAST_MESSAGES;
   const [isDeviceConnected, setIsDeviceConnected] = useState<boolean | null>(null);
   const [feedbackOutcome, setFeedbackOutcome] = useState<
     BroadcastResult['outcome'] | null

@@ -1,8 +1,8 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/components/utility';
-import { useMessages } from '@/locale/context';
+
 import { navigateToRoute } from '@/router/route';
-import { STATUS_MESSAGE_CATALOG } from '@/status/copy';
+import { STATUS_MESSAGES } from '@/status/copy';
 import type { ApolloAgentState, ConsoleStatus } from '@/agent/schema';
 import type { ConsoleRoute } from '@/router/route';
 
@@ -70,7 +70,7 @@ export function TileGrid({
   readonly agentState: ApolloAgentState | undefined;
   readonly status: ConsoleStatus | null;
 }) {
-  const statusMessages = useMessages(STATUS_MESSAGE_CATALOG);
+  const statusMessages = STATUS_MESSAGES;
   const tileMessages = statusMessages.tiles;
   const isLoading = status === null;
   const telemetry = status?.telemetry ?? null;

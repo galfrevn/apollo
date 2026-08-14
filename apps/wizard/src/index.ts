@@ -93,7 +93,7 @@ async function runWizard(): Promise<void> {
     taglineLabel: await readSetupTaglineLabel(),
     isReturningRun: existsSync('.apollo.json'),
   });
-  intro(picocolors.bold("Let's set up your desk agent"));
+  intro(picocolors.bold("Let's give your agent a body"));
 
   if (!existsSync(DEVELOPMENT_VARIABLES_FILE)) {
     await Bun.write(

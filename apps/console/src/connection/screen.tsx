@@ -5,12 +5,11 @@ import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CONNECTION_MESSAGE_CATALOG } from '@/connection/copy';
+import { CONNECTION_MESSAGES } from '@/connection/copy';
 import { useConnection } from '@/connection/context';
 import { probeWorkerHealth } from '@/connection/probe';
 import { consoleConnectionSchema } from '@/connection/schema';
-import { useMessages } from '@/locale/context';
-import { LocaleToggle } from '@/locale/toggle';
+
 import { useDocumentMetadata } from '@/router/metadata';
 
 type ConnectFailureKind = 'validation' | 'unreachable' | 'not-apollo';
@@ -18,7 +17,7 @@ type ConnectFailureKind = 'validation' | 'unreachable' | 'not-apollo';
 export function ConnectScreen() {
   useDocumentMetadata(null);
   const { connect } = useConnection();
-  const connectionMessages = useMessages(CONNECTION_MESSAGE_CATALOG);
+  const connectionMessages = CONNECTION_MESSAGES;
   const [workerUrl, setWorkerUrl] = useState('');
   const [deviceName, setDeviceName] = useState('desk');
   const [secret, setSecret] = useState('');
@@ -56,7 +55,6 @@ export function ConnectScreen() {
 
   return (
     <main className="relative grid min-h-dvh place-items-center px-4 py-16">
-      <LocaleToggle className="absolute top-6 right-6" />
       <div className="settle w-full max-w-sm">
         <div className="mb-8 text-center">
           <span className="inline-flex">

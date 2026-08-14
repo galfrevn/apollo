@@ -3,9 +3,8 @@ import type { KeyboardEvent } from 'react';
 
 import { useClipboard } from '@/components/clipboard';
 import { Icons } from '@/components/icons';
-import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
+import { LANDING_MESSAGES } from '@/landing/copy/text';
 import { LANDING_COMMAND_MAP, LANDING_START_ANCHOR_ID } from '@/landing/metadata';
-import { useMessages } from '@/locale/context';
 
 type StartPane = 'terminal' | 'agent';
 type CommandRuntime = keyof typeof LANDING_COMMAND_MAP;
@@ -34,7 +33,7 @@ function CopyButton({
 }
 
 export function LandingStart() {
-  const startMessages = useMessages(LANDING_MESSAGE_CATALOG).start;
+  const startMessages = LANDING_MESSAGES.start;
   const [selectedPane, setSelectedPane] = useState<StartPane>('terminal');
   const [selectedRuntime, setSelectedRuntime] = useState<CommandRuntime>('bun');
   const terminalTabReference = useRef<HTMLButtonElement | null>(null);

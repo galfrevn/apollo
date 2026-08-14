@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
+import { LANDING_MESSAGES } from '@/landing/copy/text';
 import { DeviceCanvas } from '@/landing/device/canvas';
 import { ActHeading } from '@/landing/heading';
 import {
@@ -11,7 +11,6 @@ import {
   useGSAP,
 } from '@/landing/motion';
 import { useWakeEcho } from '@/landing/wake';
-import { useMessages } from '@/locale/context';
 
 import type { ReactNode } from 'react';
 
@@ -62,7 +61,7 @@ function useLiveClockText(): string {
 }
 
 export function LandingShowcase() {
-  const showcaseMessages = useMessages(LANDING_MESSAGE_CATALOG).showcase;
+  const showcaseMessages = LANDING_MESSAGES.showcase;
   const sectionReference = useRef<HTMLElement | null>(null);
   const [liveEmotionIndex, setLiveEmotionIndex] = useState(0);
   const clockText = useLiveClockText();

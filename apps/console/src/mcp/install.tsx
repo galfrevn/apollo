@@ -4,8 +4,8 @@ import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useMessages } from '@/locale/context';
-import { MCP_MESSAGE_CATALOG } from '@/mcp/copy';
+
+import { MCP_MESSAGES } from '@/mcp/copy';
 import type { McpInstallResult } from '@/agent/schema';
 
 export function InstallForm({
@@ -23,7 +23,7 @@ export function InstallForm({
   readonly initialName?: string;
   readonly initialUrl?: string;
 }) {
-  const mcpMessages = useMessages(MCP_MESSAGE_CATALOG);
+  const mcpMessages = MCP_MESSAGES;
   const [name, setName] = useState(initialName ?? '');
   const [url, setUrl] = useState(initialUrl ?? '');
   const [authToken, setAuthToken] = useState('');

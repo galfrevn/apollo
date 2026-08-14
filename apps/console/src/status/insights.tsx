@@ -1,8 +1,8 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConnection } from '@/connection/context';
-import { useMessages } from '@/locale/context';
+
 import { navigateToRoute } from '@/router/route';
-import { STATUS_MESSAGE_CATALOG } from '@/status/copy';
+import { STATUS_MESSAGES } from '@/status/copy';
 import type { ApolloAgentState, ConsoleStatus } from '@/agent/schema';
 import type { InsightSegment, StatusMessages } from '@/status/copy';
 
@@ -85,7 +85,7 @@ export function Insights({
   readonly status: ConsoleStatus | null;
 }) {
   const { connection } = useConnection();
-  const statusMessages = useMessages(STATUS_MESSAGE_CATALOG);
+  const statusMessages = STATUS_MESSAGES;
   const greetingLabel = statusMessages.resolveGreeting(new Date().getHours());
 
   return (

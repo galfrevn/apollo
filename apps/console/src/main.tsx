@@ -1,7 +1,6 @@
 import { createRoot } from 'react-dom/client';
 
 import '@/index.css';
-import { LocaleProvider } from '@/locale/context';
 import { resolveSurfaceFromLocation } from '@/router/path';
 
 const rootElement = document.getElementById('root');
@@ -28,26 +27,11 @@ if (surface.kind === 'redirect') {
     throw importFailure;
   }
   const { LandingPage } = landingModule;
-  createRoot(rootElement).render(
-    <LocaleProvider
-      localeOverride={surface.localeOverride}
-      shouldDetectBrowserLanguage={false}
-    >
-      <LandingPage />
-    </LocaleProvider>,
-  );
+  createRoot(rootElement).render(<LandingPage />);
 } else if (surface.kind === 'docs') {
   const { DocsPage } = await import('@/docs/page');
-  createRoot(rootElement).render(
-    <LocaleProvider>
-      <DocsPage />
-    </LocaleProvider>,
-  );
+  createRoot(rootElement).render(<DocsPage />);
 } else {
   const { App } = await import('@/app');
-  createRoot(rootElement).render(
-    <LocaleProvider>
-      <App />
-    </LocaleProvider>,
-  );
+  createRoot(rootElement).render(<App />);
 }

@@ -1,11 +1,10 @@
 import { useClipboard } from '@/components/clipboard';
 import { Icons } from '@/components/icons';
-import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
+import { LANDING_MESSAGES } from '@/landing/copy/text';
 import { LANDING_COMMAND_MAP } from '@/landing/metadata';
-import { useMessages } from '@/locale/context';
 
 export function LandingCommand() {
-  const startMessages = useMessages(LANDING_MESSAGE_CATALOG).start;
+  const startMessages = LANDING_MESSAGES.start;
   const { isCopied, copyTextToClipboard } = useClipboard();
 
   return (

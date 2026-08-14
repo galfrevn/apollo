@@ -3,10 +3,10 @@ import type { IconType } from 'react-icons';
 import { Icons } from '@/components/icons';
 import { cn } from '@/components/utility';
 import { useConnection } from '@/connection/context';
-import { LAYOUT_MESSAGE_CATALOG } from '@/layout/copy';
-import { useMessages } from '@/locale/context';
+import { LAYOUT_MESSAGES } from '@/layout/copy';
+
 import { CONSOLE_ROUTE_LIST, navigateToRoute, useConsoleRoute } from '@/router/route';
-import { ROUTE_LABEL_CATALOG } from '@/router/metadata';
+import { ROUTE_LABEL_MAP } from '@/router/metadata';
 import type { ConsoleRoute } from '@/router/route';
 
 export const ROUTE_ICON_MAP = {
@@ -29,8 +29,8 @@ function Rail({
 }) {
   const activeRoute = useConsoleRoute();
   const { connection } = useConnection();
-  const layoutMessages = useMessages(LAYOUT_MESSAGE_CATALOG);
-  const routeLabelMap = useMessages(ROUTE_LABEL_CATALOG);
+  const layoutMessages = LAYOUT_MESSAGES;
+  const routeLabelMap = ROUTE_LABEL_MAP;
   const deviceName = connection?.deviceName ?? '';
   const workerHost = connection === null ? '' : new URL(connection.workerUrl).host;
   const revealClass = cn(
@@ -108,8 +108,8 @@ function Rail({
 
 function MobileRow() {
   const activeRoute = useConsoleRoute();
-  const layoutMessages = useMessages(LAYOUT_MESSAGE_CATALOG);
-  const routeLabelMap = useMessages(ROUTE_LABEL_CATALOG);
+  const layoutMessages = LAYOUT_MESSAGES;
+  const routeLabelMap = ROUTE_LABEL_MAP;
   return (
     <nav aria-label={layoutMessages.navigationAriaLabel} className="md:hidden">
       <ul className="scrollbar-hide flex gap-1 overflow-x-auto px-4 pt-4">

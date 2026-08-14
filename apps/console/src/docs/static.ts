@@ -1,11 +1,10 @@
-import { DOCS_DOCUMENT_DESCRIPTION_MAP, DOCS_DOCUMENT_TITLE_MAP } from '@/docs/metadata';
+import { DOCS_DOCUMENT_DESCRIPTION, DOCS_DOCUMENT_TITLE } from '@/docs/metadata';
 import { buildChapterPath } from '@/docs/route';
-import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
+import { LANDING_MESSAGES } from '@/landing/copy/text';
 import { LANDING_PUBLIC_ORIGIN } from '@/landing/origin';
 import {
-  LANDING_OPEN_GRAPH_LOCALE_MAP,
-  LANDING_SOCIAL_DESCRIPTION_MAP,
-  LANDING_SOCIAL_IMAGE_ALT_MAP,
+  LANDING_SOCIAL_DESCRIPTION,
+  LANDING_SOCIAL_IMAGE_ALT,
   replaceExactlyOnce,
   stripLandingStaticBlock,
 } from '@/landing/static';
@@ -74,24 +73,29 @@ export const DOCS_SOCIAL_IMAGE_MAP: Record<string, DocsSocialImage> = {
     height: 678,
     alt: 'Exploded view of the round device: glass, display, circuit board, speaker mesh, shell.',
   },
+  roadmap: {
+    path: '/handbook/roadmap.jpg',
+    width: 1600,
+    height: 678,
+    alt: 'Stepping stones lit at the near end and fading into faint outlines in the distance.',
+  },
 };
 
 export function buildDocsDocument(
   templateHtml: string,
   chapterEntry: DocsChapterEntry | null,
 ): string {
-  const landingTitle = LANDING_MESSAGE_CATALOG.es.metadata.documentTitle;
-  const landingDescription = LANDING_MESSAGE_CATALOG.es.metadata.documentDescription;
+  const landingTitle = LANDING_MESSAGES.metadata.documentTitle;
+  const landingDescription = LANDING_MESSAGES.metadata.documentDescription;
   const docsTitle =
     chapterEntry === null
-      ? DOCS_DOCUMENT_TITLE_MAP.en
-      : `${DOCS_DOCUMENT_TITLE_MAP.en} | ${chapterEntry.title}`;
+      ? DOCS_DOCUMENT_TITLE
+      : `${DOCS_DOCUMENT_TITLE} | ${chapterEntry.title}`;
   const docsDescription =
-    chapterEntry === null ? DOCS_DOCUMENT_DESCRIPTION_MAP.en : chapterEntry.description;
+    chapterEntry === null ? DOCS_DOCUMENT_DESCRIPTION : chapterEntry.description;
   const docsPageUrl = `${LANDING_PUBLIC_ORIGIN}${buildChapterPath(chapterEntry?.slug ?? null)}`;
 
   let docsDocument = stripLandingStaticBlock(templateHtml);
-  docsDocument = replaceExactlyOnce(docsDocument, '<html lang="es">', '<html lang="en">');
   docsDocument = replaceExactlyOnce(
     docsDocument,
     `<title>${landingTitle}</title>`,
@@ -116,35 +120,7 @@ export function buildDocsDocument(
     `content="${landingTitle}"`,
     `content="${docsTitle}"`,
   );
-  docsDocument = docsDocument.replaceAll(
-    LANDING_SOCIAL_DESCRIPTION_MAP.es,
-    docsDescription,
-  );
-  docsDocument = replaceExactlyOnce(
-    docsDocument,
-    `<link rel="alternate" hreflang="es" href="${LANDING_PUBLIC_ORIGIN}/" />`,
-    '',
-  );
-  docsDocument = replaceExactlyOnce(
-    docsDocument,
-    `<link rel="alternate" hreflang="en" href="${LANDING_PUBLIC_ORIGIN}/en" />`,
-    '',
-  );
-  docsDocument = replaceExactlyOnce(
-    docsDocument,
-    `<link rel="alternate" hreflang="x-default" href="${LANDING_PUBLIC_ORIGIN}/" />`,
-    '',
-  );
-  docsDocument = replaceExactlyOnce(
-    docsDocument,
-    `<meta property="og:locale:alternate" content="${LANDING_OPEN_GRAPH_LOCALE_MAP.en}" />`,
-    '',
-  );
-  docsDocument = replaceExactlyOnce(
-    docsDocument,
-    `<meta property="og:locale" content="${LANDING_OPEN_GRAPH_LOCALE_MAP.es}" />`,
-    `<meta property="og:locale" content="${LANDING_OPEN_GRAPH_LOCALE_MAP.en}" />`,
-  );
+  docsDocument = docsDocument.replaceAll(LANDING_SOCIAL_DESCRIPTION, docsDescription);
   const socialImage =
     chapterEntry === null ? null : (DOCS_SOCIAL_IMAGE_MAP[chapterEntry.slug] ?? null);
   if (socialImage !== null) {
@@ -162,10 +138,7 @@ export function buildDocsDocument(
       '<meta property="og:image:height" content="1260" />',
       `<meta property="og:image:height" content="${socialImage.height}" />`,
     );
-    docsDocument = docsDocument.replaceAll(
-      LANDING_SOCIAL_IMAGE_ALT_MAP.es,
-      socialImage.alt,
-    );
+    docsDocument = docsDocument.replaceAll(LANDING_SOCIAL_IMAGE_ALT, socialImage.alt);
     docsDocument = replaceExactlyOnce(
       docsDocument,
       '<meta property="og:type" content="website" />',

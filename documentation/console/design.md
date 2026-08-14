@@ -37,7 +37,7 @@ Scale as used: page `Heading` is `text-xl font-medium tracking-tight`; dialog ti
 
 ## Language
 
-Both surfaces are bilingual, Spanish first. All copy lives in typed catalogs — `src/<area>/copy.ts` per console area, `src/landing/copy/` for the landing — consumed through `useMessages` from `src/locale/context.tsx`; no user-facing string is written inline in a component. Variable messages are template functions, never string concatenation; the status insights build word order per locale as segment arrays. Dates go through `src/locale/format.ts` (Intl with the app locale). The `LocaleToggle` (lowercase `es` / `en` text buttons, active `text-foreground`, inactive `text-dim`) mounts in the shell header, the connect screen's top-right corner, and the landing footer. Spanish runs ~20–30% longer than English — check the rail, nav chips, and prose clamps in both locales when adding copy.
+Both surfaces are English only. The locale layer was removed: there is no provider, no toggle, and no per-locale catalog. All copy still lives in typed catalogs — `src/<area>/copy.ts` per console area, `src/landing/copy/text.ts` for the landing — each exporting one message object that components import directly; no user-facing string is written inline in a component. Variable messages are template functions, never string concatenation. Dates go through `src/locale/format.ts`, which wraps Intl at a fixed `en`. Note that this is the interface language only: the agent still speaks Rioplatense Spanish on the device, which is a persona choice made in `apps/agent/src/persona/`.
 
 ## Radius
 

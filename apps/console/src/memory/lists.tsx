@@ -5,8 +5,8 @@ import { Empty } from '@/blueprint/empty';
 import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useMessages } from '@/locale/context';
-import { MEMORY_MESSAGE_CATALOG } from '@/memory/copy';
+
+import { MEMORY_MESSAGES } from '@/memory/copy';
 import type { ListItem } from '@/agent/schema';
 
 function AddItemForm({
@@ -14,7 +14,7 @@ function AddItemForm({
 }: {
   readonly onAdd: (listName: string, content: string) => Promise<void>;
 }) {
-  const memoryMessages = useMessages(MEMORY_MESSAGE_CATALOG);
+  const memoryMessages = MEMORY_MESSAGES;
   const [listName, setListName] = useState('');
   const [content, setContent] = useState('');
   const [isAdding, setIsAdding] = useState(false);
@@ -69,7 +69,7 @@ export function ListsBlock({
   readonly onAdd: (listName: string, content: string) => Promise<void>;
   readonly onRemove: (itemId: string) => Promise<void>;
 }) {
-  const memoryMessages = useMessages(MEMORY_MESSAGE_CATALOG);
+  const memoryMessages = MEMORY_MESSAGES;
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
 
   async function handleRemove(itemId: string) {

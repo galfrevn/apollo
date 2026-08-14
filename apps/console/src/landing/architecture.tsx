@@ -1,14 +1,13 @@
 import { useRef } from 'react';
 
-import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
+import { LANDING_MESSAGES } from '@/landing/copy/text';
 import { FaceCanvas } from '@/landing/face/canvas';
 import { ActHeading } from '@/landing/heading';
 import { REDUCED_MOTION_SAFE_QUERY, RISE_EASE, gsap, useGSAP } from '@/landing/motion';
 import { useWakeEcho } from '@/landing/wake';
-import { useMessages } from '@/locale/context';
 
 export function LandingArchitecture() {
-  const architectureMessages = useMessages(LANDING_MESSAGE_CATALOG).architecture;
+  const architectureMessages = LANDING_MESSAGES.architecture;
   const sectionReference = useRef<HTMLElement | null>(null);
   const { wakeSignal, isAwake } = useWakeEcho();
 

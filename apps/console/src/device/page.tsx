@@ -4,9 +4,9 @@ import { Heading } from '@/blueprint/heading';
 import { Panel } from '@/blueprint/panel';
 import { Button } from '@/components/ui/button';
 import { DeviceControls } from '@/device/controls';
-import { DEVICE_MESSAGE_CATALOG } from '@/device/copy';
+import { DEVICE_MESSAGES } from '@/device/copy';
 import { WeatherPanel } from '@/device/weather';
-import { useMessages } from '@/locale/context';
+
 import type { ApolloAgentHandle } from '@/agent/hook';
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { ConsoleStatus } from '@/agent/schema';
@@ -26,7 +26,7 @@ export function DevicePage({
   readonly agent: ApolloAgentHandle;
   readonly consoleRpc: ConsoleRpc;
 }) {
-  const deviceMessages = useMessages(DEVICE_MESSAGE_CATALOG);
+  const deviceMessages = DEVICE_MESSAGES;
   const [status, setStatus] = useState<ConsoleStatus | null>(null);
   const [isSettingMode, setIsSettingMode] = useState(false);
   const [modeFailure, setModeFailure] = useState<{

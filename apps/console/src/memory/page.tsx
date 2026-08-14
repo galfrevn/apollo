@@ -7,17 +7,15 @@ import { Panel } from '@/blueprint/panel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useLocale, useMessages } from '@/locale/context';
 import { formatCalendarDate } from '@/locale/format';
 import { ListsBlock } from '@/memory/lists';
-import { MEMORY_MESSAGE_CATALOG } from '@/memory/copy';
+import { MEMORY_MESSAGES } from '@/memory/copy';
 import { OwnerFactBlock } from '@/memory/owner';
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { ListItem, MemoryBrowseResult } from '@/agent/schema';
 
 export function MemoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
-  const { locale } = useLocale();
-  const memoryMessages = useMessages(MEMORY_MESSAGE_CATALOG);
+  const memoryMessages = MEMORY_MESSAGES;
   const [browseResult, setBrowseResult] = useState<MemoryBrowseResult | null>(null);
   const [itemList, setItemList] = useState<readonly ListItem[] | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -181,7 +179,7 @@ export function MemoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) 
                 className="group flex items-baseline gap-4 border-b px-4 py-2.5 last:border-b-0"
               >
                 <span className="shrink-0 text-xs text-dim">
-                  {formatCalendarDate(new Date(memoryRecord.createdAt), locale)}
+                  {formatCalendarDate(new Date(memoryRecord.createdAt))}
                 </span>
                 <p className="min-w-0 flex-1 text-sm">{memoryRecord.content}</p>
                 <Button

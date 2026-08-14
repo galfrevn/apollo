@@ -2,18 +2,18 @@ import { useEffect, useState } from 'react';
 
 import { Icons } from '@/components/icons';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { LAYOUT_MESSAGE_CATALOG } from '@/layout/copy';
+import { LAYOUT_MESSAGES } from '@/layout/copy';
 import { ROUTE_ICON_MAP } from '@/layout/nav';
-import { useMessages } from '@/locale/context';
-import { ROUTE_LABEL_CATALOG } from '@/router/metadata';
+
+import { ROUTE_LABEL_MAP } from '@/router/metadata';
 import { CONSOLE_ROUTE_LIST, navigateToRoute } from '@/router/route';
 import type { ConsoleRoute } from '@/router/route';
 
 export function Search() {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const layoutMessages = useMessages(LAYOUT_MESSAGE_CATALOG);
-  const routeLabelMap = useMessages(ROUTE_LABEL_CATALOG);
+  const layoutMessages = LAYOUT_MESSAGES;
+  const routeLabelMap = ROUTE_LABEL_MAP;
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {

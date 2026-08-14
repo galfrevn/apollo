@@ -4,8 +4,8 @@ import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { useMessages } from '@/locale/context';
-import { SCHEDULES_MESSAGE_CATALOG } from '@/schedules/copy';
+
+import { SCHEDULES_MESSAGES } from '@/schedules/copy';
 
 const MAX_DELAY_MINUTES = 1_440;
 const DELAY_PRESET_MINUTE_LIST = [5, 15, 60] as const;
@@ -23,7 +23,7 @@ export function ScheduleComposer({
     isTimer: boolean,
   ) => Promise<void>;
 }) {
-  const schedulesMessages = useMessages(SCHEDULES_MESSAGE_CATALOG);
+  const schedulesMessages = SCHEDULES_MESSAGES;
   const [message, setMessage] = useState('');
   const [delayMinutes, setDelayMinutes] = useState('15');
   const [isTimer, setIsTimer] = useState(false);
