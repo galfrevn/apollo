@@ -1,5 +1,8 @@
-# Publishes create-heyapollo to npm. Trigger: push a tag like `create-v0.1.0`
-# whose version must match apps/wizard/package.json.
+# Publishes create-heyapollo to npm. Normal trigger: tag.yml cuts the
+# `create-v<version>` tag when a version bump lands on main and dispatches this
+# workflow against it (a GITHUB_TOKEN tag push cannot fire the tag trigger
+# itself). Pushing the tag by hand still publishes through the tag trigger.
+# Either way the tag version must match apps/wizard/package.json.
 #
 # Auth is npm Trusted Publishing (OIDC) — no long-lived npm token secret.
 # One-time setup, after the FIRST manual publish from a logged-in machine:
@@ -11,6 +14,7 @@ on:
   push:
     tags:
       - 'create-v*'
+  workflow_dispatch:
 
 permissions:
   contents: read

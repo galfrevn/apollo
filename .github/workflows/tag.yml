@@ -1,0 +1,45 @@
+# Cuts the create-heyapollo release tag automatically. Trigger: a push to main
+# that touches apps/wizard/package.json (a merged version-bump PR). When no
+# create-v<version> tag exists for the version now on main, the workflow
+# creates one and dispatches publish.yml against it.
+#
+# The dispatch is required, not decoration: a tag pushed with GITHUB_TOKEN
+# never fires tag-triggered workflows (recursion guard), but workflow_dispatch
+# is exempt. Dispatching publish.yml directly also keeps npm Trusted Publishing
+# valid, since the run's workflow is still publish.yml.
+name: Tag create-heyapollo
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - apps/wizard/package.json
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  tag:
+    name: Tag and dispatch publish
+    if: github.repository == 'galfrevn/apollo'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Create the release tag when the version is new
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          packageVersion=$(jq -r .version apps/wizard/package.json)
+          releaseTagName="create-v${packageVersion}"
+          if [ -n "$(git ls-remote --tags origin "refs/tags/${releaseTagName}")" ]; then
+            echo "tag ${releaseTagName} already exists — nothing to release"
+            exit 0
+          fi
+          git tag "${releaseTagName}" "${GITHUB_SHA}"
+          git push origin "refs/tags/${releaseTagName}"
+          gh workflow run publish.yml --ref "refs/tags/${releaseTagName}"
