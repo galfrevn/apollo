@@ -15,7 +15,9 @@ function handleAnchorActivation(clickEvent: MouseEvent<HTMLAnchorElement>): void
   const smoother = ScrollSmoother.get();
   if (smoother) {
     clickEvent.preventDefault();
-    smoother.scrollTo(clickEvent.currentTarget.hash, true);
+    const targetHash = clickEvent.currentTarget.hash;
+    smoother.scrollTo(targetHash, true);
+    window.history.pushState(null, '', targetHash);
   }
 }
 
