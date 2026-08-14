@@ -1,6 +1,6 @@
 {
   "name": "create-heyapollo",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Scaffold your own Apollo — a personal desk agent on your Cloudflare account — and walk through its setup wizard.",
   "license": "MIT",
   "author": "Valentín Galfre",
