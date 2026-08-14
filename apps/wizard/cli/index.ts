@@ -6,6 +6,7 @@ import { parseCreateCommandArgumentList, scaffoldStarterProject } from '@/scaffo
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const templateDirectory = join(scriptDirectory, '..', 'template');
+const setupBundlePath = join(scriptDirectory, 'setup.js');
 
 function isCommandAvailable(commandName: string): boolean {
   return spawnSync(commandName, ['--version'], { stdio: 'ignore' }).status === 0;
@@ -22,7 +23,20 @@ function runInTarget(
   return spawnResult.status === 0;
 }
 
-const optionSet = parseCreateCommandArgumentList(process.argv.slice(2));
+const argumentList = process.argv.slice(2);
+
+// `bun run setup` inside a scaffolded project delegates here: the wizard ships
+// bundled in this package, never copied into the scaffold.
+if (argumentList[0] === 'setup') {
+  if (!isCommandAvailable('bun')) {
+    console.error('Apollo setup runs on Bun — install it first: https://bun.sh');
+    process.exit(1);
+  }
+  const didSetupSucceed = runInTarget(['bun', setupBundlePath], process.cwd());
+  process.exit(didSetupSucceed ? 0 : 1);
+}
+
+const optionSet = parseCreateCommandArgumentList(argumentList);
 const targetDirectory = resolve(process.cwd(), optionSet.targetDirectoryName);
 
 console.log(`\ncreate-heyapollo — scaffolding into ${optionSet.targetDirectoryName}/`);
@@ -59,7 +73,7 @@ if (optionSet.shouldInstall && !runInTarget(['bun', 'install'], targetDirectory)
 }
 
 if (optionSet.shouldRunSetup && optionSet.shouldInstall && process.stdout.isTTY) {
-  const didSetupSucceed = runInTarget(['bun', 'run', 'setup'], targetDirectory);
+  const didSetupSucceed = runInTarget(['bun', setupBundlePath], targetDirectory);
   process.exit(didSetupSucceed ? 0 : 1);
 }
 

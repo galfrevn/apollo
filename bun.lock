@@ -67,39 +67,22 @@
       },
     },
     "apps/wizard": {
-      "name": "@apollo/wizard",
-      "dependencies": {
-        "@clack/prompts": "^0.11.0",
-        "picocolors": "^1.1.1",
-        "zod": "^3.25.76",
-      },
-      "devDependencies": {
-        "@apollo/typescript-config": "workspace:*",
-        "typescript": "^5.9.3",
-      },
-    },
-    "packages/typescript-config": {
-      "name": "@apollo/typescript-config",
-      "version": "0.0.0",
-    },
-    "tooling/create": {
       "name": "create-heyapollo",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "bin": {
         "create-heyapollo": "dist/index.js",
       },
       "devDependencies": {
         "@apollo/typescript-config": "workspace:*",
-        "typescript": "^5.9.3",
-      },
-    },
-    "tooling/starter": {
-      "name": "@apollo/starter",
-      "devDependencies": {
-        "@apollo/typescript-config": "workspace:*",
+        "@clack/prompts": "^0.11.0",
+        "picocolors": "^1.1.1",
         "typescript": "^5.9.3",
         "zod": "^3.25.76",
       },
+    },
+    "packages/typescript-config": {
+      "name": "@apollo/typescript-config",
+      "version": "0.0.0",
     },
   },
   "packages": {
@@ -109,11 +92,7 @@
 
     "@apollo/console": ["@apollo/console@workspace:apps/console"],
 
-    "@apollo/starter": ["@apollo/starter@workspace:tooling/starter"],
-
     "@apollo/typescript-config": ["@apollo/typescript-config@workspace:packages/typescript-config"],
-
-    "@apollo/wizard": ["@apollo/wizard@workspace:apps/wizard"],
 
     "@babel/code-frame": ["@babel/code-frame@7.29.7", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.29.7", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw=="],
 
@@ -883,7 +862,7 @@
 
     "cosmiconfig-typescript-loader": ["cosmiconfig-typescript-loader@6.3.0", "", { "dependencies": { "jiti": "2.6.1" }, "peerDependencies": { "@types/node": "*", "cosmiconfig": ">=9", "typescript": ">=5" } }, "sha512-Akr82WH1Wfqatyiqpj8HDkO2o2KmJRu1FhKfSNJP3K4IdXwHfEyL7MOb62i1AGQVLtIQM+iCE9CGOtrfhR+mmA=="],
 
-    "create-heyapollo": ["create-heyapollo@workspace:tooling/create"],
+    "create-heyapollo": ["create-heyapollo@workspace:apps/wizard"],
 
     "cron-schedule": ["cron-schedule@6.0.0", "", {}, "sha512-BoZaseYGXOo5j5HUwTaegIog3JJbuH4BbrY9A1ArLjXpy+RWb3mV28F/9Gv1dDA7E2L8kngWva4NWisnLTyfgQ=="],
 

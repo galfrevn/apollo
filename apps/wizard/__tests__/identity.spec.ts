@@ -13,16 +13,7 @@ import {
 // generator actually ships: the agent's file with the voice id placeholdered.
 async function readGeneratedShapeIdentityContent(): Promise<string> {
   const agentIdentityContent = await Bun.file(
-    join(
-      import.meta.dir,
-      '..',
-      '..',
-      '..',
-      'agent',
-      'src',
-      'configuration',
-      'identity.ts',
-    ),
+    join(import.meta.dir, '..', '..', 'agent', 'src', 'configuration', 'identity.ts'),
   ).text();
   return agentIdentityContent.replace(
     /export const APOLLO_TTS_VOICE = '[^']*';/,

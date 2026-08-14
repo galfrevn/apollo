@@ -9,6 +9,7 @@ Root scripts proxy through turbo across every workspace; target a single app wit
 ```bash
 bun run check        # the full quality gate, ~2s cold
 bun run dev          # turbo run dev --filter=@apollo/agent (wrangler dev, preview R2 bucket)
+bun run dev:wizard   # setup wizard in a throwaway apps/wizard/.sandbox (real wrangler auth, stubbed bootstrap)
 bun run test         # turbo run test
 bun run typecheck    # turbo run typecheck
 bun run lint         # oxlint --deny-warnings (repo-wide)
@@ -25,8 +26,7 @@ Formatting is oxfmt's job; never hand-format. Note that oxfmt does *not* sort or
 - `apps/agent/` — the Cloudflare Worker (see `apps/agent/CLAUDE.md`)
 - `apps/console/` — marketing landing (`/`) + management dashboard (`/console`) (see `documentation/console/`)
 - `apps/firmware/` — ESP32 firmware, a git submodule, not a JS workspace member
-- `apps/wizard/` — the interactive setup wizard shipped inside the generated starter (`tooling/starter` copies its flat `src/` to `setup/`)
-- `tooling/starter/` — generates the public `apollo-starter` snapshot from `apps/agent` + `documentation/`
+- `apps/wizard/` — the `create-heyapollo` npm package: the interactive setup wizard (`src/`, bundled as `dist/setup.js`, never copied into the scaffold), the scaffolder bin (`cli/`), and the starter generator (`generator/`, builds the minimal deployable snapshot from `apps/agent` + the skills into the embedded `template/`)
 - `packages/typescript-config/` — shared base tsconfig
 
 **Read `documentation/` before changing agent behavior** — it's a handbook meant to be read in order, and `documentation/reference/mapping.md` maps each topic to its `apps/agent/src/` folder. Start at `documentation/index.md`.

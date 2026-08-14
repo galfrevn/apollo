@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
-import { parseDevelopmentVariableMap as parseWithBootstrapParser } from '../assets/scripts/vars';
-import { parseDevelopmentVariableMap as parseWithWizardParser } from '../../../apps/wizard/src/vars';
+import { parseDevelopmentVariableMap as parseWithBootstrapParser } from '../generator/assets/scripts/vars';
+import { parseDevelopmentVariableMap as parseWithWizardParser } from '../src/vars';
 
 // The wizard writes .dev.vars and bootstrap reads it back with a separate
 // copy of the parser (different source trees, both shipped into the starter).

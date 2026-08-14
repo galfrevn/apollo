@@ -5,13 +5,13 @@ on:
     paths:
       - 'apps/agent/**'
       - 'documentation/**'
-      - 'tooling/starter/**'
+      - 'apps/wizard/**'
   push:
     branches: [main]
     paths:
       - 'apps/agent/**'
       - 'documentation/**'
-      - 'tooling/starter/**'
+      - 'apps/wizard/**'
   workflow_dispatch:
 
 permissions:
@@ -32,4 +32,4 @@ jobs:
           worker-types: 'false'
 
       - name: Generate starter and smoke-build it
-        run: bun tooling/starter/build.ts --smoke
+        run: bun apps/wizard/generator/build.ts --smoke

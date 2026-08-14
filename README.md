@@ -10,7 +10,7 @@
 
 <br />
 <div align="center">
-  <img src=".github/assets/banner.jpeg" alt="Apollo banner" width="100%">
+  <img src="branding/banner.png" alt="Apollo banner" width="100%">
 
   <h3 align="center">@galfrevn/apollo</h3>
 
