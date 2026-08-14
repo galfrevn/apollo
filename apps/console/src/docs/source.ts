@@ -7,6 +7,7 @@ import protocolSource from '@/docs/content/protocol.md?raw';
 import purposeSource from '@/docs/content/purpose.md?raw';
 import setupSource from '@/docs/content/setup.md?raw';
 import skillsSource from '@/docs/content/skills.md?raw';
+import { ROADMAP_MARKDOWN_SOURCE } from '@/docs/roadmap/source';
 
 export const DOCS_SOURCE_MAP: Record<string, string> = {
   purpose: purposeSource,
@@ -18,4 +19,5 @@ export const DOCS_SOURCE_MAP: Record<string, string> = {
   console: consoleSource,
   skills: skillsSource,
   firmware: firmwareSource,
+  roadmap: ROADMAP_MARKDOWN_SOURCE,
 };

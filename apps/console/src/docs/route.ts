@@ -3,6 +3,8 @@ import type { MouseEvent } from 'react';
 
 import { findDocsChapterBySlug } from '@/docs/catalog';
 
+export const ROADMAP_CHAPTER_SLUG = 'roadmap';
+
 export const DOCS_BASE_PATH = '/docs';
 
 const NAVIGATION_EVENT_NAME = 'docs:navigation';

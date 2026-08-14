@@ -2,12 +2,11 @@ import { useEffect, useState } from 'react';
 import { z } from 'zod';
 
 import { Icons } from '@/components/icons';
-import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
+import { LANDING_MESSAGES } from '@/landing/copy/text';
 import { MagneticLink } from '@/landing/magnet';
-import { LANDING_LINK_MAP, LANDING_LOCALE_PATH_MAP } from '@/landing/metadata';
+import { LANDING_LINK_MAP } from '@/landing/metadata';
 import { scrollLandingToTop } from '@/landing/motion';
 import { warmConsoleChunk, warmDocsChunk } from '@/landing/prefetch';
-import { useLocale, useMessages } from '@/locale/context';
 
 import type { MouseEvent } from 'react';
 
@@ -80,10 +79,8 @@ function useGithubStarCount(): number | null {
 }
 
 export function LandingNav() {
-  const landingMessages = useMessages(LANDING_MESSAGE_CATALOG);
-  const { locale } = useLocale();
+  const landingMessages = LANDING_MESSAGES;
   const starCount = useGithubStarCount();
-  const landingPath = LANDING_LOCALE_PATH_MAP[locale];
 
   return (
     <nav aria-label="Apollo" className="fixed inset-x-0 top-0 z-10">
@@ -93,7 +90,7 @@ export function LandingNav() {
       />
       <div className="relative mx-auto flex h-[68px] max-w-[1180px] items-center justify-between px-5 sm:px-8">
         <a
-          href={landingPath}
+          href="/"
           onClick={(event) => {
             if (!isPlainLeftClick(event)) {
               return;

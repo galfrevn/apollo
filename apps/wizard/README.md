@@ -12,7 +12,7 @@
   <h3 align="center">create-heyapollo</h3>
 
   <p align="center">
-    Scaffold your own Apollo, a personal desk agent on your Cloudflare account.
+    Scaffold your own Apollo, a personal agent with a body, on your Cloudflare account.
     <br />
     <br />
     <a href="https://heyapollo.dev"><strong>heyapollo.dev »</strong></a>

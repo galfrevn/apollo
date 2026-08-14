@@ -4,8 +4,8 @@ import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DEVICE_MESSAGE_CATALOG } from '@/device/copy';
-import { useMessages } from '@/locale/context';
+import { DEVICE_MESSAGES } from '@/device/copy';
+
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { WeatherLocation } from '@/agent/schema';
 
@@ -14,7 +14,7 @@ type WeatherFailure =
   | { readonly kind: 'notfound'; readonly locationQuery: string };
 
 export function WeatherPanel({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
-  const deviceMessages = useMessages(DEVICE_MESSAGE_CATALOG);
+  const deviceMessages = DEVICE_MESSAGES;
   const [location, setLocation] = useState<WeatherLocation | null>(null);
   const [locationQuery, setLocationQuery] = useState('');
   const [weatherFailure, setWeatherFailure] = useState<WeatherFailure | null>(null);

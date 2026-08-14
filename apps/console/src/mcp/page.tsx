@@ -8,9 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/components/utility';
-import { useMessages } from '@/locale/context';
+
 import { ConnectorCatalog } from '@/mcp/catalog';
-import { MCP_MESSAGE_CATALOG, resolveServerStateLabel } from '@/mcp/copy';
+import { MCP_MESSAGES, resolveServerStateLabel } from '@/mcp/copy';
 import { InstallForm } from '@/mcp/install';
 import { ServerDetail, resolveServerTone } from '@/mcp/server';
 import type { ConsoleRpc } from '@/agent/rpc';
@@ -32,7 +32,7 @@ function ServerCard({
   readonly server: McpServer;
   readonly onOpen: () => void;
 }) {
-  const mcpMessages = useMessages(MCP_MESSAGE_CATALOG);
+  const mcpMessages = MCP_MESSAGES;
   const enabledCount = server.toolList.filter((tool) => tool.isEnabled).length;
   return (
     <button
@@ -58,7 +58,7 @@ function ServerCard({
 }
 
 export function McpPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
-  const mcpMessages = useMessages(MCP_MESSAGE_CATALOG);
+  const mcpMessages = MCP_MESSAGES;
   const [serverList, setServerList] = useState<readonly McpServer[] | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isInstallDialogOpen, setIsInstallDialogOpen] = useState(false);

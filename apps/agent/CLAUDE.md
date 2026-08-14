@@ -1,6 +1,6 @@
 # Apollo Agent
 
-The Cloudflare Worker that handles voice turns, tools, memory, and background work for the Apollo desk agent. Entry point `src/index.ts`.
+The Cloudflare Worker that handles voice turns, tools, memory, and background work for Apollo, a personal agent with a physical body. Entry point `src/index.ts`.
 
 See the root `CLAUDE.md` for naming conventions, code quality rules, import grouping, and the monorepo layout — they apply here too.
 

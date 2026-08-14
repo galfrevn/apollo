@@ -12,9 +12,7 @@ import {
 import { Panel } from '@/blueprint/panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useLocale, useMessages } from '@/locale/context';
-import { MCP_MESSAGE_CATALOG } from '@/mcp/copy';
-import type { Locale } from '@/locale/detect';
+import { MCP_MESSAGES } from '@/mcp/copy';
 
 export type ConnectorAuthKind = 'oauth' | 'token' | 'none';
 
@@ -22,7 +20,7 @@ export type ConnectorDefinition = {
   readonly name: string;
   readonly label: string;
   readonly url: string;
-  readonly descriptionMap: Readonly<Record<Locale, string>>;
+  readonly description: string;
   readonly auth: ConnectorAuthKind;
   readonly iconPath?: string;
 };
@@ -33,10 +31,7 @@ export const CONNECTOR_LIST: readonly ConnectorDefinition[] = [
     iconPath: siGithub.path,
     label: 'GitHub',
     url: 'https://api.githubcopilot.com/mcp/',
-    descriptionMap: {
-      es: 'Repos, issues y pull requests',
-      en: 'Repos, issues, and pull requests',
-    },
+    description: 'Repos, issues, and pull requests',
     auth: 'token',
   },
   {
@@ -44,10 +39,7 @@ export const CONNECTOR_LIST: readonly ConnectorDefinition[] = [
     iconPath: siLinear.path,
     label: 'Linear',
     url: 'https://mcp.linear.app/mcp',
-    descriptionMap: {
-      es: 'Issues, proyectos y ciclos',
-      en: 'Issues, projects, and cycles',
-    },
+    description: 'Issues, projects, and cycles',
     auth: 'oauth',
   },
   {
@@ -55,10 +47,7 @@ export const CONNECTOR_LIST: readonly ConnectorDefinition[] = [
     iconPath: siNotion.path,
     label: 'Notion',
     url: 'https://mcp.notion.com/mcp',
-    descriptionMap: {
-      es: 'Páginas y bases de datos',
-      en: 'Pages and databases',
-    },
+    description: 'Pages and databases',
     auth: 'oauth',
   },
   {
@@ -66,10 +55,7 @@ export const CONNECTOR_LIST: readonly ConnectorDefinition[] = [
     iconPath: siSentry.path,
     label: 'Sentry',
     url: 'https://mcp.sentry.dev/mcp',
-    descriptionMap: {
-      es: 'Errores y problemas de rendimiento',
-      en: 'Errors and performance issues',
-    },
+    description: 'Errors and performance issues',
     auth: 'oauth',
   },
   {
@@ -77,10 +63,7 @@ export const CONNECTOR_LIST: readonly ConnectorDefinition[] = [
     iconPath: siStripe.path,
     label: 'Stripe',
     url: 'https://mcp.stripe.com',
-    descriptionMap: {
-      es: 'Pagos, clientes y facturas',
-      en: 'Payments, customers, and invoices',
-    },
+    description: 'Payments, customers, and invoices',
     auth: 'oauth',
   },
   {
@@ -88,10 +71,7 @@ export const CONNECTOR_LIST: readonly ConnectorDefinition[] = [
     iconPath: siVercel.path,
     label: 'Vercel',
     url: 'https://mcp.vercel.com',
-    descriptionMap: {
-      es: 'Despliegues y proyectos',
-      en: 'Deployments and projects',
-    },
+    description: 'Deployments and projects',
     auth: 'oauth',
   },
   {
@@ -99,10 +79,7 @@ export const CONNECTOR_LIST: readonly ConnectorDefinition[] = [
     iconPath: siAtlassian.path,
     label: 'Atlassian',
     url: 'https://mcp.atlassian.com/v1/sse',
-    descriptionMap: {
-      es: 'Issues de Jira y páginas de Confluence',
-      en: 'Jira issues and Confluence pages',
-    },
+    description: 'Jira issues and Confluence pages',
     auth: 'oauth',
   },
   {
@@ -110,30 +87,21 @@ export const CONNECTOR_LIST: readonly ConnectorDefinition[] = [
     iconPath: siCloudflare.path,
     label: 'Cloudflare Docs',
     url: 'https://docs.mcp.cloudflare.com/sse',
-    descriptionMap: {
-      es: 'Búsqueda en la documentación de Cloudflare',
-      en: 'Cloudflare documentation search',
-    },
+    description: 'Cloudflare documentation search',
     auth: 'none',
   },
   {
     name: 'deepwiki',
     label: 'DeepWiki',
     url: 'https://mcp.deepwiki.com/mcp',
-    descriptionMap: {
-      es: 'Haz preguntas sobre repos públicos de GitHub',
-      en: 'Ask questions about public GitHub repos',
-    },
+    description: 'Ask questions about public GitHub repos',
     auth: 'none',
   },
   {
     name: 'context7',
     label: 'Context7',
     url: 'https://mcp.context7.com/mcp',
-    descriptionMap: {
-      es: 'Documentación de librerías al día',
-      en: 'Up-to-date library documentation',
-    },
+    description: 'Up-to-date library documentation',
     auth: 'none',
   },
 ];
@@ -147,8 +115,7 @@ export function ConnectorCatalog({
   readonly busyConnectorUrl: string | null;
   readonly onInstallConnector: (connector: ConnectorDefinition) => void;
 }) {
-  const { locale } = useLocale();
-  const mcpMessages = useMessages(MCP_MESSAGE_CATALOG);
+  const mcpMessages = MCP_MESSAGES;
   const authHintLabelMap = {
     oauth: mcpMessages.signInHintLabel,
     token: mcpMessages.tokenHintLabel,
@@ -186,7 +153,7 @@ export function ConnectorCatalog({
                 {connector.label}
               </span>
               <span className="min-w-0 flex-1 truncate text-xs text-dim">
-                {connector.descriptionMap[locale]}
+                {connector.description}
               </span>
               {authHintLabel !== null && <Badge variant="outline">{authHintLabel}</Badge>}
               {isInstalled ? (

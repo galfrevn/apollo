@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
 import { DOCS_CHAPTER_LIST, findDocsChapterBySlug } from '@/docs/catalog';
-import { DOCS_DOCUMENT_TITLE_MAP } from '@/docs/metadata';
+import { DOCS_DOCUMENT_TITLE } from '@/docs/metadata';
 import { buildDocsDocument, DOCS_SOCIAL_IMAGE_MAP } from '@/docs/static';
 import { LANDING_PUBLIC_ORIGIN } from '@/landing/origin';
 import { LANDING_STATIC_OPEN_MARKER } from '@/landing/static';
@@ -19,7 +19,7 @@ describe('docs document generation', () => {
     expect(docsDocument).toContain('<meta name="robots" content="index, follow" />');
     expect(docsDocument).not.toContain(LANDING_STATIC_OPEN_MARKER);
     expect(docsDocument).toContain('<html lang="en">');
-    expect(docsDocument).toContain(`<title>${DOCS_DOCUMENT_TITLE_MAP.en}</title>`);
+    expect(docsDocument).toContain(`<title>${DOCS_DOCUMENT_TITLE}</title>`);
     expect(docsDocument).toContain(
       `<link rel="canonical" href="${LANDING_PUBLIC_ORIGIN}/docs" />`,
     );
@@ -35,7 +35,7 @@ describe('docs document generation', () => {
     }
     const chapterDocument = buildDocsDocument(templateHtml, loopChapter);
     expect(chapterDocument).toContain(
-      `<title>${DOCS_DOCUMENT_TITLE_MAP.en} | ${loopChapter.title}</title>`,
+      `<title>${DOCS_DOCUMENT_TITLE} | ${loopChapter.title}</title>`,
     );
     expect(chapterDocument).toContain(`content="${loopChapter.description}"`);
     expect(chapterDocument).toContain(

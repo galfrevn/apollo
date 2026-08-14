@@ -1,14 +1,13 @@
 import { useRef } from 'react';
 
 import { LandingCommand } from '@/landing/command';
-import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
+import { LANDING_MESSAGES } from '@/landing/copy/text';
 import { FieldCanvas } from '@/landing/field/canvas';
 import { REDUCED_MOTION_SAFE_QUERY, RISE_EASE, gsap, useGSAP } from '@/landing/motion';
 import { useWakeEcho } from '@/landing/wake';
-import { useMessages } from '@/locale/context';
 
 export function LandingHero() {
-  const landingMessages = useMessages(LANDING_MESSAGE_CATALOG);
+  const landingMessages = LANDING_MESSAGES;
   const heroReference = useRef<HTMLElement | null>(null);
   const { wakeSignal } = useWakeEcho();
 
@@ -39,7 +38,7 @@ export function LandingHero() {
         className="pointer-events-none absolute inset-0 size-full"
       />
       <div className="relative mx-auto w-full max-w-[1180px] px-8">
-        <h1 className="font-serif text-[clamp(44px,11.5vw,156px)] leading-[0.98] tracking-[-0.02em]">
+        <h1 className="font-serif text-[clamp(40px,11.5vw,156px)] leading-[0.98] tracking-[-0.02em]">
           <span className="-mb-[0.12em] block overflow-hidden pb-[0.12em]">
             <span data-hero-line className="block">
               {landingMessages.hero.lineOne}

@@ -1,8 +1,7 @@
 import { Empty } from '@/blueprint/empty';
 import { Badge } from '@/components/ui/badge';
-import { useLocale, useMessages } from '@/locale/context';
 import { formatAbsoluteTimestamp } from '@/locale/format';
-import { MEMORY_MESSAGE_CATALOG } from '@/memory/copy';
+import { MEMORY_MESSAGES } from '@/memory/copy';
 import type { MemoryBrowseResult } from '@/agent/schema';
 
 const CATEGORY_ORDER: readonly string[] = [
@@ -17,8 +16,7 @@ export function OwnerFactBlock({
 }: {
   readonly browseResult: MemoryBrowseResult;
 }) {
-  const { locale } = useLocale();
-  const memoryMessages = useMessages(MEMORY_MESSAGE_CATALOG);
+  const memoryMessages = MEMORY_MESSAGES;
   const { ownerFactList, lastConsolidatedAtMilliseconds } = browseResult;
   if (ownerFactList.length === 0) {
     return <Empty message={memoryMessages.ownerEmptyMessage} />;
@@ -48,7 +46,7 @@ export function OwnerFactBlock({
       {lastConsolidatedAtMilliseconds !== null && (
         <p className="border-t px-4 py-2 text-xs text-dim">
           {memoryMessages.consolidatedAtLabel(
-            formatAbsoluteTimestamp(new Date(lastConsolidatedAtMilliseconds), locale),
+            formatAbsoluteTimestamp(new Date(lastConsolidatedAtMilliseconds)),
           )}
         </p>
       )}

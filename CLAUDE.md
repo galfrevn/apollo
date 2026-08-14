@@ -1,6 +1,6 @@
 # Apollo
 
-A personal desk agent for an ESP32 device: a Cloudflare Worker (`apps/agent/`) that handles voice turns, tools, memory, and background work, an ESP32 firmware submodule (`apps/firmware/`), and a web app (`apps/console/`) serving the marketing landing at `/` and the management console at `/console`. Turborepo + Bun workspaces.
+A personal agent with a body: it lives in a physical device instead of a chat window. A Cloudflare Worker (`apps/agent/`) handles voice turns, tools, memory, and background work; an ESP32 firmware submodule (`apps/firmware/`) is the reference body; a web app (`apps/console/`) serves the marketing landing at `/` and the management console at `/console`. Turborepo + Bun workspaces.
 
 ## Commands
 

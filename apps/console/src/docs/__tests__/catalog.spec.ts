@@ -6,6 +6,7 @@ import {
   findDocsChapterBySlug,
   formatDocsChapterNumber,
 } from '@/docs/catalog';
+import { DOCS_SOURCE_MAP } from '@/docs/source';
 
 describe('docs catalog', () => {
   it('keeps every chapter slug unique and single-word lowercase', () => {
@@ -29,14 +30,9 @@ describe('docs catalog', () => {
     }
   });
 
-  it('ships a content stub for every chapter', async () => {
+  it('ships readable source for every chapter', () => {
     for (const chapterEntry of DOCS_CHAPTER_LIST) {
-      const contentFileUrl = new URL(
-        `../content/${chapterEntry.slug}.md`,
-        import.meta.url,
-      );
-      const contentText = await Bun.file(contentFileUrl).text();
-      expect(contentText.trim().length).toBeGreaterThan(0);
+      expect((DOCS_SOURCE_MAP[chapterEntry.slug] ?? '').trim().length).toBeGreaterThan(0);
     }
   });
 

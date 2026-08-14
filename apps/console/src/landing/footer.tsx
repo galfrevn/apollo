@@ -1,12 +1,10 @@
 import { useRef } from 'react';
 
-import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
+import { LANDING_MESSAGES } from '@/landing/copy/text';
 import { REDUCED_MOTION_SAFE_QUERY, RISE_EASE, gsap, useGSAP } from '@/landing/motion';
-import { useMessages } from '@/locale/context';
-import { LocaleToggle } from '@/locale/toggle';
 
 export function LandingFooter() {
-  const footerMessages = useMessages(LANDING_MESSAGE_CATALOG).footer;
+  const footerMessages = LANDING_MESSAGES.footer;
   const footerReference = useRef<HTMLElement | null>(null);
 
   useGSAP(
@@ -57,7 +55,6 @@ export function LandingFooter() {
         <div className="flex flex-wrap items-center justify-between gap-5 text-xs text-dim">
           <span className="flex items-center gap-5">
             <span className="font-serif text-sm">{footerMessages.wakePhrase}</span>
-            <LocaleToggle />
           </span>
           <span>
             {footerMessages.builtByPrefix}

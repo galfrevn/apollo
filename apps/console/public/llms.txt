@@ -1,35 +1,29 @@
 # Apollo
 
-> Apollo es un agente personal de escritorio open source: un cerebro de IA que corre como Cloudflare Worker en tu propia cuenta, con un cuerpo físico que descansa en tu escritorio. Le hablas desde el otro lado del escritorio y la respuesta vuelve en voz alta. Sin app, sin teclado.
+> Apollo is the open source brain for physical agents. It runs as a worker on infrastructure you own and drives a physical device that has a mic, a speaker, and a face. It does not live in a chat window: you say its name out loud and the answer comes back spoken.
 
-Apollo tiene licencia MIT y es gratis. El cerebro se despliega con un comando a tu cuenta de Cloudflare; el cuerpo es un dispositivo con firmware abierto que flasheas tú. Lo construye Valentín Galfre (github.com/galfrevn).
+Apollo ships the brain, not the body. You bring a device, flash open firmware onto it, and pick the wake word it answers to. Any client that speaks the Apollo protocol is a valid body. Apollo is MIT licensed and free, and it is built by Valentín Galfre (github.com/galfrevn).
 
-## Capacidades
+## What it does
 
-- Turnos de voz: respuestas habladas y breves, afinadas para un dispositivo en el escritorio
-- Memoria: recuerda lo que le dices y lo trae de vuelta cuando importa (Vectorize)
-- Recordatorios: temporizadores y agendas que suenan en el propio dispositivo
-- Respuestas en vivo: investigación web condensada en una oración accionable
-- Agente de código: delega trabajo real sobre repositorios a un motor aislado
-- Tus herramientas: se conecta por MCP a los servicios que ya usas, administrados desde la consola
+- Voice turns: it answers out loud in short sentences, with nothing to read or type
+- Memory: it keeps what you tell it and brings it back when it fits, even weeks later
+- Reminders: timers and scheduled alerts that fire on the body itself
+- Live answers: it searches the web and gives you the answer, not a list of links
+- Coding agent: it works on your repository in a sandbox and reports how it went
+- Your tools: your calendar, notes, and other services connected over MCP
+- Character: its name, its voice, and four speech modes that each carry their own face
 
-## Enlaces
+## Architecture
 
-- [Repositorio](https://github.com/galfrevn/apollo)
-- [Documentación](https://heyapollo.dev/docs)
-- [Landing en español](https://heyapollo.dev/)
-- [Consola](https://heyapollo.dev/console)
+The body streams audio to the brain, which owns every turn, the memory, the schedules, and the character. Swapping the body changes nothing, because no state lives on it. Today the brain deploys to Cloudflare as a Durable Object per body; that is the current target rather than a permanent dependency.
 
-## English
+## Links
 
-> Apollo is an open source personal desk agent: an AI brain that runs as a Cloudflare Worker in your own account, paired with a physical body that sits on your desk. You speak to it across the desk and the answer comes back out loud. No app, no keyboard.
-
-Apollo is MIT licensed and free. The brain deploys with one command to your own Cloudflare account; the body is a device with open firmware you flash yourself. It is built by Valentín Galfre (github.com/galfrevn).
-
-Capabilities: voice turns tuned for a desk device, memory recalled by meaning (Vectorize), reminders that fire on the device itself, live answers condensed from web research, a sandboxed coding agent for repository work, and your own services connected over MCP.
-
-- [English landing](https://heyapollo.dev/en)
+- [Repository](https://github.com/galfrevn/apollo)
+- [Landing](https://heyapollo.dev/)
 - [Handbook](https://heyapollo.dev/docs)
+- [Console](https://heyapollo.dev/console)
 
 ## Handbook chapters
 
@@ -42,3 +36,4 @@ Capabilities: voice turns tuned for a desk device, memory recalled by meaning (V
 - [Console](https://heyapollo.dev/docs/console): Manage a deployment from the browser.
 - [Skills](https://heyapollo.dev/docs/skills): Hand the manual to your coding agent.
 - [Firmware](https://heyapollo.dev/docs/firmware): Build, flash, and point a body at your brain.
+- [Roadmap](https://heyapollo.dev/docs/roadmap): Where Apollo is going next.

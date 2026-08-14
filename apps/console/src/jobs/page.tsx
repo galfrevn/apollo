@@ -9,8 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/components/utility';
-import { JOBS_MESSAGE_CATALOG } from '@/jobs/copy';
-import { useLocale, useMessages } from '@/locale/context';
+import { JOBS_MESSAGES } from '@/jobs/copy';
 import { formatAbsoluteTimestamp } from '@/locale/format';
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { JobDocument } from '@/agent/schema';
@@ -29,8 +28,7 @@ type DocumentLoadState =
   | { readonly kind: 'failed' };
 
 export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
-  const { locale } = useLocale();
-  const jobsMessages = useMessages(JOBS_MESSAGE_CATALOG);
+  const jobsMessages = JOBS_MESSAGES;
   const [documentList, setDocumentList] = useState<readonly JobDocument[] | null>(null);
   const [openDocumentKey, setOpenDocumentKey] = useState<string | null>(null);
   const [openDocumentLoadState, setOpenDocumentLoadState] = useState<DocumentLoadState>({
@@ -160,8 +158,8 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
                     {jobDocument.documentKey.split('/').at(-1)}
                   </span>
                   <span className="shrink-0 text-xs whitespace-nowrap text-dim">
-                    {formatAbsoluteTimestamp(new Date(jobDocument.uploadedAtIso), locale)}{' '}
-                    · {formatSizeLabel(jobDocument.sizeBytes)}
+                    {formatAbsoluteTimestamp(new Date(jobDocument.uploadedAtIso))} ·{' '}
+                    {formatSizeLabel(jobDocument.sizeBytes)}
                   </span>
                 </button>
               </li>
@@ -186,7 +184,7 @@ export function JobsPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
             {openDocument !== null && (
               <p className="truncate text-xs text-dim">
                 {jobsMessages.kindLabelMap[openDocument.kind]} ·{' '}
-                {formatAbsoluteTimestamp(new Date(openDocument.uploadedAtIso), locale)} ·{' '}
+                {formatAbsoluteTimestamp(new Date(openDocument.uploadedAtIso))} ·{' '}
                 {formatSizeLabel(openDocument.sizeBytes)}
               </p>
             )}

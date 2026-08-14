@@ -1,45 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset
   xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-  xmlns:xhtml="http://www.w3.org/1999/xhtml"
 >
   <url>
     <loc>https://heyapollo.dev/</loc>
     <lastmod>2026-08-13</lastmod>
-    <xhtml:link
-      rel="alternate"
-      hreflang="es"
-      href="https://heyapollo.dev/"
-    />
-    <xhtml:link
-      rel="alternate"
-      hreflang="en"
-      href="https://heyapollo.dev/en"
-    />
-    <xhtml:link
-      rel="alternate"
-      hreflang="x-default"
-      href="https://heyapollo.dev/"
-    />
-  </url>
-  <url>
-    <loc>https://heyapollo.dev/en</loc>
-    <lastmod>2026-08-13</lastmod>
-    <xhtml:link
-      rel="alternate"
-      hreflang="es"
-      href="https://heyapollo.dev/"
-    />
-    <xhtml:link
-      rel="alternate"
-      hreflang="en"
-      href="https://heyapollo.dev/en"
-    />
-    <xhtml:link
-      rel="alternate"
-      hreflang="x-default"
-      href="https://heyapollo.dev/"
-    />
   </url>
   <url>
     <loc>https://heyapollo.dev/docs</loc>
@@ -79,6 +44,10 @@
   </url>
   <url>
     <loc>https://heyapollo.dev/docs/firmware</loc>
+    <lastmod>2026-08-14</lastmod>
+  </url>
+  <url>
+    <loc>https://heyapollo.dev/docs/roadmap</loc>
     <lastmod>2026-08-14</lastmod>
   </url>
 </urlset>

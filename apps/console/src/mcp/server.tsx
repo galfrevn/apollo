@@ -5,8 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SheetTitle } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
-import { useMessages } from '@/locale/context';
-import { MCP_MESSAGE_CATALOG, resolveServerStateLabel } from '@/mcp/copy';
+
+import { MCP_MESSAGES, resolveServerStateLabel } from '@/mcp/copy';
 import type { McpServer } from '@/agent/schema';
 import type { ChipTone } from '@/blueprint/chip';
 
@@ -31,7 +31,7 @@ export function ServerDetail({
   readonly onRetry: () => Promise<void>;
   readonly onUninstall: () => Promise<void>;
 }) {
-  const mcpMessages = useMessages(MCP_MESSAGE_CATALOG);
+  const mcpMessages = MCP_MESSAGES;
   const [busyToolName, setBusyToolName] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [isUninstalling, setIsUninstalling] = useState(false);

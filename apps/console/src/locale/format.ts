@@ -1,25 +1,25 @@
-import type { Locale } from '@/locale/detect';
+const FORMATTING_LOCALE = 'en';
 
-export function formatAbsoluteTimestamp(date: Date, locale: Locale): string {
-  return new Intl.DateTimeFormat(locale, {
+export function formatAbsoluteTimestamp(date: Date): string {
+  return new Intl.DateTimeFormat(FORMATTING_LOCALE, {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date);
 }
 
-export function formatCalendarDate(date: Date, locale: Locale): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date);
+export function formatCalendarDate(date: Date): string {
+  return new Intl.DateTimeFormat(FORMATTING_LOCALE, { dateStyle: 'medium' }).format(date);
 }
 
-export function formatClockTime(date: Date, locale: Locale): string {
-  return new Intl.DateTimeFormat(locale, {
+export function formatClockTime(date: Date): string {
+  return new Intl.DateTimeFormat(FORMATTING_LOCALE, {
     hour: 'numeric',
     minute: '2-digit',
   }).format(date);
 }
 
-export function formatDayTimestamp(date: Date, locale: Locale): string {
-  return new Intl.DateTimeFormat(locale, {
+export function formatDayTimestamp(date: Date): string {
+  return new Intl.DateTimeFormat(FORMATTING_LOCALE, {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
@@ -29,8 +29,8 @@ export function formatDayTimestamp(date: Date, locale: Locale): string {
 
 const MINUTE_IN_MILLISECONDS = 60_000;
 
-export function formatRemainingDuration(milliseconds: number, locale: Locale): string {
-  const relativeTimeFormatter = new Intl.RelativeTimeFormat(locale, {
+export function formatRemainingDuration(milliseconds: number): string {
+  const relativeTimeFormatter = new Intl.RelativeTimeFormat(FORMATTING_LOCALE, {
     style: 'narrow',
     numeric: 'always',
   });

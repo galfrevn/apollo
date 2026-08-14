@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { useMessages } from '@/locale/context';
-import { STATUS_MESSAGE_CATALOG } from '@/status/copy';
+
+import { STATUS_MESSAGES } from '@/status/copy';
 import { Insights } from '@/status/insights';
 import { TileGrid } from '@/status/tiles';
 import type { ApolloAgentHandle } from '@/agent/hook';
@@ -18,7 +18,7 @@ export function StatusPage({
   readonly agent: ApolloAgentHandle;
   readonly consoleRpc: ConsoleRpc;
 }) {
-  const statusMessages = useMessages(STATUS_MESSAGE_CATALOG);
+  const statusMessages = STATUS_MESSAGES;
   const [status, setStatus] = useState<ConsoleStatus | null>(null);
   const [didPollFail, setDidPollFail] = useState(false);
   const [isResolvingConfirm, setIsResolvingConfirm] = useState(false);

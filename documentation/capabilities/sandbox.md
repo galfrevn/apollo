@@ -29,7 +29,7 @@ feature list.
 
 ## Product fit
 
-Use the sandbox when the user needs computation or inspection that should not block or endanger the desk agent process. Prefer returning a concise spoken summary over dumping raw logs to TTS.
+Use the sandbox when the user needs computation or inspection that should not block or endanger the live agent turn. Prefer returning a concise spoken summary over dumping raw logs to TTS.
 
 ## Navigation
 

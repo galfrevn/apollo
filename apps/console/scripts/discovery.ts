@@ -28,17 +28,7 @@ const landingPreloadPathList = collectLandingPreloadPathList(
 
 await Bun.write(
   templateFileUrl,
-  injectModulePreloadLinkList(
-    buildLandingDocument(templateHtml, 'es'),
-    landingPreloadPathList,
-  ),
-);
-await Bun.write(
-  new URL('en.html', distDirectoryUrl),
-  injectModulePreloadLinkList(
-    buildLandingDocument(templateHtml, 'en'),
-    landingPreloadPathList,
-  ),
+  injectModulePreloadLinkList(buildLandingDocument(templateHtml), landingPreloadPathList),
 );
 
 const consoleDocumentHtml = buildConsoleDocument(templateHtml);
@@ -73,5 +63,5 @@ for (const chapterEntry of DOCS_CHAPTER_LIST) {
 await rm(manifestDirectoryUrl, { recursive: true, force: true });
 
 process.stdout.write(
-  `discovery: wrote index.html, en.html, ${CONSOLE_ROUTE_LIST.length + 1} console shells, and ${DOCS_CHAPTER_LIST.length + 1} docs documents\n`,
+  `discovery: wrote index.html, ${CONSOLE_ROUTE_LIST.length + 1} console shells, and ${DOCS_CHAPTER_LIST.length + 1} docs documents\n`,
 );

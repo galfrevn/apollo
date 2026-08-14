@@ -2,9 +2,9 @@
 
 These terms show up throughout the handbook.
 
-## Desk agent
+## Agent with a body
 
-Apollo behaves like a desk companion: idle until you wake or hold-to-talk, then it listens, thinks, optionally confirms a tool, speaks, and returns to idle or focus/dashboard modes.
+Apollo behaves like a companion in the room rather than a chat thread: idle until you wake or hold-to-talk, then it listens, thinks, optionally confirms a tool, speaks, and returns to idle or focus/dashboard modes.
 
 ## UI states
 

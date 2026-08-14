@@ -8,8 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/components/utility';
-import { HISTORY_MESSAGE_CATALOG } from '@/history/copy';
-import { useLocale, useMessages } from '@/locale/context';
+import { HISTORY_MESSAGES } from '@/history/copy';
 import { formatAbsoluteTimestamp, formatClockTime } from '@/locale/format';
 import type { ConsoleRpc } from '@/agent/rpc';
 import type { HistoryTurn, ThreadSummary } from '@/agent/schema';
@@ -23,8 +22,7 @@ function isCommandThread(thread: ThreadSummary): boolean {
 }
 
 export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc }) {
-  const { locale } = useLocale();
-  const historyMessages = useMessages(HISTORY_MESSAGE_CATALOG);
+  const historyMessages = HISTORY_MESSAGES;
   const [threadList, setThreadList] = useState<readonly ThreadSummary[] | null>(null);
   const [activeView, setActiveView] = useState<HistoryView>('conversations');
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
@@ -187,7 +185,7 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
                   </span>
                   {thread.lastTurnAtIso !== null && (
                     <span className="shrink-0 text-xs whitespace-nowrap text-dim">
-                      {formatAbsoluteTimestamp(new Date(thread.lastTurnAtIso), locale)}
+                      {formatAbsoluteTimestamp(new Date(thread.lastTurnAtIso))}
                     </span>
                   )}
                 </button>
@@ -259,7 +257,7 @@ export function HistoryPage({ consoleRpc }: { readonly consoleRpc: ConsoleRpc })
                           ? historyMessages.assistantTurnLabel
                           : historyMessages.ownerTurnLabel}
                         {turn.createdAtIso !== null &&
-                          ` · ${formatClockTime(new Date(turn.createdAtIso), locale)}`}
+                          ` · ${formatClockTime(new Date(turn.createdAtIso))}`}
                       </p>
                       <p className="text-sm whitespace-pre-wrap">{turn.text}</p>
                       {turn.toolNameList.length > 0 && (

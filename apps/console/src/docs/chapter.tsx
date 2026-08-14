@@ -1,10 +1,15 @@
 import { Streamdown } from 'streamdown';
 
 import { DOCS_CHAPTER_LIST, formatDocsChapterNumber } from '@/docs/catalog';
-import { DOCS_MESSAGE_CATALOG } from '@/docs/copy';
-import { DOCS_BASE_PATH, buildChapterPath, handleChapterLinkClick } from '@/docs/route';
+import { DOCS_MESSAGES } from '@/docs/copy';
+import {
+  DOCS_BASE_PATH,
+  ROADMAP_CHAPTER_SLUG,
+  buildChapterPath,
+  handleChapterLinkClick,
+} from '@/docs/route';
+import { DocsRoadmapPanel } from '@/docs/roadmap/panel';
 import { DOCS_SOURCE_MAP } from '@/docs/source';
-import { useMessages } from '@/locale/context';
 
 import type { DocsChapterEntry } from '@/docs/catalog';
 
@@ -33,13 +38,14 @@ export function DocsChapter({
 }: {
   readonly chapterEntry: DocsChapterEntry;
 }) {
-  const docsMessages = useMessages(DOCS_MESSAGE_CATALOG);
+  const docsMessages = DOCS_MESSAGES;
   const chapterIndex = DOCS_CHAPTER_LIST.findIndex(
     (candidateEntry) => candidateEntry.slug === chapterEntry.slug,
   );
   const previousChapter = DOCS_CHAPTER_LIST[chapterIndex - 1] ?? null;
   const nextChapter = DOCS_CHAPTER_LIST[chapterIndex + 1] ?? null;
   const chapterSource = DOCS_SOURCE_MAP[chapterEntry.slug] ?? '';
+  const isRoadmapChapter = chapterEntry.slug === ROADMAP_CHAPTER_SLUG;
 
   return (
     <article className="settle">
@@ -54,22 +60,26 @@ export function DocsChapter({
       </p>
       <hr className="my-10 w-12 border-border-hover" />
 
-      <div className={PROSE_CLASS_LIST}>
-        <Streamdown
-          controls={{
-            code: { copy: true, download: false },
-            table: false,
-            mermaid: false,
-          }}
-          lineNumbers={false}
-          translations={{
-            copyCode: docsMessages.copyCodeLabel,
-            copied: docsMessages.copiedCodeLabel,
-          }}
-        >
-          {chapterSource}
-        </Streamdown>
-      </div>
+      {isRoadmapChapter ? (
+        <DocsRoadmapPanel />
+      ) : (
+        <div className={PROSE_CLASS_LIST}>
+          <Streamdown
+            controls={{
+              code: { copy: true, download: false },
+              table: false,
+              mermaid: false,
+            }}
+            lineNumbers={false}
+            translations={{
+              copyCode: docsMessages.copyCodeLabel,
+              copied: docsMessages.copiedCodeLabel,
+            }}
+          >
+            {chapterSource}
+          </Streamdown>
+        </div>
+      )}
 
       <footer className="mt-20 border-t pt-3.5">
         <p className="mb-6 mt-2.5 text-center text-xs">
