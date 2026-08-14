@@ -30,3 +30,15 @@ Capabilities: voice turns tuned for a desk device, memory recalled by meaning (V
 
 - [English landing](https://heyapollo.dev/en)
 - [Handbook](https://heyapollo.dev/docs)
+
+## Handbook chapters
+
+- [Purpose](https://heyapollo.dev/docs/purpose): What Apollo is and is not.
+- [Concepts](https://heyapollo.dev/docs/concepts): Desk, turns, sessions, and tools.
+- [Loop](https://heyapollo.dev/docs/loop): How a request becomes a spoken reply.
+- [Protocol](https://heyapollo.dev/docs/protocol): The full wire contract between the device and the server.
+- [Capabilities](https://heyapollo.dev/docs/capabilities): Every tool Apollo can reach, and when it asks first.
+- [Setup](https://heyapollo.dev/docs/setup): From one command to a deployed, talking worker.
+- [Console](https://heyapollo.dev/docs/console): Manage a deployment from the browser.
+- [Skills](https://heyapollo.dev/docs/skills): Hand the manual to your coding agent.
+- [Firmware](https://heyapollo.dev/docs/firmware): Build, flash, and point a body at your brain.
