@@ -35,6 +35,7 @@ Device to server:
 | `text_input` | Typed fallback input |
 | `abort` | Stop the speech currently streaming (barge-in) |
 | `telemetry` | Battery, charging, volume, WiFi signal, firmware version |
+| `playback_ack` | Progress report for a played clip: its sequence number and milliseconds played |
 | `mcp` | JSON-RPC reply from the device's embedded MCP server |
 
 Server to device:
@@ -45,7 +46,9 @@ Server to device:
 | `confirm_request` | Ask the user to approve a tool side effect |
 | `confirm_close` | The confirmation window ended, drop the confirm screen |
 | `tts_start` | Announce the next speech clip — one per segment, not one per reply |
+| `tts_end` | The speech run is complete; no more clips belong to it |
 | `tts_aborted` | The announced clip was cut short and will never complete |
+| `timer` | Show or clear the countdown arc: end time and duration |
 | `turn_end` | Speech fully sent; `expectsReply` says whether to reopen the mic |
 | `error` | Structured failure |
 | `dashboard` | Clock and weather snapshot |
@@ -56,14 +59,14 @@ Server to device:
 
 A few entries deserve a word. Gesture meaning lives on the server, not the device — the firmware reports what happened and the brain decides what it means, so behavior changes without a flash. `play_effect` carries a logical name (`ding`, `chime`, `error`, `low_battery`) that the firmware maps to flash assets; the earcon plays instantly while TTS is still synthesizing, and unknown names are ignored. The `mcp` pair bridges the agent's tools to the hardware itself: the server sends JSON-RPC calls like `self.audio_speaker.set_volume` over the socket, the firmware routes them into its embedded MCP server, and the reply rides back — correlation is by integer JSON-RPC id, with a five-second timeout that degrades to a spoken "no respondió".
 
-> A minimal body does not need all of this. A screenless speaker holds a full conversation with `hello`, a capture pair (`wake` + `audio_end`, or the hold pair), binary audio, `tts_start`, `tts_aborted`, and `turn_end` — everything else layers on capability the hardware actually has.
+> A minimal body does not need all of this. A screenless speaker holds a full conversation with `hello`, a capture pair (`wake` + `audio_end`, or the hold pair), binary audio, `tts_start`, `tts_end`, `tts_aborted`, and `turn_end` — everything else layers on capability the hardware actually has.
 
 ## Audio framing
 
 The framing rule is absolute in both directions: JSON text frames are control, binary frames are audio. No envelope, no interleaved metadata.
 
 - **Uplink** — microphone audio streams as 16 kHz mono 16-bit little-endian PCM while a listen session is open, and the session closes with the event matching how it started.
-- **Downlink** — each `tts_start` announces a clip with its `format` (`pcm` in production), a `bytes` total, and 24 kHz mono sample parameters; the binary frames that follow belong to that clip. The device counts received bytes against the announced total to know when a clip ends — which is exactly why `tts_aborted` exists. After a barge-in the promised total will never arrive, and without the abort message the device would wait forever for cancelled speech.
+- **Downlink** — each `tts_start` announces a clip with its `format` (`pcm` in production), a byte total when known, an optional sequence number, and 24 kHz mono sample parameters; the binary frames that follow belong to that clip, and `tts_end` closes the run. The device also counts received bytes against an announced total — which is exactly why `tts_aborted` exists. After a barge-in the promised total will never arrive, and without the abort message the device would wait forever for cancelled speech.
 
 ## OTA endpoints
 

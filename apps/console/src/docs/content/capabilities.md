@@ -10,6 +10,7 @@ The built-in tools, grouped by concern:
 | --- | --- |
 | Weather | `weather_now`, `set_weather_location` |
 | Memory | `remember_fact`, `recall_memory` |
+| Conversations | `recall_conversation`, `resume_conversation` |
 | Focus | `set_focus`, `clear_focus` |
 | Search and research | `web_search`, `start_research` |
 | Language | `translate` |
@@ -18,10 +19,11 @@ The built-in tools, grouped by concern:
 | Lists | `add_to_list`, `read_list`, `remove_from_list` |
 | Finance | `dollar_rate` |
 | Email | `send_email` |
+| Device | `set_volume`, `set_brightness`, `device_status` |
 | Sandbox | `sandbox_run_code`, `sandbox_exec` |
-| Coding | `start_coding_task` |
+| Coding | `start_coding_task`, `list_coding_repositories` |
 
-A few have character worth knowing. Timers and pomodoros ride the reminder scheduler — a pomodoro also activates focus mode, and `cancel_reminder` cancels timers too. Lists are durable spoken lists in the desk's own SQLite, with a default list named "super". `dollar_rate` quotes Argentine exchange rates from a keyless public API. `web_search` answers in one turn; `start_research` leaves the turn entirely and returns later as a background result, with the full report also emailed to you. The sandbox pair and `start_coding_task` — clone a repository, make a change, run the tests, open a pull request, all by voice — are the opt-in tier that needs extra provisioning.
+A few have character worth knowing. Timers and pomodoros ride the reminder scheduler — a pomodoro also activates focus mode, and `cancel_reminder` cancels timers too. Lists are durable spoken lists in the desk's own SQLite, with a default list named "super". The conversation pair reaches back into past threads: recall what was said, or resume one where it left off. `dollar_rate` quotes Argentine exchange rates from a keyless public API. `web_search` answers in one turn; `start_research` leaves the turn entirely and returns later as a background result, with the full report also emailed to you. The device trio rides the MCP bridge from the Protocol chapter into the firmware itself, so the agent can adjust the volume, dim the screen, or read the hardware status of the body it lives in. The sandbox pair and the coding pair — clone a repository, make a change, run the tests, open a pull request, all by voice — are the opt-in tier that needs extra provisioning.
 
 ## Asking first
 
