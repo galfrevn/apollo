@@ -46,9 +46,9 @@ Server to device:
 | `confirm_request` | Ask the user to approve a tool side effect |
 | `confirm_close` | The confirmation window ended, drop the confirm screen |
 | `tts_start` | Announce the next speech clip — one per segment, not one per reply |
-| `tts_end` | The speech run is complete; no more clips belong to it |
+| `tts_end` | The current speech segment is complete; a reply may contain more segments and ends only at `turn_end` |
 | `tts_aborted` | The announced clip was cut short and will never complete |
-| `timer` | Show or clear the countdown arc: end time and duration |
+| `timer` | Show the countdown arc with `endsAt` and `durationSeconds`; omitting both fields clears it |
 | `turn_end` | Speech fully sent; `expectsReply` says whether to reopen the mic |
 | `error` | Structured failure |
 | `dashboard` | Clock and weather snapshot |
@@ -66,7 +66,7 @@ A few entries deserve a word. Gesture meaning lives on the server, not the devic
 The framing rule is absolute in both directions: JSON text frames are control, binary frames are audio. No envelope, no interleaved metadata.
 
 - **Uplink** — microphone audio streams as 16 kHz mono 16-bit little-endian PCM while a listen session is open, and the session closes with the event matching how it started.
-- **Downlink** — each `tts_start` announces a clip with its `format` (`pcm` in production), a byte total when known, an optional sequence number, and 24 kHz mono sample parameters; the binary frames that follow belong to that clip, and `tts_end` closes the run. The device also counts received bytes against an announced total — which is exactly why `tts_aborted` exists. After a barge-in the promised total will never arrive, and without the abort message the device would wait forever for cancelled speech.
+- **Downlink** — each `tts_start` announces a clip with its `format` (`pcm` in production), a byte total when known, an optional sequence number, and 24 kHz mono sample parameters; the binary frames that follow belong to that clip, and `tts_end` closes it — each spoken segment is its own `tts_start`/`tts_end` pair, and only `turn_end` says the reply is over. The device also counts received bytes against an announced total — which is exactly why `tts_aborted` exists. After a barge-in the promised total will never arrive, and without the abort message the device would wait forever for cancelled speech.
 
 ## OTA endpoints
 
