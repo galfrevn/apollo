@@ -1,9 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
-import { FaceCanvas } from '@/landing/face/canvas';
+import { DeviceCanvas } from '@/landing/device/canvas';
 import { ActHeading } from '@/landing/heading';
-import { REDUCED_MOTION_SAFE_QUERY, gsap, useGSAP } from '@/landing/motion';
+import {
+  REDUCED_MOTION_SAFE_QUERY,
+  gsap,
+  isElementInViewport,
+  scrollElementIntoView,
+  useGSAP,
+} from '@/landing/motion';
+import { useWakeEcho } from '@/landing/wake';
 import { useMessages } from '@/locale/context';
 
 import type { ReactNode } from 'react';
@@ -59,6 +66,18 @@ export function LandingShowcase() {
   const sectionReference = useRef<HTMLElement | null>(null);
   const [liveEmotionIndex, setLiveEmotionIndex] = useState(0);
   const clockText = useLiveClockText();
+  const { wakeSignal, isAwake } = useWakeEcho();
+  const deskCellReference = useRef<HTMLDivElement | null>(null);
+
+  // The wake word can be typed from anywhere on the page, so the desk is
+  // brought into view rather than reacting where nobody is looking.
+  useEffect(() => {
+    const deskCell = deskCellReference.current;
+    if (wakeSignal === 0 || deskCell === null || isElementInViewport(deskCell)) {
+      return;
+    }
+    scrollElementIntoView(deskCell);
+  }, [wakeSignal]);
 
   useGSAP(
     () => {
@@ -119,7 +138,10 @@ export function LandingShowcase() {
               </div>
             ))}
           </BentoCell>
-          <div className="group flex flex-col gap-6 bg-card p-7 transition-colors duration-300 hover:bg-card-hover md:row-span-2">
+          <div
+            ref={deskCellReference}
+            className="group flex flex-col gap-6 bg-card p-7 transition-colors duration-300 hover:bg-card-hover md:row-span-2"
+          >
             <div className="flex items-center justify-between">
               <span className="text-xs text-dim transition-colors duration-300 group-hover:text-muted-foreground">
                 {showcaseMessages.deskCellLabel}
@@ -132,13 +154,12 @@ export function LandingShowcase() {
                 {showcaseMessages.liveLabel}
               </span>
             </div>
-            <FaceCanvas
-              mode="screen"
-              emotion={LIVE_EMOTION_CYCLE[liveEmotionIndex]}
-              gridResolution={14}
+            <DeviceCanvas
+              emotion={isAwake ? 'curious' : LIVE_EMOTION_CYCLE[liveEmotionIndex]}
               shouldTrackPointer
+              wakeSignal={wakeSignal}
               label={showcaseMessages.faceCaption}
-              className="my-auto aspect-square w-full max-w-[220px] self-center"
+              className="my-auto aspect-square w-full max-w-[260px] self-center"
             />
             <p className="text-sm text-muted-foreground">
               {showcaseMessages.faceCaption}

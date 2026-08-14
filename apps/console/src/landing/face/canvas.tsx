@@ -23,6 +23,7 @@ interface FaceCanvasProps {
   readonly gridResolution?: number;
   readonly shouldTrackPointer?: boolean;
   readonly shouldBlink?: boolean;
+  readonly wakeSignal?: number;
   readonly className?: string;
   readonly label?: string;
 }
@@ -37,6 +38,7 @@ export function FaceCanvas({
   gridResolution = DEFAULT_FACE_GRID_RESOLUTION,
   shouldTrackPointer = false,
   shouldBlink = true,
+  wakeSignal = 0,
   className,
   label,
 }: FaceCanvasProps) {
@@ -211,6 +213,42 @@ export function FaceCanvas({
       });
     },
     { scope: canvasReference },
+  );
+
+  useGSAP(
+    () => {
+      if (wakeSignal === 0 || prefersReducedMotion()) {
+        return;
+      }
+      const renderState = renderStateReference.current;
+      gsap
+        .timeline()
+        .to(renderState, {
+          blinkProgress: 1,
+          duration: 0.07,
+          ease: 'power2.in',
+          onUpdate: markNeedsPaint,
+        })
+        .to(renderState, {
+          blinkProgress: 0,
+          duration: 0.09,
+          ease: 'power2.out',
+          onUpdate: markNeedsPaint,
+        })
+        .to(renderState, {
+          blinkProgress: 1,
+          duration: 0.07,
+          ease: 'power2.in',
+          onUpdate: markNeedsPaint,
+        })
+        .to(renderState, {
+          blinkProgress: 0,
+          duration: 0.11,
+          ease: 'power2.out',
+          onUpdate: markNeedsPaint,
+        });
+    },
+    { dependencies: [wakeSignal] },
   );
 
   useGSAP(

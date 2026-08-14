@@ -4,11 +4,13 @@ import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
 import { FaceCanvas } from '@/landing/face/canvas';
 import { ActHeading } from '@/landing/heading';
 import { REDUCED_MOTION_SAFE_QUERY, RISE_EASE, gsap, useGSAP } from '@/landing/motion';
+import { useWakeEcho } from '@/landing/wake';
 import { useMessages } from '@/locale/context';
 
 export function LandingArchitecture() {
   const architectureMessages = useMessages(LANDING_MESSAGE_CATALOG).architecture;
   const sectionReference = useRef<HTMLElement | null>(null);
+  const { wakeSignal, isAwake } = useWakeEcho();
 
   useGSAP(
     () => {
@@ -110,7 +112,9 @@ export function LandingArchitecture() {
             <span className="text-xs text-dim">{architectureMessages.bodyNodeLabel}</span>
             <FaceCanvas
               mode="screen"
+              emotion={isAwake ? 'curious' : 'neutral'}
               gridResolution={14}
+              wakeSignal={wakeSignal}
               className="size-14 self-center"
             />
             <div className="mt-auto">
