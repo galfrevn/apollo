@@ -71,26 +71,28 @@ export function useWakeEcho(): { wakeSignal: number; isAwake: boolean } {
   useEffect(() => {
     let buffer = '';
     let currentWord = '';
+    // Only a letter typed plainly on the document continues the word; every
+    // other key ends it, so no interruption can leave a stale prefix behind to
+    // swallow a later space.
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) {
+      if (isTransparentModifierKey(event.key)) {
         return;
       }
-      if (isTypingTarget(event.target)) {
-        return;
-      }
+      const isPlainTyping =
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !isTypingTarget(event.target);
       // Space pages the document down, which would yank the reader away
       // mid-phrase; it is only swallowed while the wake word is being typed.
-      if (event.key === ' ') {
+      if (isPlainTyping && event.key === ' ') {
         if (isWakePhrasePrefix(currentWord)) {
           event.preventDefault();
         }
         currentWord = '';
         return;
       }
-      if (isTransparentModifierKey(event.key)) {
-        return;
-      }
-      const character = normalizeWakeCharacter(event.key);
+      const character = isPlainTyping ? normalizeWakeCharacter(event.key) : null;
       if (character === null) {
         currentWord = '';
         return;
