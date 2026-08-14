@@ -1,5 +1,7 @@
 Apollo deploys from a single command. It scaffolds the starter — the brain with the author's personal values stripped out — initializes git, installs dependencies, and hands you to an interactive wizard that ends at a live worker and a verified device handshake. No keys yet is a first-class answer: trial mode deploys a fully protocol-correct brain with zero external spend.
 
+![A terminal cursor sending one line of light toward distant infrastructure](/handbook/setup.jpg)
+
 ## What you need
 
 - [Bun](https://bun.sh), the runtime and package manager.

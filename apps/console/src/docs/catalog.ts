@@ -46,12 +46,42 @@ export const DOCS_PART_LIST: readonly DocsPart[] = [
     ],
   },
   {
-    title: 'Part III — Operations',
+    title: 'Part III — Capabilities',
+    chapterList: [
+      {
+        slug: 'capabilities',
+        title: 'Capabilities',
+        description: 'Every tool Apollo can reach, and when it asks first.',
+      },
+    ],
+  },
+  {
+    title: 'Part IV — Operations',
     chapterList: [
       {
         slug: 'setup',
         title: 'Setup',
         description: 'From one command to a deployed, talking worker.',
+      },
+      {
+        slug: 'console',
+        title: 'Console',
+        description: 'Manage a deployment from the browser.',
+      },
+      {
+        slug: 'skills',
+        title: 'Skills',
+        description: 'Hand the manual to your coding agent.',
+      },
+    ],
+  },
+  {
+    title: 'Part V — Body',
+    chapterList: [
+      {
+        slug: 'firmware',
+        title: 'Firmware',
+        description: 'Build, flash, and point a body at your brain.',
       },
     ],
   },

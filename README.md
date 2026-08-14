@@ -15,7 +15,7 @@
   <h3 align="center">@galfrevn/apollo</h3>
 
   <p align="center">
-    Personal desk agent for ESP32, powered by Cloudflare Workers
+    The open-source brain for physical agentic devices, powered by Cloudflare Workers
     <br />
     <br />
     <a href="documentation/index.md"><strong>Explore the docs »</strong></a>

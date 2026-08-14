@@ -9,14 +9,29 @@ import { warmConsoleChunk, warmDocsChunk } from '@/landing/prefetch';
 import { useMessages } from '@/locale/context';
 
 const REPOSITORY_API_URL = 'https://api.github.com/repos/galfrevn/apollo';
+const STAR_COUNT_STORAGE_KEY = 'apollo:github-star-count';
 const repositorySchema = z.object({ stargazers_count: z.number() });
+const storedStarCountSchema = z.coerce.number().int().nonnegative();
 
 function formatStarCount(starCount: number): string {
   return starCount >= 1000 ? `${(starCount / 1000).toFixed(1)}k` : String(starCount);
 }
 
+function readStoredStarCount(): number | null {
+  try {
+    const storedValue = window.localStorage.getItem(STAR_COUNT_STORAGE_KEY);
+    if (storedValue === null || storedValue === '') {
+      return null;
+    }
+    const parsedValue = storedStarCountSchema.safeParse(storedValue);
+    return parsedValue.success ? parsedValue.data : null;
+  } catch {
+    return null;
+  }
+}
+
 function useGithubStarCount(): number | null {
-  const [starCount, setStarCount] = useState<number | null>(null);
+  const [starCount, setStarCount] = useState<number | null>(readStoredStarCount);
   useEffect(() => {
     let isCancelled = false;
     const loadStarCount = async () => {
@@ -29,9 +44,17 @@ function useGithubStarCount(): number | null {
         const parsedRepository = repositorySchema.safeParse(payload);
         if (!isCancelled && parsedRepository.success) {
           setStarCount(parsedRepository.data.stargazers_count);
+          try {
+            window.localStorage.setItem(
+              STAR_COUNT_STORAGE_KEY,
+              String(parsedRepository.data.stargazers_count),
+            );
+          } catch {
+            // Storage full or blocked: the next visit just refetches.
+          }
         }
       } catch {
-        // Offline or rate limited: the nav simply hides the count.
+        // Offline or rate limited: the nav shows the cached count or nothing.
       }
     };
     void loadStarCount();
@@ -52,12 +75,12 @@ export function LandingNav() {
         aria-hidden
         className="absolute inset-0 -bottom-4 bg-gradient-to-b from-background/70 to-background/0 backdrop-blur-md [mask-image:linear-gradient(to_bottom,black_40%,transparent)]"
       />
-      <div className="relative mx-auto flex h-[68px] max-w-[1180px] items-center justify-between px-8">
+      <div className="relative mx-auto flex h-[68px] max-w-[1180px] items-center justify-between px-5 sm:px-8">
         <a href="/" className="flex items-center gap-3 font-serif text-lg">
           <Icons.LogoMark size={26} />
-          Apollo
+          <span className="max-sm:hidden">Apollo</span>
         </a>
-        <div className="flex items-center gap-7 text-sm text-muted-foreground">
+        <div className="flex items-center gap-4 text-sm text-muted-foreground sm:gap-7">
           <a
             href={LANDING_LINK_MAP.documentation}
             onPointerEnter={warmDocsChunk}
@@ -83,7 +106,7 @@ export function LandingNav() {
           <MagneticLink
             href={LANDING_LINK_MAP.console}
             onWarm={warmConsoleChunk}
-            className="bg-primary px-3.5 py-2 text-primary-foreground transition-colors hover:bg-primary/90"
+            className="bg-primary px-2.5 py-1.5 text-primary-foreground transition-colors hover:bg-primary/90 sm:px-3.5 sm:py-2"
           >
             {landingMessages.nav.openConsoleLabel}
           </MagneticLink>
