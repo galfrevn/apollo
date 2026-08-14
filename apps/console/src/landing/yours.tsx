@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { MouseEvent } from 'react';
 
 import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
@@ -21,8 +22,33 @@ function handleAnchorActivation(clickEvent: MouseEvent<HTMLAnchorElement>): void
   }
 }
 
+// The hash can arrive from outside this page, so it is not guaranteed to be a
+// valid selector; querySelector throws on malformed input.
+function findAnchorTargetElement(targetHash: string): Element | null {
+  try {
+    return targetHash === '' ? null : document.querySelector(targetHash);
+  } catch {
+    return null;
+  }
+}
+
+function useAnchorHistoryRestoration(): void {
+  useEffect(() => {
+    const handleHistoryTraversal = () => {
+      const smoother = ScrollSmoother.get();
+      if (!smoother) {
+        return;
+      }
+      smoother.scrollTo(findAnchorTargetElement(window.location.hash) ?? 0, true);
+    };
+    window.addEventListener('popstate', handleHistoryTraversal);
+    return () => window.removeEventListener('popstate', handleHistoryTraversal);
+  }, []);
+}
+
 export function LandingYours() {
   const yoursMessages = useMessages(LANDING_MESSAGE_CATALOG).yours;
+  useAnchorHistoryRestoration();
   return (
     <section id="yours" className="border-t py-[130px]">
       <div className="mx-auto w-full max-w-[1180px] px-8">
