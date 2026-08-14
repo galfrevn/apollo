@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
+  advanceWakeWord,
   appendToWakeBuffer,
   isWakePhrasePrefix,
   matchesWakePhrase,
@@ -13,6 +14,14 @@ function typePhrase(phrase: string): string {
     buffer = appendToWakeBuffer(buffer, key);
   }
   return buffer;
+}
+
+function typeWord(keyList: readonly string[]): string {
+  let currentWord = '';
+  for (const key of keyList) {
+    currentWord = advanceWakeWord(currentWord, key);
+  }
+  return currentWord;
 }
 
 describe('normalizeWakeCharacter', () => {
@@ -73,8 +82,13 @@ describe('isWakePhrasePrefix', () => {
   });
 });
 
-describe('normalizeWakeCharacter as the word-break rule', () => {
-  it('rejects every key that should end the word being typed', () => {
+describe('advanceWakeWord', () => {
+  it('keeps the prefix alive across the comma of the punctuated phrase', () => {
+    expect(typeWord(['H', 'e', 'y', ','])).toBe('hey');
+    expect(isWakePhrasePrefix(typeWord(['H', 'e', 'y', ',']))).toBe(true);
+  });
+
+  it('ends the word on every key that is not typed into the phrase', () => {
     for (const breakingKey of [
       'Shift',
       'CapsLock',
@@ -83,10 +97,14 @@ describe('normalizeWakeCharacter as the word-break rule', () => {
       'Tab',
       'Escape',
       'ArrowLeft',
-      ',',
+      ' ',
       '4',
     ]) {
-      expect(normalizeWakeCharacter(breakingKey)).toBeNull();
+      expect(typeWord(['h', 'e', 'y', breakingKey])).toBe('');
     }
+  });
+
+  it('ends the word on punctuation that follows ordinary reading', () => {
+    expect(typeWord(['w', 'h', 'i', 'c', 'h', ','])).toBe('');
   });
 });

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 const WAKE_PHRASE_LIST = ['heyapolo', 'heyapollo'] as const;
 const WAKE_BUFFER_LIMIT = 24;
 const WAKE_ECHO_MILLISECONDS = 2600;
+const WAKE_PUNCTUATION_PATTERN = /^[,.;:!?¡¿'"‘’“”-]$/;
 
 export function normalizeWakeCharacter(key: string): string | null {
   if (key.length !== 1) {
@@ -37,6 +38,26 @@ export function isWakePhrasePrefix(currentWord: string): boolean {
   );
 }
 
+// The phrase is documented punctuated ("Hey, Apólo!"), so the comma sits
+// between the two halves and must not count as the end of the word being typed.
+export function isWakePhrasePunctuation(key: string): boolean {
+  return WAKE_PUNCTUATION_PATTERN.test(key);
+}
+
+// A letter continues the word, and so does punctuation that falls inside a live
+// wake prefix; every other key ends it, so no interruption leaves a stale prefix
+// behind to swallow a later space.
+export function advanceWakeWord(currentWord: string, key: string): string {
+  const character = normalizeWakeCharacter(key);
+  if (character !== null) {
+    return (currentWord + character).slice(-WAKE_BUFFER_LIMIT);
+  }
+  if (isWakePhrasePunctuation(key) && isWakePhrasePrefix(currentWord)) {
+    return currentWord;
+  }
+  return '';
+}
+
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false;
@@ -56,30 +77,26 @@ export function useWakeEcho(): { wakeSignal: number; isAwake: boolean } {
   useEffect(() => {
     let buffer = '';
     let currentWord = '';
-    // Only a letter typed plainly on the document continues the word; every
-    // other key ends it, so no interruption can leave a stale prefix behind to
-    // swallow a later space.
     const handleKeyDown = (event: KeyboardEvent) => {
       const isPlainTyping =
         !event.metaKey &&
         !event.ctrlKey &&
         !event.altKey &&
         !isTypingTarget(event.target);
+      if (!isPlainTyping) {
+        currentWord = '';
+        return;
+      }
       // Space pages the document down, which would yank the reader away
       // mid-phrase; it is only swallowed while the wake word is being typed.
-      if (isPlainTyping && event.key === ' ') {
+      if (event.key === ' ') {
         if (isWakePhrasePrefix(currentWord)) {
           event.preventDefault();
         }
         currentWord = '';
         return;
       }
-      const character = isPlainTyping ? normalizeWakeCharacter(event.key) : null;
-      if (character === null) {
-        currentWord = '';
-        return;
-      }
-      currentWord = (currentWord + character).slice(-WAKE_BUFFER_LIMIT);
+      currentWord = advanceWakeWord(currentWord, event.key);
       buffer = appendToWakeBuffer(buffer, event.key);
       if (matchesWakePhrase(buffer)) {
         buffer = '';
