@@ -37,6 +37,21 @@ export function isWakePhrasePrefix(currentWord: string): boolean {
   );
 }
 
+// Modifier keys carry no text, so they leave the word being typed intact; every
+// other named key (Backspace, Enter, Tab, arrows) interrupts it and clears it.
+const TRANSPARENT_MODIFIER_KEY_SET: ReadonlySet<string> = new Set([
+  'Shift',
+  'Control',
+  'Alt',
+  'AltGraph',
+  'Meta',
+  'CapsLock',
+]);
+
+export function isTransparentModifierKey(key: string): boolean {
+  return TRANSPARENT_MODIFIER_KEY_SET.has(key);
+}
+
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false;
@@ -72,9 +87,7 @@ export function useWakeEcho(): { wakeSignal: number; isAwake: boolean } {
         currentWord = '';
         return;
       }
-      // Modifier and named keys carry no text, so they must not end the word:
-      // the Shift held to type a capital would otherwise break the phrase.
-      if (event.key.length !== 1) {
+      if (isTransparentModifierKey(event.key)) {
         return;
       }
       const character = normalizeWakeCharacter(event.key);
