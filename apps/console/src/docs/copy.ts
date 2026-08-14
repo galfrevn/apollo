@@ -12,6 +12,8 @@ interface DocsMessages {
   readonly contentsTagline: string;
   readonly previousChapterLabel: string;
   readonly nextChapterLabel: string;
+  readonly copyCodeLabel: string;
+  readonly copiedCodeLabel: string;
   readonly buildChapterPositionLabel: (
     chapterNumber: number,
     chapterTotal: number,
@@ -31,6 +33,8 @@ export const DOCS_MESSAGE_CATALOG: Record<Locale, DocsMessages> = {
     contentsTagline: 'El manual de Apollo, pensado para leerse en orden.',
     previousChapterLabel: 'Capítulo anterior',
     nextChapterLabel: 'Capítulo siguiente',
+    copyCodeLabel: 'Copiar el código',
+    copiedCodeLabel: 'Copiado',
     buildChapterPositionLabel: (chapterNumber, chapterTotal) =>
       `Capítulo ${chapterNumber} de ${chapterTotal}`,
   },
@@ -46,6 +50,8 @@ export const DOCS_MESSAGE_CATALOG: Record<Locale, DocsMessages> = {
     contentsTagline: 'The Apollo handbook, meant to be read in order.',
     previousChapterLabel: 'Previous chapter',
     nextChapterLabel: 'Next chapter',
+    copyCodeLabel: 'Copy code',
+    copiedCodeLabel: 'Copied',
     buildChapterPositionLabel: (chapterNumber, chapterTotal) =>
       `Chapter ${chapterNumber} of ${chapterTotal}`,
   },

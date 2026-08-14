@@ -51,7 +51,7 @@ export const DOCS_PART_LIST: readonly DocsPart[] = [
       {
         slug: 'setup',
         title: 'Setup',
-        description: 'Local development, from clone to first spoken turn.',
+        description: 'From one command to a deployed, talking worker.',
       },
     ],
   },

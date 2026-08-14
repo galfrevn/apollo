@@ -1,72 +1,56 @@
-import {
-  cancel,
-  confirm,
-  intro,
-  note,
-  outro,
-  password,
-  select,
-  spinner,
-  text,
-} from '@clack/prompts';
+import { cancel, confirm, intro, log, note, outro, select } from '@clack/prompts';
 import { existsSync } from 'node:fs';
+import picocolors from 'picocolors';
 import { z } from 'zod';
 
-import { printWizardBanner } from '@/banner';
+import { playOpeningBanner } from '@/banner';
+import { collectRealModeConfiguration } from '@/configure';
 import {
-  readCurrentTtsVoiceId,
+  readCurrentHomeLocation,
   rewriteTimeZone,
-  rewriteTtsVoiceId,
   rewriteWeatherLocation,
 } from '@/identity';
-import {
-  listElevenLabsVoiceChoiceList,
-  validateOpenRouterApiKey,
-  validateResendApiKey,
-  validateTavilyApiKey,
-} from '@/keys';
-import { announceWizardPhase, WIZARD_PHASE_LIST } from '@/phases';
 import {
   inspectWranglerAuthState,
   isR2Enabled,
   runBootstrapSubcommand,
   runInteractiveWranglerLogin,
 } from '@/preflight';
+import { chooseCity, requireAnswer } from '@/prompts';
+import { buildOutroMessage, buildRecapLineList } from '@/summary';
 import {
-  chooseCity,
-  collectValidatedKey,
-  KEY_ATTEMPT_LIMIT,
-  requireAnswer,
-} from '@/prompts';
+  renderMutedLine,
+  renderPhaseHeader,
+  renderSuccessLine,
+  TOTAL_PHASE_COUNT,
+} from '@/theme';
 import { parseDevelopmentVariableMap, upsertDevelopmentVariable } from '@/vars';
 
 const DEVELOPMENT_VARIABLES_FILE = '.dev.vars';
 const IDENTITY_FILE = 'src/configuration/identity.ts';
 
 const deploymentStateSchema = z.object({ workerUrl: z.string().url() }).partial();
+const packageManifestSchema = z.object({ version: z.string().optional() });
 
-async function runWizard(): Promise<void> {
-  printWizardBanner('from nothing to a talking worker');
-  intro('Apollo setup');
-  note(
-    [
-      ...WIZARD_PHASE_LIST.map(
-        (phaseName, phaseIndex) => `${phaseIndex + 1}. ${phaseName}`,
-      ),
-      '',
-      'About five minutes end to end. Trial mode needs zero API keys.',
-    ].join('\n'),
-    'What happens next',
-  );
-
-  if (!existsSync(DEVELOPMENT_VARIABLES_FILE)) {
-    await Bun.write(
-      DEVELOPMENT_VARIABLES_FILE,
-      await Bun.file('.dev.vars.example').text(),
+async function readSetupTaglineLabel(): Promise<string> {
+  try {
+    const packageManifest = packageManifestSchema.parse(
+      JSON.parse(await Bun.file('package.json').text()),
     );
+    return packageManifest.version === undefined
+      ? 'setup'
+      : `setup · v${packageManifest.version}`;
+  } catch {
+    return 'setup';
   }
+}
 
-  announceWizardPhase('Cloudflare account');
+async function confirmCloudflareAccount(): Promise<void> {
+  renderPhaseHeader({
+    stepNumber: 1,
+    totalStepCount: TOTAL_PHASE_COUNT,
+    title: 'Cloudflare',
+  });
   let authState = inspectWranglerAuthState();
   if (!authState.isLoggedIn) {
     const shouldLogin = requireAnswer(
@@ -90,7 +74,6 @@ async function runWizard(): Promise<void> {
     );
     process.exit(1);
   }
-
   while (!isR2Enabled()) {
     note(
       'R2 is not enabled on this account (it needs a payment card on file, even for free usage).\nEnable it at https://dash.cloudflare.com → R2, then continue.',
@@ -102,144 +85,61 @@ async function runWizard(): Promise<void> {
       process.exit(1);
     }
   }
+  renderSuccessLine('Cloudflare ready', 'account confirmed · R2 enabled');
+}
+
+async function runWizard(): Promise<void> {
+  await playOpeningBanner({
+    taglineLabel: await readSetupTaglineLabel(),
+    isReturningRun: existsSync('.apollo.json'),
+  });
+  intro(picocolors.bold("Let's set up your desk agent"));
+
+  if (!existsSync(DEVELOPMENT_VARIABLES_FILE)) {
+    await Bun.write(
+      DEVELOPMENT_VARIABLES_FILE,
+      await Bun.file('.dev.vars.example').text(),
+    );
+  }
+
+  await confirmCloudflareAccount();
 
   let developmentVariablesContent = await Bun.file(DEVELOPMENT_VARIABLES_FILE).text();
   let identityContent = await Bun.file(IDENTITY_FILE).text();
 
-  announceWizardPhase('API keys');
   const setupMode = requireAnswer(
     await select({
       message: 'Do you have your API keys ready?',
       options: [
-        { value: 'real', label: 'Yes — OpenRouter + ElevenLabs (full voice agent)' },
+        {
+          value: 'real',
+          label: 'Yes — OpenRouter + ElevenLabs',
+          hint: 'full voice agent',
+        },
         {
           value: 'trial',
-          label: 'Not yet — trial mode (MOCK_VOICE=1, zero external spend)',
+          label: 'Not yet — trial mode',
+          hint: 'MOCK_VOICE=1, zero external spend',
         },
       ],
     }),
   );
 
+  let voiceLabel: string | undefined;
+  let webSearchLabel: string | undefined;
+  let emailLabel: string | undefined;
   if (setupMode === 'real') {
-    const openRouterKey = await collectValidatedKey({
-      promptLabel: 'OpenRouter API key (openrouter.ai/settings/keys)',
-      validate: validateOpenRouterApiKey,
-      isSkippable: false,
-    });
-    if (openRouterKey !== undefined) {
-      developmentVariablesContent = upsertDevelopmentVariable(
-        developmentVariablesContent,
-        'OPENROUTER_API_KEY',
-        openRouterKey,
-      );
-    }
-
-    for (let attemptIndex = 0; attemptIndex < KEY_ATTEMPT_LIMIT; attemptIndex += 1) {
-      const elevenLabsKey = requireAnswer(
-        await password({
-          message: 'ElevenLabs API key (elevenlabs.io → Profile)',
-          mask: '•',
-        }),
-      );
-      const voicesSpinner = spinner();
-      voicesSpinner.start('Fetching your voice library');
-      try {
-        const voiceChoiceList = await listElevenLabsVoiceChoiceList(elevenLabsKey);
-        voicesSpinner.stop(`${voiceChoiceList.length} voices available`);
-        developmentVariablesContent = upsertDevelopmentVariable(
-          developmentVariablesContent,
-          'ELEVENLABS_API_KEY',
-          elevenLabsKey,
-        );
-        const currentVoiceId = readCurrentTtsVoiceId(identityContent) ?? '';
-        const chosenVoiceId = requireAnswer(
-          await select({
-            message: 'Pick the voice Apollo speaks with',
-            options: [
-              ...(currentVoiceId !== ''
-                ? [{ value: currentVoiceId, label: `Keep current (${currentVoiceId})` }]
-                : []),
-              ...voiceChoiceList.map((choice) => ({
-                value: choice.voiceId,
-                label: choice.displayLabel,
-              })),
-            ],
-          }),
-        );
-        identityContent = rewriteTtsVoiceId(identityContent, chosenVoiceId);
-        break;
-      } catch (error) {
-        voicesSpinner.stop(error instanceof Error ? error.message : 'key rejected');
-        if (attemptIndex === KEY_ATTEMPT_LIMIT - 1) {
-          cancel('Could not validate the ElevenLabs key.');
-          process.exit(1);
-        }
-      }
-    }
-
-    const wantsWebSearch = requireAnswer(
-      await confirm({ message: 'Enable web search? (Tavily key, free tier available)' }),
-    );
-    if (wantsWebSearch) {
-      const tavilyKey = await collectValidatedKey({
-        promptLabel: 'Tavily API key (app.tavily.com)',
-        validate: validateTavilyApiKey,
-        isSkippable: true,
-      });
-      if (tavilyKey !== undefined) {
-        developmentVariablesContent = upsertDevelopmentVariable(
-          developmentVariablesContent,
-          'TAVILY_API_KEY',
-          tavilyKey,
-        );
-      }
-    }
-
-    const wantsEmail = requireAnswer(
-      await confirm({ message: 'Enable email reports to yourself? (Resend key)' }),
-    );
-    if (wantsEmail) {
-      const resendKey = await collectValidatedKey({
-        promptLabel: 'Resend API key (resend.com/api-keys)',
-        validate: async (apiKey) => {
-          const validationResult = await validateResendApiKey(apiKey);
-          // Sending-only Resend keys cannot list domains; accept with a warning.
-          return validationResult.isValid
-            ? validationResult
-            : { isValid: true, reason: undefined };
-        },
-        isSkippable: true,
-      });
-      if (resendKey !== undefined) {
-        const ownerEmail = requireAnswer(
-          await text({
-            message:
-              'Your email (must be the address you signed up to Resend with, unless you verified a domain)',
-            validate: (enteredValue) =>
-              z.string().email().safeParse(enteredValue).success
-                ? undefined
-                : 'That does not look like an email address',
-          }),
-        );
-        developmentVariablesContent = upsertDevelopmentVariable(
-          developmentVariablesContent,
-          'RESEND_API_KEY',
-          resendKey,
-        );
-        developmentVariablesContent = upsertDevelopmentVariable(
-          developmentVariablesContent,
-          'APOLLO_OWNER_EMAIL',
-          ownerEmail,
-        );
-      }
-    }
-
-    developmentVariablesContent = upsertDevelopmentVariable(
+    const realModeConfiguration = await collectRealModeConfiguration({
       developmentVariablesContent,
-      'MOCK_VOICE',
-      '',
-    );
+      identityContent,
+    });
+    developmentVariablesContent = realModeConfiguration.developmentVariablesContent;
+    identityContent = realModeConfiguration.identityContent;
+    voiceLabel = realModeConfiguration.voiceLabel;
+    webSearchLabel = realModeConfiguration.webSearchLabel;
+    emailLabel = realModeConfiguration.emailLabel;
   } else {
+    renderMutedLine('Trial mode — skipping Intelligence, Voice, and Extras (2–4).');
     developmentVariablesContent = upsertDevelopmentVariable(
       developmentVariablesContent,
       'MOCK_VOICE',
@@ -247,7 +147,11 @@ async function runWizard(): Promise<void> {
     );
   }
 
-  announceWizardPhase('Persona & location');
+  renderPhaseHeader({
+    stepNumber: 5,
+    totalStepCount: TOTAL_PHASE_COUNT,
+    title: 'Home',
+  });
   const chosenCity = await chooseCity();
   if (chosenCity !== undefined) {
     const cityName = chosenCity.label.split(',')[0];
@@ -271,7 +175,25 @@ async function runWizard(): Promise<void> {
   await Bun.write(DEVELOPMENT_VARIABLES_FILE, developmentVariablesContent);
   await Bun.write(IDENTITY_FILE, identityContent);
 
-  announceWizardPhase('Deploy');
+  renderPhaseHeader({ title: 'Ready to launch' });
+  const retainedHome = readCurrentHomeLocation(identityContent);
+  const recapLineList = buildRecapLineList({
+    modeLabel:
+      setupMode === 'real' ? 'Full voice agent' : 'Trial — replies mocked, zero spend',
+    voiceLabel,
+    homeLabel:
+      chosenCity !== undefined
+        ? `${chosenCity.label.split(',')[0]} · ${chosenCity.timezone}`
+        : retainedHome !== undefined
+          ? `${retainedHome.locationLabel} · ${retainedHome.timezone} ${picocolors.dim('· unchanged')}`
+          : `Buenos Aires ${picocolors.dim('· default')}`,
+    webSearchLabel,
+    emailLabel,
+  });
+  for (const recapLine of recapLineList) {
+    log.message(recapLine);
+  }
+
   const shouldDeploy = requireAnswer(
     await confirm({
       message: 'Provision the Cloudflare resources and deploy now? (bootstrap all)',
@@ -301,19 +223,12 @@ async function runWizard(): Promise<void> {
     }
   }
   const deviceWebSocketUrl = `${workerUrl.replace(/^https/, 'wss')}/agents/apollo/desk?token=<DEVICE_SHARED_SECRET>`;
-  note(
-    [
-      `Worker   ${workerUrl}`,
-      `Device   ${deviceWebSocketUrl}`,
-      'Secrets  DEVICE_SHARED_SECRET and DASHBOARD_SHARED_SECRET are in .dev.vars',
-      'Console  https://heyapollo.dev/console → your worker URL + instance `desk` + DASHBOARD_SHARED_SECRET',
-    ].join('\n'),
-    'Apollo is live',
-  );
   outro(
-    variableMap.get('MOCK_VOICE') === '1'
-      ? 'Trial mode: replies are mocked — re-run `bun run setup` when you have keys.'
-      : `Try it: bun run probe -- --url ${workerUrl.replace(/^https/, 'wss')}/agents/apollo/desk --token <DEVICE_SHARED_SECRET> --text "hola"`,
+    buildOutroMessage({
+      workerUrl,
+      deviceWebSocketUrl,
+      isTrialMode: variableMap.get('MOCK_VOICE') === '1',
+    }),
   );
 }
 

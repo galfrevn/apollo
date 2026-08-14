@@ -81,6 +81,45 @@ export function rewriteWeatherLocation(
   );
 }
 
+export type DeskHomeIdentity = {
+  readonly locationLabel: string;
+  readonly timezone: string;
+};
+
+function unescapeSingleQuotedLiteral(quotedLiteralText: string): string {
+  return quotedLiteralText.slice(1, -1).replace(/\\(.)/g, '$1');
+}
+
+export function readCurrentHomeLocation(
+  fileContent: string,
+): DeskHomeIdentity | undefined {
+  const locationBlockText = fileContent.match(
+    /export const DEFAULT_DESK_WEATHER_LOCATION = \{[^}]*\} as const;/,
+  )?.[0];
+  if (locationBlockText === undefined) {
+    return undefined;
+  }
+  const labelLiteral = locationBlockText.match(
+    new RegExp(`locationLabel: (${QUOTED_LITERAL_PATTERN_TEXT}),`),
+  )?.[1];
+  // The shipped block references APOLLO_TIME_ZONE by identifier until the
+  // first rewrite inlines a literal, so fall back to the constant itself.
+  const timezoneLiteral =
+    locationBlockText.match(
+      new RegExp(`timezone: (${QUOTED_LITERAL_PATTERN_TEXT}),`),
+    )?.[1] ??
+    fileContent.match(
+      new RegExp(`export const APOLLO_TIME_ZONE = (${QUOTED_LITERAL_PATTERN_TEXT});`),
+    )?.[1];
+  if (labelLiteral === undefined || timezoneLiteral === undefined) {
+    return undefined;
+  }
+  return {
+    locationLabel: unescapeSingleQuotedLiteral(labelLiteral),
+    timezone: unescapeSingleQuotedLiteral(timezoneLiteral),
+  };
+}
+
 export function readCurrentTtsVoiceId(fileContent: string): string | undefined {
   return fileContent
     .match(

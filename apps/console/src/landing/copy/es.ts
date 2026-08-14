@@ -16,7 +16,6 @@ export const LANDING_MESSAGES_ES: LandingMessages = {
     lineTwo: 'de escritorio',
     subhead:
       'El cerebro open source para dispositivos agénticos físicos. Vive en tu cuenta de Cloudflare; el cuerpo descansa en tu escritorio.',
-    gettingStartedLabel: 'Primeros pasos →',
   },
   showcase: {
     actIndexLabel: '01 · Escuchar',
@@ -151,12 +150,14 @@ export const LANDING_MESSAGES_ES: LandingMessages = {
         label: 'El cerebro',
         description:
           'Turnos de voz, memoria, herramientas y agenda en un solo Durable Object.',
-        action: 'Un comando para desplegar.',
+        action: 'Un comando para desplegar →',
+        actionTargetId: 'start',
       },
       {
         label: 'El cuerpo',
         description: 'El firmware del dispositivo en tu escritorio.',
         action: 'Flashéalo. Déjalo en su lugar.',
+        actionTargetId: null,
       },
     ],
     docsCardLabel: 'La documentación',
@@ -166,6 +167,19 @@ export const LANDING_MESSAGES_ES: LandingMessages = {
     consoleCardLabel: 'La consola',
     consoleCardDescription: 'Todo lo que sabe y planea, en vivo desde tu worker.',
     consoleCardAction: 'Abrir consola →',
+  },
+  start: {
+    title: 'Dos formas de empezar',
+    terminalTabLabel: 'La terminal',
+    agentTabLabel: 'Tu agente de código',
+    terminalCaption: 'Unos cinco minutos. El modo de prueba no necesita ninguna API key.',
+    agentPromptLabel: 'Para pegar en cualquier agente que lea AGENTS.md',
+    agentPrompt:
+      'Ejecuta `bun create heyapollo`, abre la carpeta nueva, lee AGENTS.md y sigue el skill apollo-setup para aprovisionar mi cuenta de Cloudflare y desplegar. Yo pego las API keys en .dev.vars; nunca me las pidas en el chat.',
+    agentCaption: 'Las claves nunca entran al chat: van directo a .dev.vars.',
+    copyCommandLabel: 'Copiar el comando',
+    copyPromptLabel: 'Copiar el prompt',
+    copiedLabel: 'Copiado',
   },
   footer: {
     echoWordList: ['Tu', 'escritorio', 'escucha'],

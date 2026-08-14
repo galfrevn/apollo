@@ -68,13 +68,14 @@
     },
     "apps/wizard": {
       "name": "create-heyapollo",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "bin": {
         "create-heyapollo": "dist/index.js",
       },
       "devDependencies": {
         "@apollo/typescript-config": "workspace:*",
         "@clack/prompts": "^0.11.0",
+        "picocolors": "^1.1.1",
         "typescript": "^5.9.3",
         "zod": "^3.25.76",
       },
