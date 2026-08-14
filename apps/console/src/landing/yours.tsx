@@ -13,12 +13,23 @@ import { useMessages } from '@/locale/context';
 // ScrollSmoother transforms the pinned content instead of scrolling the page,
 // so native hash navigation lands at the wrong position while it is active.
 function handleAnchorActivation(clickEvent: MouseEvent<HTMLAnchorElement>): void {
+  const isPlainLeftClick =
+    clickEvent.button === 0 &&
+    !clickEvent.metaKey &&
+    !clickEvent.ctrlKey &&
+    !clickEvent.shiftKey &&
+    !clickEvent.altKey;
+  if (!isPlainLeftClick) {
+    return;
+  }
   const smoother = ScrollSmoother.get();
   if (smoother) {
     clickEvent.preventDefault();
     const targetHash = clickEvent.currentTarget.hash;
     smoother.scrollTo(targetHash, true);
-    window.history.pushState(null, '', targetHash);
+    if (window.location.hash !== targetHash) {
+      window.history.pushState(null, '', targetHash);
+    }
   }
 }
 
