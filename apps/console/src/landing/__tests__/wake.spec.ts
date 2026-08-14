@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test';
 
 import {
   appendToWakeBuffer,
-  isTransparentModifierKey,
   isWakePhrasePrefix,
   matchesWakePhrase,
   normalizeWakeCharacter,
@@ -74,16 +73,20 @@ describe('isWakePhrasePrefix', () => {
   });
 });
 
-describe('isTransparentModifierKey', () => {
-  it('lets a held modifier through without ending the word', () => {
-    for (const modifierKey of ['Shift', 'Control', 'Alt', 'Meta', 'CapsLock']) {
-      expect(isTransparentModifierKey(modifierKey)).toBe(true);
-    }
-  });
-
-  it('treats editing and navigation keys as word breaks', () => {
-    for (const editingKey of ['Backspace', 'Enter', 'Tab', 'Escape', 'ArrowLeft']) {
-      expect(isTransparentModifierKey(editingKey)).toBe(false);
+describe('normalizeWakeCharacter as the word-break rule', () => {
+  it('rejects every key that should end the word being typed', () => {
+    for (const breakingKey of [
+      'Shift',
+      'CapsLock',
+      'Backspace',
+      'Enter',
+      'Tab',
+      'Escape',
+      'ArrowLeft',
+      ',',
+      '4',
+    ]) {
+      expect(normalizeWakeCharacter(breakingKey)).toBeNull();
     }
   });
 });
