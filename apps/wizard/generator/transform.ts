@@ -23,6 +23,7 @@ const wranglerConfigurationSchema = z
 
 const packageManifestSchema = z
   .object({
+    version: z.string().optional(),
     packageManager: z.string().optional(),
     dependencies: z.record(z.string()).optional(),
     devDependencies: z.record(z.string()).optional(),
@@ -73,19 +74,23 @@ export function buildStarterWranglerDocument(monorepoConfigurationText: string):
 export function buildStarterPackageDocument(input: {
   readonly agentPackageText: string;
   readonly rootPackageText: string;
+  readonly wizardPackageText: string;
 }): string {
   const agentPackage = packageManifestSchema.parse(JSON.parse(input.agentPackageText));
   const rootPackage = packageManifestSchema.parse(JSON.parse(input.rootPackageText));
+  const wizardPackage = packageManifestSchema.parse(JSON.parse(input.wizardPackageText));
   const wranglerVersion = agentPackage.devDependencies?.wrangler;
   const typescriptVersion = rootPackage.devDependencies?.typescript;
   const bunTypesVersion = rootPackage.devDependencies?.['@types/bun'];
+  const wizardVersion = wizardPackage.version;
   if (
     wranglerVersion === undefined ||
     typescriptVersion === undefined ||
-    bunTypesVersion === undefined
+    bunTypesVersion === undefined ||
+    wizardVersion === undefined
   ) {
     throw new Error(
-      'package manifest drift: expected wrangler, typescript, and @types/bun versions upstream',
+      'package manifest drift: expected wrangler, typescript, @types/bun, and create-heyapollo versions upstream',
     );
   }
   const starterPackage = {
@@ -102,7 +107,9 @@ export function buildStarterPackageDocument(input: {
       check: 'bun run types && bun run typecheck && bun run test',
       bootstrap: 'bun scripts/bootstrap.ts',
       probe: 'bun scripts/probe.ts',
-      setup: 'bunx create-heyapollo setup',
+      // Pinned so a rerun uses the wizard release that generated this scaffold,
+      // not whatever the registry serves as latest.
+      setup: `bunx create-heyapollo@${wizardVersion} setup`,
     },
     dependencies: agentPackage.dependencies,
     devDependencies: {

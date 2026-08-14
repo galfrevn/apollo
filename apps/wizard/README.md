@@ -66,7 +66,7 @@ What you scaffold is the brain alone: the Cloudflare Worker that listens, thinks
 | `--no-setup` | Skip the wizard |
 | `--no-git` | Skip `git init` |
 
-Inside a scaffolded project, `bun run setup` re-opens the wizard at any time. It delegates to `bunx create-heyapollo setup`, so the wizard you run always matches the published package.
+Inside a scaffolded project, `bun run setup` re-opens the wizard at any time. It delegates to `bunx create-heyapollo@<version> setup`, pinned to the release that generated the scaffold so a rerun always matches your project.
 
 ## License
 

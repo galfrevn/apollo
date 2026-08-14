@@ -65,6 +65,9 @@ async function emitConfiguration(): Promise<void> {
         join(starterManifest.agentDirectory, 'package.json'),
       ),
       rootPackageText: await readRepositoryTextFile('package.json'),
+      wizardPackageText: await Bun.file(
+        join(import.meta.dir, '..', 'package.json'),
+      ).text(),
     }),
   );
 }
