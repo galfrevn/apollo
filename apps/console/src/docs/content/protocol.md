@@ -1,5 +1,7 @@
 The device and the worker speak a small protocol over WebSocket. It is the contract between the firmware and the brain, and the one interface both repositories agree on. This chapter is the full wire contract — enough to build a body of your own without reading the reference firmware.
 
+![Frames traveling in both directions between a small device and a server](/handbook/protocol.jpg)
+
 ## Connection lifecycle
 
 A body connects to the agent with its shared secret in the query string:

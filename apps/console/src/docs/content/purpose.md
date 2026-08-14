@@ -1,5 +1,7 @@
 Apollo is a personal desk agent: an AI brain that runs as a Cloudflare Worker in your own account, paired with a physical body that sits on your desk. You speak to it across the desk and the answer comes back out loud.
 
+![The desk device resting on a desk, its round face glowing with two capsule eyes](/handbook/purpose.jpg)
+
 ## What Apollo is
 
 - **A voice-first assistant.** Replies are written to be spoken — short, natural sentences rather than markdown essays. The whole pipeline, from transcription to synthesis, is tuned so a question gets a spoken answer in a couple of seconds.

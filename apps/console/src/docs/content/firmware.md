@@ -1,5 +1,7 @@
 The body is the half you can hold: firmware for a small always-on device that captures your voice, renders a face, and plays Apollo's replies. The reference implementation lives at [github.com/galfrevn/apollo-firmware](https://github.com/galfrevn/apollo-firmware) — but the doctrine comes first: **the firmware adapts to Apollo, never the reverse.** The brain's wire contract is fixed, and any hardware that speaks the Protocol chapter's subset is a legitimate body, screen or no screen.
 
+![Exploded view of the round device: glass, display, circuit board, speaker mesh, shell](/handbook/firmware.jpg)
+
 ## The reference body
 
 The reference board is the Waveshare ESP32-S3-Touch-LCD-1.85C V2: a round 360×360 touch display the size of a coaster, with microphone, speaker, and battery support. The firmware is a C++ ESP-IDF project — FreeRTOS underneath, Opus for capture, raw PCM playback — forked from the xiaozhi-esp32 project and trimmed to this one board. It renders the face, detects the wake word on-device, streams audio both ways, and reports telemetry.

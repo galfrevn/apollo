@@ -2,6 +2,8 @@ A turn begins when the device detects the wake word and opens a stream to the wo
 
 > The handbook is meant to be read in order. Later chapters assume the concepts introduced earlier.
 
+![A waveform ribbon leaving a small device, looping through a cloud and returning](/handbook/loop.jpg)
+
 ## The turn
 
 The happy path, end to end:

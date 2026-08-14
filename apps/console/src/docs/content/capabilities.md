@@ -1,5 +1,7 @@
 Everything Apollo can do beyond talking goes through one typed tool catalog. The model requests a tool by name, the router validates the arguments, and the result comes back as something Apollo can say. Extending the agent means extending this catalog — never special-casing the agent itself.
 
+![Small instruments laid out in a strict grid on a dark workbench](/handbook/capabilities.jpg)
+
 ## The catalog
 
 The built-in tools, grouped by concern:

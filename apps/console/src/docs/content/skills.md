@@ -1,5 +1,7 @@
 The scaffolded project ships its own manual as six agent skills under `.claude/skills/` — runbooks written for a coding agent rather than a human. Open the folder with [Claude Code](https://claude.com/claude-code) or any agent that reads `AGENTS.md`, and instead of reading documentation you delegate: the agent loads the right skill and operates Apollo for you.
 
+![An open handbook dissolving into threads of light received by a robotic hand](/handbook/skills.jpg)
+
 ## The six skills
 
 | Skill | What it drives |

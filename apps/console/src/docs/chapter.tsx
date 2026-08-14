@@ -21,7 +21,8 @@ const PROSE_CLASS_LIST = [
   '[&_[data-streamdown=code-block-body]]:rounded-none [&_[data-streamdown=code-block-body]]:border-0 [&_[data-streamdown=code-block-body]]:bg-transparent [&_[data-streamdown=code-block-body]]:p-4 [&_[data-streamdown=code-block-body]]:text-[12.5px] [&_[data-streamdown=code-block-body]]:leading-[1.7]',
   '[&_ul]:my-3.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-3.5 [&_ol]:list-decimal [&_ol]:pl-5',
   '[&_li]:my-1.5 [&_li]:text-[15.5px] [&_li]:leading-[1.7] [&_li]:text-foreground/80',
-  '[&_hr]:my-8 [&_hr]:border-border [&_img]:rounded-none [&_table]:rounded-none',
+  '[&_hr]:my-8 [&_hr]:border-border [&_table]:rounded-none',
+  '[&_img]:my-6 [&_img]:w-full [&_img]:rounded-none [&_img]:border [&_img]:border-border',
   '[&_div:has(>table)]:my-5 [&_div:has(>table)]:rounded-none [&_div:has(>table)]:bg-card',
   '[&_th]:text-[13.5px] [&_td]:text-[14px] [&_td]:text-foreground/80',
 ].join(' ');

@@ -1,5 +1,7 @@
 A few words carry the whole handbook: the desk, a turn, a session, and a tool. Later chapters assume them, so they are defined once here.
 
+![One bright sphere holding an orbit of seven smaller states on hairline rings](/handbook/concepts.jpg)
+
 ## The desk
 
 A desk is one instance of the agent — a Durable Object named by the connection path. A device that connects to `/agents/apollo/desk` talks to the instance named `desk`, and that name **is** the identity: each instance holds its own memory, preferences, and pending work, so two names are two different Apollos. `desk` is the convention the tooling assumes; you only invent more names when you run more than one desk.

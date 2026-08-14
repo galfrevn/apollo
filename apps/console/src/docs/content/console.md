@@ -10,15 +10,21 @@ Three values identify a desk:
 
 All three stay in your browser's local storage. The console opens a WebSocket directly to your worker, authenticates with the secret, and everything it shows arrives live from there — losing the browser loses nothing but a saved connection.
 
+![The connect screen asking for a worker URL, a device name, and the dashboard secret](/handbook/console/connect.jpg)
+
 ## What you can do
 
 The console is read-and-RPC only: it explains the agent's internal state and issues explicit commands, but it can never take the device's place on the protocol.
+
+![The status overview greeting the desk, with telemetry cards for device, agent, battery, signal, reminders, and firmware](/handbook/console/status.jpg)
 
 - **Live status.** The current UI mode, whether the device is connected, and the latest telemetry snapshot — battery, charging, volume, signal, firmware version — shown with honest staleness, since telemetry only flows while the device is online.
 - **Memory.** Browse what Apollo remembers: raw memories, the consolidated owner-memory block, and the spoken lists, so you can trust what it knows instead of guessing.
 - **Schedules.** View and cancel pending reminders and timers.
 - **MCP servers.** Install and remove servers, complete their OAuth flows, and enable tools one by one with their safety levels — the management half of the Capabilities chapter.
 - **Broadcast.** Speak through the desk from anywhere: type a phrase for Apollo to say with its own voice, or record audio that plays as-is. Broadcasts queue while the device is offline and deliver on reconnect.
+
+![The MCP panel showing an installed server and a list of one-click connectors](/handbook/console/mcp.jpg)
 
 ## Two secrets by design
 
