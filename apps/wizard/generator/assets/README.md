@@ -9,7 +9,7 @@
 
 <br />
 <div align="center">
-  <img src="https://raw.githubusercontent.com/galfrevn/apollo/main/.github/assets/banner.jpeg" alt="Apollo banner" width="100%">
+  <img src="https://raw.githubusercontent.com/galfrevn/apollo/main/branding/banner.png" alt="Apollo banner" width="100%">
 
   <h3 align="center">Apollo Starter</h3>
 

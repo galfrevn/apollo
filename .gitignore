@@ -5,11 +5,6 @@ node_modules/
 dist/
 *.tsbuildinfo
 .turbo/
-# stray starter/create output generated inside the wizard workspace; the
-# canonical outputs live at tooling/starter/out and tooling/create/template
-apps/wizard/.sandbox/
-apps/wizard/generator/
-apps/wizard/template/
 
 # development
 .sandbox/

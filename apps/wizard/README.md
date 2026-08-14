@@ -32,13 +32,31 @@ bun create heyapollo
 npm create heyapollo
 ```
 
-One command copies the Apollo starter into `apollo/` (or a name you pass), initializes git, installs dependencies, and drops you into the interactive setup wizard: Cloudflare account confirmation, live API key validation, an ElevenLabs voice picker, your city and timezone, then provision, deploy, and a verified device handshake. "No keys yet" is a first class answer: trial mode deploys a fully protocol correct brain with zero external spend.
+One command copies the Apollo starter into `apollo/` (or a name you pass), initializes git, installs dependencies, and hands you to the setup wizard. The template is embedded in this package: no network fetch, no repository cloning.
 
-The scaffolded project requires [Bun](https://bun.sh). The Cloudflare Workers free plan is enough for everything except the optional coding sandbox.
+The scaffolded project requires [Bun](https://bun.sh) and a Cloudflare account. The Workers free plan covers everything except the optional coding sandbox.
+
+## The wizard
+
+Setup walks five short phases and ends with your agent deployed and answering:
+
+1. **Cloudflare** confirms which account `wrangler` is logged into and probes that R2 is enabled before touching anything.
+2. **Intelligence** takes your OpenRouter key and validates it live, including remaining credit.
+3. **Voice** takes your ElevenLabs key and opens a voice picker built from the voices on your account.
+4. **Extras** wires web search (Tavily) and email (Resend), both optional.
+5. **Home** sets your city, timezone, and default weather location.
+
+A recap shows everything before the launch, then the bootstrap provisions resources, uploads secrets, deploys the worker, and verifies a real device handshake against the live URL.
+
+"No keys yet" is a first class answer. Trial mode deploys a fully protocol correct brain with zero external spend and mocked replies. Re-run `bun run setup` inside the project whenever you have real keys.
+
+## What you get
+
+The scaffold is intentionally minimal: the agent source, `wrangler.jsonc`, idempotent bootstrap scripts, and agent skills under `.claude/skills` that teach your coding agent Apollo's architecture and wire protocol. The full handbook stays in the [monorepo documentation](https://github.com/galfrevn/apollo/tree/main/documentation), which the skills link back to.
 
 ## Just the brain
 
-What you scaffold is the brain alone — the Cloudflare Worker that listens, thinks, speaks, and remembers. No firmware is included. Instead, the project ships agent skills (`.claude/skills`) that document Apollo's wire protocol end to end, so your coding agent can adapt the firmware of your own device to it — the [reference firmware](https://github.com/galfrevn/apollo-firmware) shows a complete ESP32 implementation.
+What you scaffold is the brain alone: the Cloudflare Worker that listens, thinks, speaks, and remembers. No firmware is included. The bundled skills document the wire protocol end to end so your coding agent can adapt the firmware of your own device to it, and the [reference firmware](https://github.com/galfrevn/apollo-firmware) shows a complete ESP32 implementation.
 
 ## Flags
 
@@ -48,7 +66,7 @@ What you scaffold is the brain alone — the Cloudflare Worker that listens, thi
 | `--no-setup` | Skip the wizard |
 | `--no-git` | Skip `git init` |
 
-The template is embedded in this package. No network fetch, no repository cloning.
+Inside a scaffolded project, `bun run setup` re-opens the wizard at any time. It delegates to `bunx create-heyapollo setup`, so the wizard you run always matches the published package.
 
 ## License
 
