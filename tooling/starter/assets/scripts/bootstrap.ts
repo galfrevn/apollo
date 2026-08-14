@@ -227,6 +227,16 @@ async function runVerify(urlFlagValue: string | undefined): Promise<void> {
 
 const subcommand = Bun.argv[2];
 const urlFlagValue = readFlagValue(Bun.argv, '--url');
+const bootstrapStageList: readonly {
+  readonly stageName: string;
+  readonly execute: () => Promise<void> | void;
+}[] = [
+  { stageName: 'preflight', execute: runPreflight },
+  { stageName: 'provision', execute: runProvision },
+  { stageName: 'secrets', execute: runSecrets },
+  { stageName: 'deploy', execute: runDeploy },
+  { stageName: 'verify', execute: () => runVerify(urlFlagValue) },
+];
 switch (subcommand) {
   case 'preflight':
     await runPreflight();
@@ -244,11 +254,12 @@ switch (subcommand) {
     await runVerify(urlFlagValue);
     break;
   case 'all':
-    await runPreflight();
-    runProvision();
-    await runSecrets();
-    await runDeploy();
-    await runVerify(urlFlagValue);
+    for (const [stageIndex, stage] of bootstrapStageList.entries()) {
+      console.log(
+        `\n[${stageIndex + 1}/${bootstrapStageList.length}] ${stage.stageName}`,
+      );
+      await stage.execute();
+    }
     break;
   default:
     console.log(

@@ -70,6 +70,7 @@
       "name": "@apollo/wizard",
       "dependencies": {
         "@clack/prompts": "^0.11.0",
+        "picocolors": "^1.1.1",
         "zod": "^3.25.76",
       },
       "devDependencies": {
@@ -83,7 +84,7 @@
     },
     "tooling/create": {
       "name": "create-heyapollo",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "bin": {
         "create-heyapollo": "dist/index.js",
       },
