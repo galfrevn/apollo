@@ -72,8 +72,14 @@ export function useWakeEcho(): { wakeSignal: number; isAwake: boolean } {
         currentWord = '';
         return;
       }
+      // Modifier and named keys carry no text, so they must not end the word:
+      // the Shift held to type a capital would otherwise break the phrase.
+      if (event.key.length !== 1) {
+        return;
+      }
       const character = normalizeWakeCharacter(event.key);
       if (character === null) {
+        currentWord = '';
         return;
       }
       currentWord = (currentWord + character).slice(-WAKE_BUFFER_LIMIT);
