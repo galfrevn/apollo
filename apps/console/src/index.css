@@ -53,6 +53,14 @@
     color-scheme: dark;
   }
 
+  /* Same-origin full-document navigations (landing ↔ docs) crossfade where the
+     browser supports cross-document view transitions; others just hard-swap. */
+  @media (prefers-reduced-motion: no-preference) {
+    @view-transition {
+      navigation: auto;
+    }
+  }
+
   /* Crawlers and no-JS readers get the prerendered landing block; humans with
      scripting see a quiet background until React mounts, never a content swap.
      main.tsx removes the attribute if the landing chunk fails to load. */

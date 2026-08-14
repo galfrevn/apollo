@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
+import { runNavigationWithViewTransition } from '@/components/transition';
+
 export type ConsoleRoute =
   | 'status'
   | 'device'
@@ -48,6 +50,8 @@ export function useConsoleRoute(): ConsoleRoute {
 }
 
 export function navigateToRoute(route: ConsoleRoute): void {
-  window.history.pushState(null, '', `${CONSOLE_BASE_PATH}/${route}`);
-  window.dispatchEvent(new Event(NAVIGATION_EVENT_NAME));
+  runNavigationWithViewTransition(() => {
+    window.history.pushState(null, '', `${CONSOLE_BASE_PATH}/${route}`);
+    window.dispatchEvent(new Event(NAVIGATION_EVENT_NAME));
+  });
 }

@@ -2,9 +2,6 @@ import { useRef } from 'react';
 
 import { LandingCommand } from '@/landing/command';
 import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
-import { MagneticLink } from '@/landing/magnet';
-import { LANDING_LINK_MAP } from '@/landing/metadata';
-import { warmDocsChunk } from '@/landing/prefetch';
 import { REDUCED_MOTION_SAFE_QUERY, RISE_EASE, gsap, useGSAP } from '@/landing/motion';
 import { useMessages } from '@/locale/context';
 
@@ -35,7 +32,7 @@ export function LandingHero() {
       className="relative flex min-h-svh flex-col justify-end pb-16 pt-[120px]"
     >
       <div className="mx-auto w-full max-w-[1180px] px-8">
-        <h1 className="font-serif text-[clamp(64px,11.5vw,156px)] leading-[0.98] tracking-[-0.02em]">
+        <h1 className="font-serif text-[clamp(44px,11.5vw,156px)] leading-[0.98] tracking-[-0.02em]">
           <span className="-mb-[0.12em] block overflow-hidden pb-[0.12em]">
             <span data-hero-line className="block">
               {landingMessages.hero.lineOne}
@@ -55,23 +52,7 @@ export function LandingHero() {
           <p className="max-w-[44ch] text-sm text-muted-foreground">
             {landingMessages.hero.subhead}
           </p>
-          <div className="flex items-center gap-7 text-sm">
-            <MagneticLink
-              href={LANDING_LINK_MAP.github}
-              isExternal
-              className="underline-reveal"
-            >
-              {landingMessages.nav.githubLabel}
-            </MagneticLink>
-            <MagneticLink
-              href={LANDING_LINK_MAP.documentation}
-              onWarm={warmDocsChunk}
-              className="underline-reveal"
-            >
-              {landingMessages.nav.docsLabel}
-            </MagneticLink>
-            <LandingCommand />
-          </div>
+          <LandingCommand />
         </div>
       </div>
     </header>
