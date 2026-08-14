@@ -2,12 +2,15 @@ import { useRef } from 'react';
 
 import { LandingCommand } from '@/landing/command';
 import { LANDING_MESSAGE_CATALOG } from '@/landing/copy/catalog';
+import { FieldCanvas } from '@/landing/field/canvas';
 import { REDUCED_MOTION_SAFE_QUERY, RISE_EASE, gsap, useGSAP } from '@/landing/motion';
+import { useWakeEcho } from '@/landing/wake';
 import { useMessages } from '@/locale/context';
 
 export function LandingHero() {
   const landingMessages = useMessages(LANDING_MESSAGE_CATALOG);
   const heroReference = useRef<HTMLElement | null>(null);
+  const { wakeSignal } = useWakeEcho();
 
   useGSAP(
     () => {
@@ -31,7 +34,11 @@ export function LandingHero() {
       ref={heroReference}
       className="relative flex min-h-svh flex-col justify-end pb-16 pt-[120px]"
     >
-      <div className="mx-auto w-full max-w-[1180px] px-8">
+      <FieldCanvas
+        wakeSignal={wakeSignal}
+        className="pointer-events-none absolute inset-0 size-full"
+      />
+      <div className="relative mx-auto w-full max-w-[1180px] px-8">
         <h1 className="font-serif text-[clamp(44px,11.5vw,156px)] leading-[0.98] tracking-[-0.02em]">
           <span className="-mb-[0.12em] block overflow-hidden pb-[0.12em]">
             <span data-hero-line className="block">
