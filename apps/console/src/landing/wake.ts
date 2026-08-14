@@ -27,15 +27,14 @@ export function matchesWakePhrase(buffer: string): boolean {
   return WAKE_PHRASE_LIST.some((wakePhrase) => buffer.endsWith(wakePhrase));
 }
 
-export function isPartialWakePhrase(buffer: string): boolean {
-  return WAKE_PHRASE_LIST.some((wakePhrase) => {
-    for (let length = Math.min(buffer.length, wakePhrase.length); length > 0; length--) {
-      if (buffer.endsWith(wakePhrase.slice(0, length))) {
-        return true;
-      }
-    }
-    return false;
-  });
+// Tested against the word being typed rather than the rolling buffer: any
+// suffix match would treat the "h" ending "with" as a wake prefix and swallow
+// the space that follows it.
+export function isWakePhrasePrefix(currentWord: string): boolean {
+  return (
+    currentWord !== '' &&
+    WAKE_PHRASE_LIST.some((wakePhrase) => wakePhrase.startsWith(currentWord))
+  );
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -56,6 +55,7 @@ export function useWakeEcho(): { wakeSignal: number; isAwake: boolean } {
 
   useEffect(() => {
     let buffer = '';
+    let currentWord = '';
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) {
         return;
@@ -66,14 +66,21 @@ export function useWakeEcho(): { wakeSignal: number; isAwake: boolean } {
       // Space pages the document down, which would yank the reader away
       // mid-phrase; it is only swallowed while the wake word is being typed.
       if (event.key === ' ') {
-        if (isPartialWakePhrase(buffer)) {
+        if (isWakePhrasePrefix(currentWord)) {
           event.preventDefault();
         }
+        currentWord = '';
         return;
       }
+      const character = normalizeWakeCharacter(event.key);
+      if (character === null) {
+        return;
+      }
+      currentWord = (currentWord + character).slice(-WAKE_BUFFER_LIMIT);
       buffer = appendToWakeBuffer(buffer, event.key);
       if (matchesWakePhrase(buffer)) {
         buffer = '';
+        currentWord = '';
         setWakeSignal((previousSignal) => previousSignal + 1);
       }
     };

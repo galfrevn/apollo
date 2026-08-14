@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 
 import {
   appendToWakeBuffer,
-  isPartialWakePhrase,
+  isWakePhrasePrefix,
   matchesWakePhrase,
   normalizeWakeCharacter,
 } from '@/landing/wake';
@@ -54,14 +54,21 @@ describe('matchesWakePhrase', () => {
   });
 });
 
-describe('isPartialWakePhrase', () => {
+describe('isWakePhrasePrefix', () => {
   it('holds the space key while the wake word is being typed', () => {
-    expect(isPartialWakePhrase(typePhrase('hey'))).toBe(true);
-    expect(isPartialWakePhrase(typePhrase('reading along, hey'))).toBe(true);
+    expect(isWakePhrasePrefix('h')).toBe(true);
+    expect(isWakePhrasePrefix('hey')).toBe(true);
+    expect(isWakePhrasePrefix('heyapol')).toBe(true);
   });
 
   it('lets the space key page the document during ordinary reading', () => {
-    expect(isPartialWakePhrase(typePhrase('reading along'))).toBe(false);
-    expect(isPartialWakePhrase('')).toBe(false);
+    expect(isWakePhrasePrefix('')).toBe(false);
+    expect(isWakePhrasePrefix('along')).toBe(false);
+  });
+
+  it('does not treat a word merely ending in a wake prefix as one', () => {
+    for (const ordinaryWord of ['with', 'they', 'each', 'such', 'the']) {
+      expect(isWakePhrasePrefix(ordinaryWord)).toBe(false);
+    }
   });
 });
