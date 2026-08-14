@@ -1,7 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import type { MouseEvent } from 'react';
 
-import { runNavigationWithViewTransition } from '@/components/transition';
 import { findDocsChapterBySlug } from '@/docs/catalog';
 
 export const DOCS_BASE_PATH = '/docs';
@@ -38,11 +37,9 @@ export function useDocsChapterSlug(): string | null {
 }
 
 export function navigateToChapter(chapterSlug: string | null): void {
-  runNavigationWithViewTransition(() => {
-    window.history.pushState(null, '', buildChapterPath(chapterSlug));
-    window.dispatchEvent(new Event(NAVIGATION_EVENT_NAME));
-    window.scrollTo({ top: 0 });
-  });
+  window.history.pushState(null, '', buildChapterPath(chapterSlug));
+  window.dispatchEvent(new Event(NAVIGATION_EVENT_NAME));
+  window.scrollTo({ top: 0 });
 }
 
 export function handleChapterLinkClick(
