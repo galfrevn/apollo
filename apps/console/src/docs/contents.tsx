@@ -1,13 +1,10 @@
-import {
-  DOCS_CHAPTER_LIST,
-  DOCS_PART_LIST,
-  formatDocsChapterNumber,
-} from '@/docs/catalog';
+import { DOCS_PART_LIST_MAP, formatDocsChapterNumber } from '@/docs/catalog';
 import { DOCS_MESSAGE_CATALOG } from '@/docs/copy';
 import { buildChapterPath, handleChapterLinkClick } from '@/docs/route';
-import { useMessages } from '@/locale/context';
+import { useLocale, useMessages } from '@/locale/context';
 
 export function DocsContents() {
+  const { locale } = useLocale();
   const docsMessages = useMessages(DOCS_MESSAGE_CATALOG);
 
   return (
@@ -19,12 +16,12 @@ export function DocsContents() {
         {docsMessages.contentsTagline}
       </p>
       <div className="mt-12 grid gap-10 sm:grid-cols-2">
-        {DOCS_PART_LIST.map((part) => (
-          <div key={part.title}>
-            <span className="mb-3 block text-xs text-muted-foreground">{part.title}</span>
-            {DOCS_CHAPTER_LIST.filter(
-              (chapterEntry) => chapterEntry.partTitle === part.title,
-            ).map((chapterEntry) => (
+        {DOCS_PART_LIST_MAP[locale].map((partEntry) => (
+          <div key={partEntry.title}>
+            <span className="mb-3 block text-xs text-muted-foreground">
+              {partEntry.title}
+            </span>
+            {partEntry.chapterEntryList.map((chapterEntry) => (
               <a
                 key={chapterEntry.slug}
                 href={buildChapterPath(chapterEntry.slug)}

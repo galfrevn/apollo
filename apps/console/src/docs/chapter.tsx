@@ -1,10 +1,10 @@
 import { Streamdown } from 'streamdown';
 
-import { DOCS_CHAPTER_LIST, formatDocsChapterNumber } from '@/docs/catalog';
+import { DOCS_CHAPTER_LIST_MAP, formatDocsChapterNumber } from '@/docs/catalog';
 import { DOCS_MESSAGE_CATALOG } from '@/docs/copy';
 import { DOCS_BASE_PATH, buildChapterPath, handleChapterLinkClick } from '@/docs/route';
 import { DOCS_SOURCE_MAP } from '@/docs/source';
-import { useMessages } from '@/locale/context';
+import { useLocale, useMessages } from '@/locale/context';
 
 import type { DocsChapterEntry } from '@/docs/catalog';
 
@@ -33,13 +33,15 @@ export function DocsChapter({
 }: {
   readonly chapterEntry: DocsChapterEntry;
 }) {
+  const { locale } = useLocale();
   const docsMessages = useMessages(DOCS_MESSAGE_CATALOG);
-  const chapterIndex = DOCS_CHAPTER_LIST.findIndex(
+  const chapterEntryList = DOCS_CHAPTER_LIST_MAP[locale];
+  const chapterIndex = chapterEntryList.findIndex(
     (candidateEntry) => candidateEntry.slug === chapterEntry.slug,
   );
-  const previousChapter = DOCS_CHAPTER_LIST[chapterIndex - 1] ?? null;
-  const nextChapter = DOCS_CHAPTER_LIST[chapterIndex + 1] ?? null;
-  const chapterSource = DOCS_SOURCE_MAP[chapterEntry.slug] ?? '';
+  const previousChapter = chapterEntryList[chapterIndex - 1] ?? null;
+  const nextChapter = chapterEntryList[chapterIndex + 1] ?? null;
+  const chapterSource = DOCS_SOURCE_MAP[locale][chapterEntry.slug] ?? '';
 
   return (
     <article className="settle">
@@ -80,7 +82,7 @@ export function DocsChapter({
           >
             {docsMessages.buildChapterPositionLabel(
               chapterEntry.number,
-              DOCS_CHAPTER_LIST.length,
+              chapterEntryList.length,
             )}
           </a>
         </p>

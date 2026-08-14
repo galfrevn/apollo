@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 
-import { DOCS_CHAPTER_LIST } from '@/docs/catalog';
+import { DOCS_CHAPTER_SLUG_LIST } from '@/docs/catalog';
 import { buildDocsSearchCorpus, foldSearchText, searchDocsSections } from '@/docs/corpus';
+import { SUPPORTED_LOCALE_LIST } from '@/locale/detect';
 
-const sectionList = buildDocsSearchCorpus();
+const englishSectionList = buildDocsSearchCorpus('en');
+const spanishSectionList = buildDocsSearchCorpus('es');
 
 describe('foldSearchText', () => {
   it('lowercases and strips diacritics without changing length', () => {
@@ -13,17 +15,19 @@ describe('foldSearchText', () => {
 });
 
 describe('buildDocsSearchCorpus', () => {
-  it('covers every chapter', () => {
-    const coveredSlugSet = new Set(
-      sectionList.map((section) => section.chapterEntry.slug),
-    );
-    for (const chapterEntry of DOCS_CHAPTER_LIST) {
-      expect(coveredSlugSet.has(chapterEntry.slug)).toBe(true);
+  it('covers every chapter in every locale', () => {
+    for (const locale of SUPPORTED_LOCALE_LIST) {
+      const coveredSlugSet = new Set(
+        buildDocsSearchCorpus(locale).map((section) => section.chapterEntry.slug),
+      );
+      for (const slug of DOCS_CHAPTER_SLUG_LIST) {
+        expect(coveredSlugSet.has(slug)).toBe(true);
+      }
     }
   });
 
   it('splits chapters into heading sections with clean text', () => {
-    const protocolSectionList = sectionList.filter(
+    const protocolSectionList = englishSectionList.filter(
       (section) => section.chapterEntry.slug === 'protocol',
     );
     const headingTextList = protocolSectionList.map((section) => section.headingText);
@@ -35,8 +39,16 @@ describe('buildDocsSearchCorpus', () => {
     }
   });
 
+  it('indexes translated prose rather than the english source', () => {
+    const spanishHeadingTextList = spanishSectionList
+      .filter((section) => section.chapterEntry.slug === 'protocol')
+      .map((section) => section.headingText);
+    expect(spanishHeadingTextList).toContain('Ciclo de conexión');
+    expect(spanishHeadingTextList).not.toContain('Connection lifecycle');
+  });
+
   it('preserves underscores in wire identifiers', () => {
-    const matchList = searchDocsSections(sectionList, 'tts_aborted', 3);
+    const matchList = searchDocsSections(englishSectionList, 'tts_aborted', 3);
     expect(matchList.length).toBeGreaterThan(0);
     expect(matchList[0].snippet?.matchText).toBe('tts_aborted');
   });
@@ -44,7 +56,7 @@ describe('buildDocsSearchCorpus', () => {
 
 describe('searchDocsSections', () => {
   it('finds body text and returns a snippet around the match', () => {
-    const matchList = searchDocsSections(sectionList, 'timing-safe', 5);
+    const matchList = searchDocsSections(englishSectionList, 'timing-safe', 5);
     expect(matchList.length).toBeGreaterThan(0);
     const [firstMatch] = matchList;
     expect(firstMatch.section.chapterEntry.slug).toBe('protocol');
@@ -53,15 +65,17 @@ describe('searchDocsSections', () => {
   });
 
   it('matches headings regardless of accents and case', () => {
-    const matchList = searchDocsSections(sectionList, 'CONNECTION LIFECYCLE', 5);
+    const matchList = searchDocsSections(spanishSectionList, 'CICLO DE CONEXION', 5);
     expect(matchList.some((match) => match.isHeadingMatch)).toBe(true);
   });
 
   it('respects the result limit', () => {
-    expect(searchDocsSections(sectionList, 'the', 3).length).toBeLessThanOrEqual(3);
+    expect(searchDocsSections(englishSectionList, 'the', 3).length).toBeLessThanOrEqual(
+      3,
+    );
   });
 
   it('returns nothing for a blank query', () => {
-    expect(searchDocsSections(sectionList, '   ', 5)).toHaveLength(0);
+    expect(searchDocsSections(englishSectionList, '   ', 5)).toHaveLength(0);
   });
 });

@@ -8,14 +8,15 @@ import { DocsNav } from '@/docs/nav';
 import { DOCS_BASE_PATH, handleChapterLinkClick, useDocsChapterSlug } from '@/docs/route';
 import { DocsSearch } from '@/docs/search';
 import { LANDING_REPOSITORY_URL } from '@/landing/origin';
-import { useMessages } from '@/locale/context';
+import { useLocale, useMessages } from '@/locale/context';
 import { LocaleToggle } from '@/locale/toggle';
 import { CONSOLE_BASE_PATH } from '@/router/route';
 
 export function DocsPage() {
+  const { locale } = useLocale();
   const activeChapterSlug = useDocsChapterSlug();
   const activeChapter =
-    activeChapterSlug === null ? null : findDocsChapterBySlug(activeChapterSlug);
+    activeChapterSlug === null ? null : findDocsChapterBySlug(activeChapterSlug, locale);
   const docsMessages = useMessages(DOCS_MESSAGE_CATALOG);
   useDocsMetadata(activeChapter);
 

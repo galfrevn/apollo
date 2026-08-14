@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { MouseEvent } from 'react';
 
-import { findDocsChapterBySlug } from '@/docs/catalog';
+import { isDocsChapterSlug } from '@/docs/catalog';
 
 export const DOCS_BASE_PATH = '/docs';
 
@@ -14,7 +14,7 @@ export function parseChapterSlugFromPathname(pathname: string): string | null {
   if (candidate === '') {
     return null;
   }
-  return findDocsChapterBySlug(candidate)?.slug ?? null;
+  return isDocsChapterSlug(candidate) ? candidate : null;
 }
 
 export function buildChapterPath(chapterSlug: string | null): string {

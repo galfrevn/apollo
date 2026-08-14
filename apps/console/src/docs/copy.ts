@@ -20,17 +20,19 @@ interface DocsMessages {
   ) => string;
 }
 
+// "Handbook" is the product's own name for this surface, so it stays English in
+// every locale — the same way "Apollo" and "worker" do.
 export const DOCS_MESSAGE_CATALOG: Record<Locale, DocsMessages> = {
   es: {
-    brandSectionLabel: 'manual',
-    navigationAriaLabel: 'Capítulos del manual',
-    searchTriggerLabel: 'Buscar en el manual',
-    searchPlaceholder: 'Buscar en el manual…',
-    searchNoMatchesLabel: 'Nada en el manual coincide.',
+    brandSectionLabel: 'handbook',
+    navigationAriaLabel: 'Capítulos del handbook',
+    searchTriggerLabel: 'Buscar en el handbook',
+    searchPlaceholder: 'Buscar en el handbook…',
+    searchNoMatchesLabel: 'Nada coincide en el handbook.',
     githubLabel: 'GitHub',
     openConsoleLabel: 'Consola →',
     contentsTitle: 'Contenido',
-    contentsTagline: 'El manual de Apollo, pensado para leerse en orden.',
+    contentsTagline: 'Todo lo que hace Apollo, en el orden en que conviene leerlo.',
     previousChapterLabel: 'Capítulo anterior',
     nextChapterLabel: 'Capítulo siguiente',
     copyCodeLabel: 'Copiar el código',
@@ -47,7 +49,7 @@ export const DOCS_MESSAGE_CATALOG: Record<Locale, DocsMessages> = {
     githubLabel: 'GitHub',
     openConsoleLabel: 'Console →',
     contentsTitle: 'Contents',
-    contentsTagline: 'The Apollo handbook, meant to be read in order.',
+    contentsTagline: 'Everything Apollo does, in the order it makes sense to read it.',
     previousChapterLabel: 'Previous chapter',
     nextChapterLabel: 'Next chapter',
     copyCodeLabel: 'Copy code',

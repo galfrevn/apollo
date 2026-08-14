@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Icons } from '@/components/icons';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { DOCS_CHAPTER_LIST, formatDocsChapterNumber } from '@/docs/catalog';
+import { DOCS_CHAPTER_LIST_MAP, formatDocsChapterNumber } from '@/docs/catalog';
 import { DOCS_MESSAGE_CATALOG } from '@/docs/copy';
 import { buildDocsSearchCorpus, foldSearchText, searchDocsSections } from '@/docs/corpus';
 import { navigateToChapter, navigateToChapterHeading } from '@/docs/route';
-import { useMessages } from '@/locale/context';
+import { useLocale, useMessages } from '@/locale/context';
 
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 
@@ -30,18 +30,21 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 function buildResultList(
+  chapterEntryList: readonly DocsChapterEntry[],
   sectionList: ReturnType<typeof buildDocsSearchCorpus>,
   rawQuery: string,
 ): readonly DocsSearchResult[] {
   const foldedQuery = foldSearchText(rawQuery.trim()).replace(/\s+/g, ' ');
   if (foldedQuery === '') {
-    return DOCS_CHAPTER_LIST.map((chapterEntry) => ({ kind: 'chapter', chapterEntry }));
+    return chapterEntryList.map((chapterEntry) => ({ kind: 'chapter', chapterEntry }));
   }
-  const chapterResultList: DocsSearchResult[] = DOCS_CHAPTER_LIST.filter(
-    (chapterEntry) =>
-      foldSearchText(chapterEntry.title).includes(foldedQuery) ||
-      foldSearchText(chapterEntry.description).includes(foldedQuery),
-  ).map((chapterEntry) => ({ kind: 'chapter', chapterEntry }));
+  const chapterResultList: DocsSearchResult[] = chapterEntryList
+    .filter(
+      (chapterEntry) =>
+        foldSearchText(chapterEntry.title).includes(foldedQuery) ||
+        foldSearchText(chapterEntry.description).includes(foldedQuery),
+    )
+    .map((chapterEntry) => ({ kind: 'chapter', chapterEntry }));
   const sectionResultList: DocsSearchResult[] = searchDocsSections(
     sectionList,
     rawQuery,
@@ -55,11 +58,12 @@ export function DocsSearch() {
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const listReference = useRef<HTMLUListElement | null>(null);
+  const { locale } = useLocale();
   const docsMessages = useMessages(DOCS_MESSAGE_CATALOG);
-  const sectionList = useMemo(() => buildDocsSearchCorpus(), []);
+  const sectionList = useMemo(() => buildDocsSearchCorpus(locale), [locale]);
   const resultList = useMemo(
-    () => buildResultList(sectionList, query),
-    [sectionList, query],
+    () => buildResultList(DOCS_CHAPTER_LIST_MAP[locale], sectionList, query),
+    [locale, sectionList, query],
   );
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { mkdir, rm } from 'node:fs/promises';
 
-import { DOCS_CHAPTER_LIST } from '@/docs/catalog';
+import { DOCS_CHAPTER_LIST_MAP } from '@/docs/catalog';
 import { buildDocsDocument } from '@/docs/static';
 import {
   collectLandingPreloadPathList,
@@ -60,7 +60,7 @@ await Bun.write(
   new URL('docs.html', distDirectoryUrl),
   injectModulePreloadLinkList(buildDocsDocument(templateHtml, null), docsPreloadPathList),
 );
-for (const chapterEntry of DOCS_CHAPTER_LIST) {
+for (const chapterEntry of DOCS_CHAPTER_LIST_MAP.en) {
   await Bun.write(
     new URL(`docs/${chapterEntry.slug}.html`, distDirectoryUrl),
     injectModulePreloadLinkList(
@@ -73,5 +73,5 @@ for (const chapterEntry of DOCS_CHAPTER_LIST) {
 await rm(manifestDirectoryUrl, { recursive: true, force: true });
 
 process.stdout.write(
-  `discovery: wrote index.html, en.html, ${CONSOLE_ROUTE_LIST.length + 1} console shells, and ${DOCS_CHAPTER_LIST.length + 1} docs documents\n`,
+  `discovery: wrote index.html, en.html, ${CONSOLE_ROUTE_LIST.length + 1} console shells, and ${DOCS_CHAPTER_LIST_MAP.en.length + 1} docs documents\n`,
 );

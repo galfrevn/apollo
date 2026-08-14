@@ -1,18 +1,15 @@
 import { cn } from '@/components/utility';
-import {
-  DOCS_CHAPTER_LIST,
-  DOCS_PART_LIST,
-  formatDocsChapterNumber,
-} from '@/docs/catalog';
+import { DOCS_PART_LIST_MAP, formatDocsChapterNumber } from '@/docs/catalog';
 import { DOCS_MESSAGE_CATALOG } from '@/docs/copy';
 import { buildChapterPath, handleChapterLinkClick } from '@/docs/route';
-import { useMessages } from '@/locale/context';
+import { useLocale, useMessages } from '@/locale/context';
 
 export function DocsNav({
   activeChapterSlug,
 }: {
   readonly activeChapterSlug: string | null;
 }) {
+  const { locale } = useLocale();
   const docsMessages = useMessages(DOCS_MESSAGE_CATALOG);
 
   return (
@@ -20,14 +17,12 @@ export function DocsNav({
       aria-label={docsMessages.navigationAriaLabel}
       className="sticky top-[60px] hidden h-[calc(100vh-60px)] overflow-y-auto border-r px-4 pb-11 pt-7 md:block"
     >
-      {DOCS_PART_LIST.map((part) => (
-        <div key={part.title} className="mb-6">
+      {DOCS_PART_LIST_MAP[locale].map((partEntry) => (
+        <div key={partEntry.title} className="mb-6">
           <span className="mb-1.5 block px-2.5 text-xs text-muted-foreground">
-            {part.title}
+            {partEntry.title}
           </span>
-          {DOCS_CHAPTER_LIST.filter(
-            (chapterEntry) => chapterEntry.partTitle === part.title,
-          ).map((chapterEntry) => (
+          {partEntry.chapterEntryList.map((chapterEntry) => (
             <a
               key={chapterEntry.slug}
               href={buildChapterPath(chapterEntry.slug)}

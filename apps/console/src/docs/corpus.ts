@@ -1,7 +1,8 @@
-import { DOCS_CHAPTER_LIST } from '@/docs/catalog';
+import { DOCS_CHAPTER_LIST_MAP } from '@/docs/catalog';
 import { DOCS_SOURCE_MAP } from '@/docs/source';
 
 import type { DocsChapterEntry } from '@/docs/catalog';
+import type { Locale } from '@/locale/detect';
 
 export interface DocsSearchSection {
   readonly chapterEntry: DocsChapterEntry;
@@ -90,9 +91,12 @@ function buildChapterSectionList(
   return sectionList;
 }
 
-export function buildDocsSearchCorpus(): readonly DocsSearchSection[] {
-  return DOCS_CHAPTER_LIST.flatMap((chapterEntry) =>
-    buildChapterSectionList(chapterEntry, DOCS_SOURCE_MAP[chapterEntry.slug] ?? ''),
+export function buildDocsSearchCorpus(locale: Locale): readonly DocsSearchSection[] {
+  return DOCS_CHAPTER_LIST_MAP[locale].flatMap((chapterEntry) =>
+    buildChapterSectionList(
+      chapterEntry,
+      DOCS_SOURCE_MAP[locale][chapterEntry.slug] ?? '',
+    ),
   );
 }
 
