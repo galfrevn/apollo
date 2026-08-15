@@ -70,8 +70,13 @@ function extractNotificationPendingPayload(
   return backgroundResultPayload;
 }
 
-function extractNotificationSpokenText(notification: DeskDeviceNotification): string {
-  return notification.type === 'reminder' ? notification.message : notification.summary;
+export function buildNotificationSpokenText(
+  notification: DeskDeviceNotification,
+): string {
+  if (notification.type === 'reminder') {
+    return notification.message;
+  }
+  return `Terminé ${notification.prompt}: ${notification.summary}`;
 }
 
 export function encodeMockSpeechAudio(spokenText: string): ArrayBuffer {
@@ -125,7 +130,7 @@ async function announceNotificationWithTts(input: {
   readonly isMockVoice: boolean;
 }): Promise<void> {
   const spokenText = sanitizeTextForSpeech(
-    extractNotificationSpokenText(input.notification),
+    buildNotificationSpokenText(input.notification),
   );
   const ttsAudio = input.isMockVoice
     ? encodeMockSpeechAudio(spokenText)

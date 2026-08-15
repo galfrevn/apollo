@@ -145,8 +145,6 @@ Small, known, and not worth their own item:
 - "Apagá la pantalla" has no tool. Brightness 0 is the closest affordance — the screen and
   theme tools are compiled out on the 1.85C build (`HAVE_LVGL` is undefined under the emote
   engine), and screen sleep exists only as the local 60 s idle timeout.
-- The notifier speaks `notification.summary` raw rather than framing it ("terminé \<task\>:
-  …"); only the coding workflow builds its own framed summary.
 - Hold-to-talk turns fall back to Idle instead of reopening the mic. Intentional, but it
   surprises people.
 - The open-mic "pulse" on the ring was never built; the signal is the `listen_anim` face plus
