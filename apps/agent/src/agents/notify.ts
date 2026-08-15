@@ -39,6 +39,8 @@ type StoredPendingDeviceMessage = Awaited<
   ReturnType<typeof listPendingDeviceMessages>
 >[number];
 
+const BACKGROUND_NOTIFICATION_PROMPT_MAX_CHARACTER_COUNT = 120;
+
 export function parsePendingDeviceMessageAsNotification(
   pendingMessage: Pick<StoredPendingDeviceMessage, 'type' | 'payload'>,
 ): DeskDeviceNotification {
@@ -76,7 +78,15 @@ export function buildNotificationSpokenText(
   if (notification.type === 'reminder') {
     return notification.message;
   }
-  return `Terminé ${notification.prompt}: ${notification.summary}`;
+  const normalizedPrompt = notification.prompt.replace(/\s+/g, ' ').trim();
+  const spokenPrompt =
+    normalizedPrompt.length <= BACKGROUND_NOTIFICATION_PROMPT_MAX_CHARACTER_COUNT
+      ? normalizedPrompt
+      : `${normalizedPrompt.slice(
+          0,
+          BACKGROUND_NOTIFICATION_PROMPT_MAX_CHARACTER_COUNT - 1,
+        )}…`;
+  return `Terminé ${spokenPrompt}: ${notification.summary}`;
 }
 
 export function encodeMockSpeechAudio(spokenText: string): ArrayBuffer {

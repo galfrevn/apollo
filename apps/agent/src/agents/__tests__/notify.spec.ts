@@ -29,6 +29,21 @@ describe('notification speech', () => {
     ).toBe('Terminé investigar vuelos a Mendoza: Encontré tres opciones directas.');
   });
 
+  it('keeps long background prompts from delaying the result summary', () => {
+    const spokenText = buildNotificationSpokenText({
+      type: 'background_result',
+      prompt: `investigar\n${'todos los vuelos disponibles '.repeat(200)}`,
+      summary: 'Encontré tres opciones directas.',
+    });
+
+    expect(spokenText).toStartWith('Terminé investigar todos los vuelos disponibles');
+    expect(spokenText).toContain('…: Encontré tres opciones directas.');
+    expect(spokenText).not.toContain('\n');
+    expect(spokenText.length).toBe(
+      'Terminé '.length + 120 + ': Encontré tres opciones directas.'.length,
+    );
+  });
+
   it('delivers the framed text through the mock voice announcement path', async () => {
     const sentMessageList: (string | ArrayBuffer)[] = [];
     const connection = {
