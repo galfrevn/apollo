@@ -39,6 +39,8 @@ type StoredPendingDeviceMessage = Awaited<
   ReturnType<typeof listPendingDeviceMessages>
 >[number];
 
+const BACKGROUND_NOTIFICATION_PROMPT_MAX_CHARACTER_COUNT = 120;
+
 export function parsePendingDeviceMessageAsNotification(
   pendingMessage: Pick<StoredPendingDeviceMessage, 'type' | 'payload'>,
 ): DeskDeviceNotification {
@@ -70,8 +72,21 @@ function extractNotificationPendingPayload(
   return backgroundResultPayload;
 }
 
-function extractNotificationSpokenText(notification: DeskDeviceNotification): string {
-  return notification.type === 'reminder' ? notification.message : notification.summary;
+export function buildNotificationSpokenText(
+  notification: DeskDeviceNotification,
+): string {
+  if (notification.type === 'reminder') {
+    return notification.message;
+  }
+  const normalizedPrompt = notification.prompt.replace(/\s+/g, ' ').trim();
+  const spokenPrompt =
+    normalizedPrompt.length <= BACKGROUND_NOTIFICATION_PROMPT_MAX_CHARACTER_COUNT
+      ? normalizedPrompt
+      : `${normalizedPrompt.slice(
+          0,
+          BACKGROUND_NOTIFICATION_PROMPT_MAX_CHARACTER_COUNT - 1,
+        )}…`;
+  return `Terminé ${spokenPrompt}: ${notification.summary}`;
 }
 
 export function encodeMockSpeechAudio(spokenText: string): ArrayBuffer {
@@ -125,7 +140,7 @@ async function announceNotificationWithTts(input: {
   readonly isMockVoice: boolean;
 }): Promise<void> {
   const spokenText = sanitizeTextForSpeech(
-    extractNotificationSpokenText(input.notification),
+    buildNotificationSpokenText(input.notification),
   );
   const ttsAudio = input.isMockVoice
     ? encodeMockSpeechAudio(spokenText)
