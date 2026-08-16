@@ -11,6 +11,11 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '**.md'
+      - 'documentation/**'
+      - '.claude/**'
+      - '.vscode/**'
   workflow_dispatch:
 
 permissions:
@@ -41,7 +46,6 @@ jobs:
           filters: |
             agent:
               - 'apps/agent/**'
-              - '!apps/agent/**/*.md'
               - 'packages/**'
               - 'package.json'
               - 'bun.lock'
@@ -50,7 +54,6 @@ jobs:
               - '.github/actions/setup/**'
             console:
               - 'apps/console/**'
-              - '!apps/console/**/*.md'
               - 'packages/**'
               - 'package.json'
               - 'bun.lock'
