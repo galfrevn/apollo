@@ -1,0 +1,21 @@
+{
+  "customContext": {
+    "rules": [
+      {
+        "scope": ["apps/agent/**"],
+        "rule": "apps/agent/src is copied verbatim into the public apollo-starter snapshot and into the template that create-heyapollo clones for users, so review a change here as a change to what a stranger deploys on their own Cloudflare account. Flag when: a new binding or secret is introduced without deciding whether it degrades gracefully for a user who has not provisioned it (declared in src/configuration/environment.d.ts) or is provisioned at setup (apps/wizard/generator/assets/scripts/bootstrap.ts and the apollo-setup skill); an owner value is hardcoded in tracked source, meaning the owner's email, the ElevenLabs voice id, or the heyapollo host, all of which belong in src/configuration/identity.ts or a secret; a wire constant quoted by a skill in documentation/skills/ changes without that skill being updated in the same pull request, which apps/wizard/__tests__/anchors.spec.ts pins; or src/configuration/identity.ts is reshaped without updating the generator manifest's placeholder swap and the wizard rewriters together."
+      },
+      {
+        "scope": ["apps/wizard/generator/**"],
+        "rule": "The starter generator only copies, substitutes and deletes. A transform here that performs real code surgery on the agent source is a signal to genericize apps/agent instead, and is worth raising in review."
+      }
+    ],
+    "files": [
+      {
+        "scope": ["apps/agent/**", "apps/wizard/**"],
+        "path": "documentation/reference/starter.md",
+        "description": "How the public starter snapshot is generated from apps/agent, the transforms and guards applied to it, and the invariants a change to the agent has to hold."
+      }
+    ]
+  }
+}

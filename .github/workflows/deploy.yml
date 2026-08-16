@@ -1,7 +1,8 @@
-# Deploys the worker on every push to main, after a fresh test run in this
-# job — hermetic on purpose, so the gate holds even if ci.yml changes.
-# Doc-only merges skip it. Requires a `production` environment limited to the
-# main branch, holding two secrets:
+# Deploys on every push to main, after a fresh test run in the deploying job —
+# hermetic on purpose, so the gate holds even if ci.yml changes. Each app
+# deploys only when its own sources moved; doc-only merges deploy nothing, and
+# a manual dispatch deploys both. Requires a `production` environment limited
+# to the main branch, holding two secrets:
 #   CLOUDFLARE_API_TOKEN   Workers deploy rights on the account
 #   CLOUDFLARE_ACCOUNT_ID  the Cloudflare account id
 name: Deploy
@@ -10,11 +11,6 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - '**.md'
-      - 'documentation/**'
-      - '.claude/**'
-      - '.vscode/**'
   workflow_dispatch:
 
 permissions:
@@ -25,13 +21,54 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      agent: ${{ steps.filter.outputs.agent }}
+      console: ${{ steps.filter.outputs.console }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Detect deployable changes
+        id: filter
+        uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
+        with:
+          filters: |
+            agent:
+              - 'apps/agent/**'
+              - '!apps/agent/**/*.md'
+              - 'packages/**'
+              - 'package.json'
+              - 'bun.lock'
+              - 'turbo.json'
+              - '.github/workflows/deploy.yml'
+              - '.github/actions/setup/**'
+            console:
+              - 'apps/console/**'
+              - '!apps/console/**/*.md'
+              - 'packages/**'
+              - 'package.json'
+              - 'bun.lock'
+              - 'turbo.json'
+              - '.github/workflows/deploy.yml'
+              - '.github/actions/setup/**'
+
+  agent:
     name: Deploy worker
+    needs: changes
     # workflow_dispatch lets the caller pick any ref, so the job refuses
     # everything but main. The real gate is the `production` environment: its
     # branch rule rejects other refs and the credentials live only there, so a
     # branch that edits this file out of the way still can't reach them.
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (needs.changes.outputs.agent == 'true' ||
+        github.event_name == 'workflow_dispatch')
     environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -50,7 +87,35 @@ jobs:
       # wrangler builds the Sandbox container image as part of the deploy,
       # which is why this runs on the runner's Docker daemon.
       - name: Deploy
-        run: bun run deploy
+        run: bunx turbo run deploy --filter=@apollo/agent
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  console:
+    name: Deploy console
+    needs: changes
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (needs.changes.outputs.console == 'true' ||
+        github.event_name == 'workflow_dispatch')
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Run tests
+        run: bun run test
+
+      - name: Deploy
+        run: bunx turbo run deploy --filter=@apollo/console
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
