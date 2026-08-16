@@ -12,8 +12,12 @@ Local development uses Bun for scripts/tests and Wrangler for the Workers runtim
 
 ```bash
 bun install
-cp .dev.vars.example .dev.vars
+cp apps/agent/.dev.vars.example apps/agent/.dev.vars
 ```
+
+`.dev.vars` has to sit next to `wrangler.jsonc`, in `apps/agent/`. Wrangler resolves it
+relative to its config file, so a copy left in the repo root is silently ignored and every
+authenticated request answers `401` with nothing in the logs to say why.
 
 Fill `.dev.vars` with at least `DEVICE_SHARED_SECRET` and `OPENROUTER_API_KEY`, and leave `MOCK_VOICE=1` — it skips real STT/TTS *and* vector recall locally, so a dev session costs nothing in ElevenLabs credits or embedding calls.
 
@@ -47,7 +51,7 @@ From `package.json`:
 ## Configuration
 
 - Worker config: `apps/agent/wrangler.jsonc`
-- Local secrets: `.dev.vars` (from `.dev.vars.example`)
+- Local secrets: `apps/agent/.dev.vars` (from `apps/agent/.dev.vars.example`)
 - Path alias `@/` → `apps/agent/src/` (see `apps/agent/tsconfig.json`)
 
 ## Navigation
