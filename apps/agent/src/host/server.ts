@@ -25,6 +25,16 @@ type HostWebSocketData = {
 // reconnecting; a bad token must land there instead of a retry loop.
 const POLICY_VIOLATION_CLOSE_CODE = 1008;
 
+// The hosted console probes /health cross-origin before opening the agent
+// websocket; auth is the query token, never a cookie, so a wildcard origin
+// does not widen what the token already gates (same rule as the worker entry).
+const CONSOLE_CORS_HEADER_MAP = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, HEAD, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Max-Age': '86400',
+} as const;
+
 export type ApolloHostServer = {
   readonly port: number;
   broadcastConsoleState(state: ApolloState): void;
@@ -45,11 +55,17 @@ export function createApolloHostServer(input: {
     async fetch(request, server) {
       const requestUrl = new URL(request.url);
       if (requestUrl.pathname === '/health') {
-        return Response.json({
-          ok: true,
-          name: 'apollo',
-          features: ['session', 'blob', 'vector', 'jobs', 'runs', 'host'],
-        });
+        if (request.method === 'OPTIONS') {
+          return new Response(null, { headers: CONSOLE_CORS_HEADER_MAP });
+        }
+        return Response.json(
+          {
+            ok: true,
+            name: 'apollo',
+            features: ['session', 'blob', 'vector', 'jobs', 'runs', 'host'],
+          },
+          { headers: CONSOLE_CORS_HEADER_MAP },
+        );
       }
       if (requestUrl.pathname.startsWith('/ota/')) {
         return handleOtaRequest(
