@@ -162,6 +162,8 @@ import { PUBLIC_ORIGIN_PREFERENCE_KEY, runFirmwareLifecycle } from '@/ota/lifecy
 import type { BlobStore } from '@/platform/blob';
 import { createR2BlobStore } from '@/platform/cloudflare/blob';
 import { createDurableObjectSqlExecutor } from '@/platform/cloudflare/sql';
+import { createVectorizeVectorStore } from '@/platform/cloudflare/vector';
+import type { VectorStore } from '@/platform/vector';
 import { enqueueMemoryIndexJob } from '@/queues/consume';
 import { cycleDeskSpeechMode, resolveDeskSpeechMode } from '@/persona/catalog';
 import { resolveDeskFaceEmotion } from '@/persona/face';
@@ -1035,7 +1037,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     await this.#assertDashboardSecret(input.secret);
     await deleteConsoleMemoryRecord(
       this.#sqlExecutor(),
-      this.env.VECTORIZE,
+      this.#memoryVectorStore(),
       input.memoryId,
     );
     return browseConsoleMemoryRecords(this.#sqlExecutor(), {});
@@ -1591,7 +1593,7 @@ export class Apollo extends Agent<Env, ApolloState> {
         text: query,
       });
       const matchList = await queryMemoryVectors({
-        vectorizeIndex: this.env.VECTORIZE,
+        vectorStore: this.#memoryVectorStore(),
         values,
         deviceId: this.name ?? 'default',
         topK: 8,
@@ -1738,6 +1740,10 @@ export class Apollo extends Agent<Env, ApolloState> {
 
   #mediaBlobStore(): BlobStore {
     return createR2BlobStore(this.env.MEDIA);
+  }
+
+  #memoryVectorStore(): VectorStore {
+    return createVectorizeVectorStore(this.env.VECTORIZE);
   }
 
   async #ensurePreferencesLoaded(): Promise<void> {
@@ -2266,6 +2272,7 @@ export class Apollo extends Agent<Env, ApolloState> {
         {
           environment: this.env,
           mediaBlobStore: this.#mediaBlobStore(),
+          vectorStore: this.#memoryVectorStore(),
           sqlExecutor: this.#sqlExecutor(),
           uiMachine: this.#uiMachine,
           currentState: this.state,

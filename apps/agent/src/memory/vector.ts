@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import type { VectorStore } from '@/platform/vector';
+
 const openRouterEmbeddingResponseSchema = z.object({
   data: z
     .array(
@@ -46,37 +48,35 @@ export async function embedTextWithOpenRouter(input: {
 }
 
 export async function upsertMemoryVector(input: {
-  readonly vectorizeIndex: VectorizeIndex;
+  readonly vectorStore: VectorStore;
   readonly memoryId: string;
   readonly content: string;
   readonly values: number[];
   readonly deviceId: string;
 }): Promise<void> {
-  await input.vectorizeIndex.upsert([
-    {
-      id: input.memoryId,
-      values: input.values,
-      namespace: input.deviceId,
-      metadata: {
-        content: input.content.slice(0, 2048),
-      },
+  await input.vectorStore.upsert({
+    id: input.memoryId,
+    values: input.values,
+    namespace: input.deviceId,
+    metadata: {
+      content: input.content.slice(0, 2048),
     },
-  ]);
+  });
 }
 
 export async function queryMemoryVectors(input: {
-  readonly vectorizeIndex: VectorizeIndex;
+  readonly vectorStore: VectorStore;
   readonly values: number[];
   readonly deviceId: string;
   readonly topK?: number;
 }): Promise<readonly MemoryVectorMatch[]> {
-  const queryResult = await input.vectorizeIndex.query(input.values, {
-    topK: input.topK ?? 5,
+  const matchList = await input.vectorStore.query({
+    values: input.values,
     namespace: input.deviceId,
-    returnMetadata: 'all',
+    topK: input.topK ?? 5,
   });
 
-  return queryResult.matches.map((match) => {
+  return matchList.map((match) => {
     const parsedMetadata = memoryVectorMetadataSchema.safeParse(match.metadata);
     return {
       id: match.id,
@@ -87,14 +87,14 @@ export async function queryMemoryVectors(input: {
 }
 
 export async function recallSemanticMemoryContent(input: {
-  readonly vectorizeIndex: VectorizeIndex | undefined;
+  readonly vectorStore: VectorStore | undefined;
   readonly openRouterApiKey: string;
   readonly embeddingModelId: string;
   readonly queryText: string;
   readonly deviceId: string;
   readonly topK?: number;
 }): Promise<readonly string[]> {
-  if (input.vectorizeIndex === undefined || input.queryText.trim().length === 0) {
+  if (input.vectorStore === undefined || input.queryText.trim().length === 0) {
     return [];
   }
 
@@ -105,7 +105,7 @@ export async function recallSemanticMemoryContent(input: {
       text: input.queryText,
     });
     const matchList = await queryMemoryVectors({
-      vectorizeIndex: input.vectorizeIndex,
+      vectorStore: input.vectorStore,
       values,
       deviceId: input.deviceId,
       topK: input.topK,

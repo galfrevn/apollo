@@ -7,6 +7,7 @@ import {
 } from '@/memory/store';
 import type { OwnerFact } from '@/memory/consolidate';
 import type { MemoryRecord, MemorySqlExecutor } from '@/memory/store';
+import type { VectorStore } from '@/platform/vector';
 
 export const CONSOLE_MEMORY_DEFAULT_LIMIT = 50;
 
@@ -16,10 +17,6 @@ export type ConsoleMemoryBrowseResult = {
   readonly lastConsolidatedAtMilliseconds: number | null;
 };
 
-type MemoryVectorIndexLike = {
-  deleteByIds(idList: string[]): Promise<VectorizeVectorMutation>;
-};
-
 // The Vectorize entry shares the memory record's UUID, so both stores are
 // cleared together — vector first, so a failed vector delete leaves the SQL
 // row intact instead of orphaning an embedding that voice recall would still
@@ -27,10 +24,10 @@ type MemoryVectorIndexLike = {
 // nightly run may re-derive a fact whose source memory still reads true.
 export async function deleteConsoleMemory(
   sqlExecutor: MemorySqlExecutor,
-  vectorIndex: MemoryVectorIndexLike,
+  vectorStore: Pick<VectorStore, 'deleteByIds'>,
   memoryId: string,
 ): Promise<void> {
-  await vectorIndex.deleteByIds([memoryId]);
+  await vectorStore.deleteByIds([memoryId]);
   sqlExecutor.execute('DELETE FROM memories WHERE id = ?', memoryId);
 }
 

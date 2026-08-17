@@ -140,7 +140,6 @@ describe('console memory browse', () => {
       {
         deleteByIds: async (idList) => {
           deletedVectorIdList.push(...idList);
-          return { ids: idList, count: idList.length };
         },
       },
       addedRecord.id,

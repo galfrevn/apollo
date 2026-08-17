@@ -2,6 +2,7 @@ import { APOLLO_TTS_VOICE } from '@/configuration/identity';
 import type { DeskFocusState } from '@/focus/logic';
 import { recallMemoryRecords, type MemorySqlExecutor } from '@/memory/store';
 import { buildCurrentTimePromptNote } from '@/persona/clock';
+import type { VectorStore } from '@/platform/vector';
 import { buildApolloSoulPrompt } from '@/persona/soul';
 import type { DeskUiEventName } from '@/session/machine';
 import { executeToolByName, resolvePendingToolConfirmation } from '@/tools/router';
@@ -60,6 +61,7 @@ export type TurnInput = {
   readonly confirmOk?: boolean;
   readonly nowMilliseconds: number;
   readonly deviceId?: string;
+  readonly vectorStore?: VectorStore;
   readonly systemPromptOverride?: string;
   readonly recentHistoryMessageList?: readonly OpenRouterChatMessage[];
   readonly recallSemanticMemoryContentList?: (
@@ -148,6 +150,7 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
         environment: input.environment,
         nowMilliseconds: input.nowMilliseconds,
         deviceId: input.deviceId,
+        vectorStore: input.vectorStore,
         effects: input.effects,
       },
     );
@@ -224,6 +227,7 @@ export async function runDeskTurn(input: TurnInput): Promise<TurnOutput> {
     environment: input.environment,
     nowMilliseconds: input.nowMilliseconds,
     deviceId: input.deviceId,
+    vectorStore: input.vectorStore,
     effects: input.effects,
   };
   const maxToolRoundCount = input.maxToolRoundCount ?? DEFAULT_MAX_TOOL_ROUND_COUNT;

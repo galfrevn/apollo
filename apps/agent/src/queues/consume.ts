@@ -1,4 +1,5 @@
 import { embedTextWithOpenRouter, upsertMemoryVector } from '@/memory/vector';
+import { createVectorizeVectorStore } from '@/platform/cloudflare/vector';
 import { parseApolloQueueJob } from '@/queues/jobs';
 
 export async function consumeApolloQueueBatch(
@@ -16,7 +17,7 @@ export async function consumeApolloQueueBatch(
           text: job.content,
         });
         await upsertMemoryVector({
-          vectorizeIndex: environment.VECTORIZE,
+          vectorStore: createVectorizeVectorStore(environment.VECTORIZE),
           memoryId: job.memoryId,
           content: job.content,
           values,

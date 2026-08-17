@@ -57,13 +57,17 @@ export const recallMemoryTool: ToolDefinition = {
     try {
       const { embedTextWithOpenRouter, queryMemoryVectors } =
         await import('@/memory/vector');
+      const vectorStore = context.vectorStore;
+      if (vectorStore === undefined) {
+        throw new Error('memoria semántica no configurada');
+      }
       const values = await embedTextWithOpenRouter({
         openRouterApiKey: context.environment.OPENROUTER_API_KEY,
         modelId: context.environment.OPENROUTER_EMBEDDING_MODEL,
         text: parsedArgs.query,
       });
       const matchList = await queryMemoryVectors({
-        vectorizeIndex: context.environment.VECTORIZE,
+        vectorStore,
         values,
         deviceId,
         topK: parsedArgs.limit,

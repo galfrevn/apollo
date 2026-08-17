@@ -12,6 +12,7 @@ import {
 import type { MemorySqlExecutor } from '@/memory/store';
 import { recallSemanticMemoryContent } from '@/memory/vector';
 import type { BlobStore } from '@/platform/blob';
+import type { VectorStore } from '@/platform/vector';
 import { resolveDeskSpeechMode } from '@/persona/catalog';
 import { resolveDeskFaceEmotion } from '@/persona/face';
 import { buildInstalledToolPromptNote } from '@/persona/soul';
@@ -50,6 +51,7 @@ type PlaybackPacingOptions = {
 export type ApolloTurnRuntimeDependencies = {
   readonly environment: Env;
   readonly mediaBlobStore: BlobStore;
+  readonly vectorStore: VectorStore | undefined;
   readonly sqlExecutor: MemorySqlExecutor;
   readonly uiMachine: DeskUiMachine;
   readonly currentState: ApolloState;
@@ -99,7 +101,7 @@ export async function executeApolloTurn(
     queryText: string,
   ): Promise<readonly string[]> =>
     recallSemanticMemoryContent({
-      vectorizeIndex: dependencies.environment.VECTORIZE,
+      vectorStore: dependencies.vectorStore,
       openRouterApiKey: dependencies.environment.OPENROUTER_API_KEY,
       embeddingModelId: dependencies.environment.OPENROUTER_EMBEDDING_MODEL,
       queryText,
@@ -173,6 +175,7 @@ export async function executeApolloTurn(
     confirmOk: turnPart.confirmOk,
     nowMilliseconds,
     deviceId: dependencies.deviceId,
+    vectorStore: dependencies.vectorStore,
     systemPromptOverride: `${sessionSystemPrompt}${focusNote}${telemetryNote}${installedToolNote}`,
     recentHistoryMessageList,
     effects: dependencies.effects,

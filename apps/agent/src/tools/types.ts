@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import type { ListItemRecord } from '@/lists/store';
+import type { VectorStore } from '@/platform/vector';
 import type { ScheduledReminderRow } from '@/reminders/logic';
 
 export type ToolSafetyLevel = 'safe' | 'unsafe';
@@ -125,6 +126,7 @@ export type ToolExecutionContext = {
   readonly environment: Env;
   readonly nowMilliseconds: number;
   readonly deviceId?: string;
+  readonly vectorStore?: VectorStore;
   readonly effects?: DeskToolEffects;
 };
 
