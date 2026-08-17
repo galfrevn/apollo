@@ -5,39 +5,55 @@ import {
   listConsoleJobDocuments,
   readConsoleJobDocument,
 } from '@/console/jobs';
-import type { ConsoleDocumentBucket } from '@/console/jobs';
+import type { BlobStore } from '@/platform/blob';
 
-function createFakeDocumentBucket(
+function createFakeDocumentBlobStore(
   objectMap: Record<string, { uploaded: Date; content: string }>,
   pageSize?: number,
-): ConsoleDocumentBucket {
+): BlobStore {
   return {
     async list({ prefix, cursor }) {
-      const matchingObjectList = Object.entries(objectMap)
+      const matchingEntryList = Object.entries(objectMap)
         .filter(([key]) => key.startsWith(prefix))
         .map(([key, value]) => ({
           key,
-          uploaded: value.uploaded,
+          uploadedAtMilliseconds: value.uploaded.getTime(),
           size: value.content.length,
         }));
       const startIndex = cursor === undefined ? 0 : Number(cursor);
       const endIndex =
-        pageSize === undefined ? matchingObjectList.length : startIndex + pageSize;
-      const pageObjectList = matchingObjectList.slice(startIndex, endIndex);
-      if (endIndex < matchingObjectList.length) {
-        return { objects: pageObjectList, truncated: true, cursor: String(endIndex) };
+        pageSize === undefined ? matchingEntryList.length : startIndex + pageSize;
+      const pageEntryList = matchingEntryList.slice(startIndex, endIndex);
+      if (endIndex < matchingEntryList.length) {
+        return { entryList: pageEntryList, isTruncated: true, cursor: String(endIndex) };
       }
-      return { objects: pageObjectList, truncated: false };
+      return { entryList: pageEntryList, isTruncated: false };
     },
-    async get(key) {
-      const object = objectMap[key];
-      return object === undefined ? null : { text: async () => object.content };
+    async get(objectKey) {
+      const storedDocument = objectMap[objectKey];
+      if (storedDocument === undefined) {
+        return null;
+      }
+      return {
+        size: storedDocument.content.length,
+        body: null,
+        arrayBuffer: async () => {
+          const encodedBytes = new TextEncoder().encode(storedDocument.content);
+          const contentBuffer = new ArrayBuffer(encodedBytes.byteLength);
+          new Uint8Array(contentBuffer).set(encodedBytes);
+          return contentBuffer;
+        },
+        text: async () => storedDocument.content,
+        json: async (): Promise<unknown> => JSON.parse(storedDocument.content),
+      };
     },
+    async put() {},
+    async delete() {},
   };
 }
 
 describe('console job documents', () => {
-  const bucket = createFakeDocumentBucket({
+  const bucket = createFakeDocumentBlobStore({
     'research/desk/run-1.md': { uploaded: new Date('2026-08-01'), content: '# uno' },
     'research/desk/run-2.md': { uploaded: new Date('2026-08-10'), content: '# dos' },
     'coding/desk/run-3.md': { uploaded: new Date('2026-08-05'), content: '# tres' },
@@ -69,7 +85,7 @@ describe('console job documents', () => {
   });
 
   it('follows the listing cursor across pages', async () => {
-    const paginatedBucket = createFakeDocumentBucket(
+    const paginatedBucket = createFakeDocumentBlobStore(
       {
         'research/desk/a.md': { uploaded: new Date('2026-08-01'), content: 'a' },
         'research/desk/b.md': { uploaded: new Date('2026-08-02'), content: 'b' },

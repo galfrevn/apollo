@@ -16,17 +16,10 @@ import type {
   PendingDeviceMessageType,
 } from '@/memory/pending';
 import type { MemorySqlExecutor } from '@/memory/store';
+import type { BlobStore } from '@/platform/blob';
 import { encodeServerToDeviceMessage } from '@/protocol/schema';
 import { sanitizeTextForSpeech } from '@/voice/sanitize';
 import { synthesizeApolloSpeech } from '@/voice/synthesize';
-
-// The subset of R2Bucket the broadcast path touches, kept structural so the
-// spec can substitute an in-memory bucket.
-export type BroadcastMediaBucket = {
-  put(objectKey: string, value: ArrayBuffer): Promise<unknown>;
-  get(objectKey: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> } | null>;
-  delete(objectKey: string): Promise<void>;
-};
 
 type StoredPendingMessage = {
   readonly id: string;
@@ -40,6 +33,7 @@ export async function deliverBroadcastText(input: {
   readonly connectionList: readonly AnnounceableConnection[];
   readonly sqlExecutor: MemorySqlExecutor;
   readonly environment: Env;
+  readonly mediaBlobStore: BlobStore;
   readonly ttsVoiceId: string;
   readonly isMockVoice: boolean;
   readonly playChimeEffect: () => void;
@@ -70,13 +64,13 @@ export async function deliverBroadcastAudio(input: {
   readonly broadcastId: string;
   readonly connectionList: readonly AnnounceableConnection[];
   readonly sqlExecutor: MemorySqlExecutor;
-  readonly mediaBucket: BroadcastMediaBucket;
+  readonly mediaBlobStore: BlobStore;
   readonly playChimeEffect: () => void;
   readonly wait?: (milliseconds: number) => Promise<void>;
 }): Promise<BroadcastDeliveryOutcome> {
   if (input.connectionList.length === 0) {
     const audioObjectKey = buildBroadcastAudioObjectKey(input.broadcastId);
-    await input.mediaBucket.put(audioObjectKey, input.audioBuffer);
+    await input.mediaBlobStore.put(audioObjectKey, input.audioBuffer);
     await enqueuePendingDeviceMessage(input.sqlExecutor, {
       type: 'broadcast_audio',
       payload: { audioKey: audioObjectKey, byteLength: input.audioBuffer.byteLength },
@@ -96,7 +90,7 @@ export async function deliverBroadcastAudio(input: {
 export async function replayPendingBroadcast(input: {
   readonly pendingMessage: Pick<StoredPendingMessage, 'type' | 'payload'>;
   readonly connectionList: readonly AnnounceableConnection[];
-  readonly mediaBucket: BroadcastMediaBucket;
+  readonly mediaBlobStore: BlobStore;
   readonly environment: Env;
   readonly ttsVoiceId: string;
   readonly isMockVoice: boolean;
@@ -122,7 +116,7 @@ export async function replayPendingBroadcast(input: {
   const audioPayload = broadcastAudioPendingPayloadSchema.parse(
     input.pendingMessage.payload,
   );
-  const storedAudioObject = await input.mediaBucket.get(audioPayload.audioKey);
+  const storedAudioObject = await input.mediaBlobStore.get(audioPayload.audioKey);
   if (storedAudioObject === null) {
     return;
   }
@@ -133,13 +127,13 @@ export async function replayPendingBroadcast(input: {
     connectionList: input.connectionList,
     ...(input.wait === undefined ? {} : { wait: input.wait }),
   });
-  await input.mediaBucket.delete(audioPayload.audioKey);
+  await input.mediaBlobStore.delete(audioPayload.audioKey);
 }
 
 export async function sweepExpiredBroadcasts(input: {
   readonly pendingMessageList: readonly StoredPendingMessage[];
   readonly sqlExecutor: MemorySqlExecutor;
-  readonly mediaBucket: BroadcastMediaBucket;
+  readonly mediaBlobStore: BlobStore;
   readonly nowMilliseconds: number;
 }): Promise<readonly StoredPendingMessage[]> {
   const survivingMessageList: StoredPendingMessage[] = [];
@@ -162,7 +156,7 @@ export async function sweepExpiredBroadcasts(input: {
         pendingMessage.payload,
       );
       if (audioPayload.success) {
-        await input.mediaBucket.delete(audioPayload.data.audioKey);
+        await input.mediaBlobStore.delete(audioPayload.data.audioKey);
       }
     }
     await deletePendingDeviceMessage(input.sqlExecutor, pendingMessage.id);
@@ -174,6 +168,7 @@ async function speakBroadcastText(input: {
   readonly message: string;
   readonly connectionList: readonly AnnounceableConnection[];
   readonly environment: Env;
+  readonly mediaBlobStore: BlobStore;
   readonly ttsVoiceId: string;
   readonly isMockVoice: boolean;
   readonly wait?: (milliseconds: number) => Promise<void>;
@@ -183,6 +178,7 @@ async function speakBroadcastText(input: {
     ? encodeMockSpeechAudio(spokenText)
     : await synthesizeApolloSpeech({
         environment: input.environment,
+        mediaBlobStore: input.mediaBlobStore,
         text: spokenText,
         voiceId: input.ttsVoiceId,
       });

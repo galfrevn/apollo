@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
+import type { BlobStore } from '@/platform/blob';
 import { buildTtsCacheObjectKey, synthesizeSpeechThroughCache } from '@/voice/ttscache';
 
 function buildArrayBuffer(byteList: readonly number[]): ArrayBuffer {
@@ -8,40 +9,57 @@ function buildArrayBuffer(byteList: readonly number[]): ArrayBuffer {
   return arrayBuffer;
 }
 
-const rejectCacheRead: R2Bucket['get'] = async () => {
-  throw new Error('R2 caído');
+const rejectCacheRead: BlobStore['get'] = async () => {
+  throw new Error('Blob store caído');
 };
-const rejectCacheWrite: R2Bucket['put'] = async () => {
-  throw new Error('R2 sin espacio');
+const rejectCacheWrite: BlobStore['put'] = async () => {
+  throw new Error('Blob store sin espacio');
 };
-const resolveCacheMiss: R2Bucket['get'] = async () => null;
+const resolveCacheMiss: BlobStore['get'] = async () => null;
+const resolveEmptyListing: BlobStore['list'] = async () => ({
+  entryList: [],
+  isTruncated: false,
+});
+const ignoreDelete: BlobStore['delete'] = async () => {};
 
-function createFakeMediaBucket() {
+function createFakeCacheBlobStore() {
   const store = new Map<string, ArrayBuffer>();
   const storedKeyList: string[] = [];
-  // SAFETY: synthesizeSpeechThroughCache only calls get and put on the R2
-  // binding and only reads arrayBuffer from the stored object; the double
-  // covers exactly that surface.
-  const bucket = {
-    get: async (objectKey: string) => {
+  const blobStore: BlobStore = {
+    async get(objectKey) {
       const stored = store.get(objectKey);
       if (stored === undefined) {
         return null;
       }
-      return { arrayBuffer: async () => stored };
+      return {
+        size: stored.byteLength,
+        body: null,
+        arrayBuffer: async () => stored,
+        text: async () => new TextDecoder().decode(stored),
+        json: async (): Promise<unknown> => JSON.parse(new TextDecoder().decode(stored)),
+      };
     },
-    put: async (objectKey: string, audioBody: ArrayBuffer) => {
-      store.set(objectKey, audioBody);
+    async put(objectKey, content) {
+      const contentBytes =
+        content instanceof ArrayBuffer
+          ? new Uint8Array(content)
+          : content instanceof Uint8Array
+            ? content
+            : new TextEncoder().encode(content);
+      const contentBuffer = new ArrayBuffer(contentBytes.byteLength);
+      new Uint8Array(contentBuffer).set(contentBytes);
+      store.set(objectKey, contentBuffer);
       storedKeyList.push(objectKey);
-      return {};
     },
-  } as R2Bucket;
-  return { bucket, storedKeyList, store };
+    delete: ignoreDelete,
+    list: resolveEmptyListing,
+  };
+  return { blobStore, storedKeyList, store };
 }
 
 describe('synthesizeSpeechThroughCache', () => {
   it('synthesizes and stores on a miss, then serves the hit without synthesizing', async () => {
-    const { bucket, storedKeyList } = createFakeMediaBucket();
+    const { blobStore, storedKeyList } = createFakeCacheBlobStore();
     let synthesizeCallCount = 0;
     const synthesize = async (): Promise<ArrayBuffer> => {
       synthesizeCallCount += 1;
@@ -49,14 +67,14 @@ describe('synthesizeSpeechThroughCache', () => {
     };
 
     const firstAudio = await synthesizeSpeechThroughCache({
-      mediaBucket: bucket,
+      mediaBlobStore: blobStore,
       text: 'Hola, ¿cómo va?',
       voiceId: 'voz-1',
       modelId: 'modelo-1',
       synthesize,
     });
     const secondAudio = await synthesizeSpeechThroughCache({
-      mediaBucket: bucket,
+      mediaBlobStore: blobStore,
       text: 'Hola, ¿cómo va?',
       voiceId: 'voz-1',
       modelId: 'modelo-1',
@@ -86,15 +104,15 @@ describe('synthesizeSpeechThroughCache', () => {
   });
 
   it('degrades to direct synthesis when the cache read fails', async () => {
-    // SAFETY: synthesizeSpeechThroughCache only calls get and put on the R2
-    // binding; both members carry the real binding's signatures.
-    const bucket = {
+    const blobStore: BlobStore = {
       get: rejectCacheRead,
       put: rejectCacheWrite,
-    } as R2Bucket;
+      delete: ignoreDelete,
+      list: resolveEmptyListing,
+    };
 
     const audioBuffer = await synthesizeSpeechThroughCache({
-      mediaBucket: bucket,
+      mediaBlobStore: blobStore,
       text: 'hola',
       voiceId: 'voz-1',
       modelId: 'modelo-1',
@@ -105,15 +123,15 @@ describe('synthesizeSpeechThroughCache', () => {
   });
 
   it('still returns audio when only the cache write fails', async () => {
-    // SAFETY: synthesizeSpeechThroughCache only calls get and put on the R2
-    // binding; both members carry the real binding's signatures.
-    const bucket = {
+    const blobStore: BlobStore = {
       get: resolveCacheMiss,
       put: rejectCacheWrite,
-    } as R2Bucket;
+      delete: ignoreDelete,
+      list: resolveEmptyListing,
+    };
 
     const audioBuffer = await synthesizeSpeechThroughCache({
-      mediaBucket: bucket,
+      mediaBlobStore: blobStore,
       text: 'hola',
       voiceId: 'voz-1',
       modelId: 'modelo-1',

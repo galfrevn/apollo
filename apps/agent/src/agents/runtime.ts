@@ -11,6 +11,7 @@ import {
 } from '@/memory/session';
 import type { MemorySqlExecutor } from '@/memory/store';
 import { recallSemanticMemoryContent } from '@/memory/vector';
+import type { BlobStore } from '@/platform/blob';
 import { resolveDeskSpeechMode } from '@/persona/catalog';
 import { resolveDeskFaceEmotion } from '@/persona/face';
 import { buildInstalledToolPromptNote } from '@/persona/soul';
@@ -48,6 +49,7 @@ type PlaybackPacingOptions = {
 
 export type ApolloTurnRuntimeDependencies = {
   readonly environment: Env;
+  readonly mediaBlobStore: BlobStore;
   readonly sqlExecutor: MemorySqlExecutor;
   readonly uiMachine: DeskUiMachine;
   readonly currentState: ApolloState;
@@ -153,6 +155,7 @@ export async function executeApolloTurn(
         tts: async (text, voiceId) =>
           synthesizeApolloSpeech({
             environment: dependencies.environment,
+            mediaBlobStore: dependencies.mediaBlobStore,
             text,
             voiceId,
           }),

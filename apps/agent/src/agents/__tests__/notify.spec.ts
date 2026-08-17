@@ -6,6 +6,7 @@ import {
   buildNotificationSpokenText,
   deliverDeskDeviceNotification,
 } from '@/agents/notify';
+import { createFakeMediaBlobStore } from '@/configuration/testing';
 import { createInactiveDeskFocusState } from '@/focus/logic';
 import type { MemorySqlExecutor } from '@/memory/store';
 
@@ -64,6 +65,7 @@ describe('notification speech', () => {
       }) as unknown as MemorySqlExecutor,
       focusState: createInactiveDeskFocusState(),
       environment: {} as Env,
+      mediaBlobStore: createFakeMediaBlobStore(),
       deviceId: 'desk',
       ttsVoiceId: 'mock',
       isMockVoice: true,

@@ -1,10 +1,12 @@
 import { isDeviceSharedSecretValid, readDeviceTokenFromRequestUrl } from '@/auth/token';
 import { readFirmwareManifest } from '@/ota/manifest';
+import type { BlobStore } from '@/platform/blob';
 
 export async function handleOtaRequest(
   request: Request,
   requestUrl: URL,
   environment: Env,
+  mediaBlobStore: BlobStore,
 ): Promise<Response> {
   const presentedToken = readDeviceTokenFromRequestUrl(requestUrl);
   const isAuthorized = await isDeviceSharedSecretValid(
@@ -18,10 +20,10 @@ export async function handleOtaRequest(
   // The device POSTs its system-info JSON on the check; the body is irrelevant
   // to the answer, so both methods are accepted and the body is ignored.
   if (requestUrl.pathname === '/ota/check') {
-    return respondWithVersionCheck(requestUrl, presentedToken, environment);
+    return respondWithVersionCheck(requestUrl, presentedToken, mediaBlobStore);
   }
   if (requestUrl.pathname === '/ota/firmware.bin' && request.method === 'GET') {
-    return respondWithFirmwareBinary(environment);
+    return respondWithFirmwareBinary(mediaBlobStore);
   }
   return new Response('Not found', { status: 404 });
 }
@@ -29,9 +31,9 @@ export async function handleOtaRequest(
 async function respondWithVersionCheck(
   requestUrl: URL,
   presentedToken: string,
-  environment: Env,
+  mediaBlobStore: BlobStore,
 ): Promise<Response> {
-  const firmwareManifest = await readFirmwareManifest(environment.MEDIA);
+  const firmwareManifest = await readFirmwareManifest(mediaBlobStore);
   if (firmwareManifest === undefined) {
     return Response.json({});
   }
@@ -48,12 +50,12 @@ async function respondWithVersionCheck(
   });
 }
 
-async function respondWithFirmwareBinary(environment: Env): Promise<Response> {
-  const firmwareManifest = await readFirmwareManifest(environment.MEDIA);
+async function respondWithFirmwareBinary(mediaBlobStore: BlobStore): Promise<Response> {
+  const firmwareManifest = await readFirmwareManifest(mediaBlobStore);
   if (firmwareManifest === undefined) {
     return new Response('No firmware published', { status: 404 });
   }
-  const firmwareObject = await environment.MEDIA.get(firmwareManifest.key);
+  const firmwareObject = await mediaBlobStore.get(firmwareManifest.key);
   if (firmwareObject === null) {
     return new Response('Firmware binary missing', { status: 404 });
   }

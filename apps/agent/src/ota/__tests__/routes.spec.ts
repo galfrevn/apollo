@@ -2,49 +2,53 @@ import { describe, expect, it } from 'bun:test';
 
 import {
   createFakeApolloEnvironment,
-  createFakeMediaBucket,
+  createFakeMediaBlobStore,
 } from '@/configuration/testing';
 import { FIRMWARE_MANIFEST_OBJECT_KEY } from '@/ota/manifest';
+import type { BlobStore } from '@/platform/blob';
 import { handleOtaRequest } from '@/ota/routes';
 
 const FIRMWARE_BINARY_CONTENT = 'pretend-firmware-bytes';
 
-function createEnvironmentWithFirmware(): Env {
-  return createFakeApolloEnvironment({
-    MEDIA: createFakeMediaBucket({
-      [FIRMWARE_MANIFEST_OBJECT_KEY]: JSON.stringify({
-        version: '2.5.0',
-        key: 'firmware/apollo-2.5.0.bin',
-      }),
-      'firmware/apollo-2.5.0.bin': FIRMWARE_BINARY_CONTENT,
+function createMediaBlobStoreWithFirmware(): BlobStore {
+  return createFakeMediaBlobStore({
+    [FIRMWARE_MANIFEST_OBJECT_KEY]: JSON.stringify({
+      version: '2.5.0',
+      key: 'firmware/apollo-2.5.0.bin',
     }),
+    'firmware/apollo-2.5.0.bin': FIRMWARE_BINARY_CONTENT,
   });
 }
 
 async function performOtaRequest(
-  environment: Env,
+  mediaBlobStore: BlobStore,
   path: string,
   method = 'GET',
 ): Promise<Response> {
   const requestUrl = new URL(`https://apollo.example${path}`);
-  return handleOtaRequest(new Request(requestUrl, { method }), requestUrl, environment);
+  return handleOtaRequest(
+    new Request(requestUrl, { method }),
+    requestUrl,
+    createFakeApolloEnvironment(),
+    mediaBlobStore,
+  );
 }
 
 describe('ota routes', () => {
   it('rejects a missing or wrong token on both paths', async () => {
-    const environment = createEnvironmentWithFirmware();
-    expect((await performOtaRequest(environment, '/ota/check')).status).toBe(401);
-    expect((await performOtaRequest(environment, '/ota/check?token=wrong')).status).toBe(
-      401,
-    );
+    const mediaBlobStore = createMediaBlobStoreWithFirmware();
+    expect((await performOtaRequest(mediaBlobStore, '/ota/check')).status).toBe(401);
     expect(
-      (await performOtaRequest(environment, '/ota/firmware.bin?token=wrong')).status,
+      (await performOtaRequest(mediaBlobStore, '/ota/check?token=wrong')).status,
+    ).toBe(401);
+    expect(
+      (await performOtaRequest(mediaBlobStore, '/ota/firmware.bin?token=wrong')).status,
     ).toBe(401);
   });
 
   it('answers the check with the manifest version and a tokenized binary url', async () => {
     const checkResponse = await performOtaRequest(
-      createEnvironmentWithFirmware(),
+      createMediaBlobStoreWithFirmware(),
       '/ota/check?token=secret',
       'POST',
     );
@@ -59,15 +63,17 @@ describe('ota routes', () => {
   });
 
   it('answers the check with an empty object when no manifest is published', async () => {
-    const environment = createFakeApolloEnvironment({ MEDIA: createFakeMediaBucket() });
-    const checkResponse = await performOtaRequest(environment, '/ota/check?token=secret');
+    const checkResponse = await performOtaRequest(
+      createFakeMediaBlobStore(),
+      '/ota/check?token=secret',
+    );
     expect(checkResponse.status).toBe(200);
     await expect(checkResponse.json()).resolves.toEqual({});
   });
 
   it('serves the firmware binary with an explicit content length', async () => {
     const binaryResponse = await performOtaRequest(
-      createEnvironmentWithFirmware(),
+      createMediaBlobStoreWithFirmware(),
       '/ota/firmware.bin?token=secret',
     );
     expect(binaryResponse.status).toBe(200);
@@ -79,23 +85,25 @@ describe('ota routes', () => {
   });
 
   it('returns 404 when the manifest points at a missing binary', async () => {
-    const environment = createFakeApolloEnvironment({
-      MEDIA: createFakeMediaBucket({
-        [FIRMWARE_MANIFEST_OBJECT_KEY]: JSON.stringify({
-          version: '2.5.0',
-          key: 'firmware/not-uploaded.bin',
-        }),
+    const mediaBlobStore = createFakeMediaBlobStore({
+      [FIRMWARE_MANIFEST_OBJECT_KEY]: JSON.stringify({
+        version: '2.5.0',
+        key: 'firmware/not-uploaded.bin',
       }),
     });
     expect(
-      (await performOtaRequest(environment, '/ota/firmware.bin?token=secret')).status,
+      (await performOtaRequest(mediaBlobStore, '/ota/firmware.bin?token=secret')).status,
     ).toBe(404);
   });
 
   it('returns 404 for unknown ota paths', async () => {
     expect(
-      (await performOtaRequest(createEnvironmentWithFirmware(), '/ota/nope?token=secret'))
-        .status,
+      (
+        await performOtaRequest(
+          createMediaBlobStoreWithFirmware(),
+          '/ota/nope?token=secret',
+        )
+      ).status,
     ).toBe(404);
   });
 });

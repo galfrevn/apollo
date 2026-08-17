@@ -1,3 +1,5 @@
+import type { BlobListOptions, BlobStore } from '@/platform/blob';
+
 export type ConsoleJobDocument = {
   readonly documentKey: string;
   readonly kind: 'research' | 'coding';
@@ -5,33 +7,12 @@ export type ConsoleJobDocument = {
   readonly sizeBytes: number;
 };
 
-type BucketListingLike = {
-  readonly objects: readonly {
-    readonly key: string;
-    readonly uploaded: Date;
-    readonly size: number;
-  }[];
-  readonly truncated: boolean;
-  readonly cursor?: string;
-};
-
-type BucketListingOptions = {
-  prefix: string;
-  limit?: number;
-  cursor?: string;
-};
-
-export type ConsoleDocumentBucket = {
-  list(options: BucketListingOptions): Promise<BucketListingLike>;
-  get(key: string): Promise<{ text(): Promise<string> } | null>;
-};
-
 const JOB_KIND_PREFIX_LIST = ['research', 'coding'] as const;
 const JOB_LISTING_PAGE_SIZE = 500;
 const JOB_LISTING_MAX_DOCUMENTS_PER_KIND = 2_000;
 
 export async function listConsoleJobDocuments(
-  bucket: ConsoleDocumentBucket,
+  mediaBlobStore: BlobStore,
   deviceId: string,
 ): Promise<readonly ConsoleJobDocument[]> {
   const documentList: ConsoleJobDocument[] = [];
@@ -39,24 +20,22 @@ export async function listConsoleJobDocuments(
     let cursor: string | undefined;
     let collectedCount = 0;
     do {
-      const listingOptions: BucketListingOptions = {
+      const listingOptions: BlobListOptions = {
         prefix: `${kind}/${deviceId}/`,
         limit: JOB_LISTING_PAGE_SIZE,
+        ...(cursor === undefined ? {} : { cursor }),
       };
-      if (cursor !== undefined) {
-        listingOptions.cursor = cursor;
-      }
-      const listing = await bucket.list(listingOptions);
-      for (const object of listing.objects) {
+      const listing = await mediaBlobStore.list(listingOptions);
+      for (const listedEntry of listing.entryList) {
         documentList.push({
-          documentKey: object.key,
+          documentKey: listedEntry.key,
           kind,
-          uploadedAtIso: object.uploaded.toISOString(),
-          sizeBytes: object.size,
+          uploadedAtIso: new Date(listedEntry.uploadedAtMilliseconds).toISOString(),
+          sizeBytes: listedEntry.size,
         });
       }
-      collectedCount += listing.objects.length;
-      cursor = listing.truncated ? listing.cursor : undefined;
+      collectedCount += listing.entryList.length;
+      cursor = listing.isTruncated ? listing.cursor : undefined;
     } while (cursor !== undefined && collectedCount < JOB_LISTING_MAX_DOCUMENTS_PER_KIND);
   }
   return documentList.toSorted((left, right) =>
@@ -74,16 +53,16 @@ export function isConsoleReadableDocumentKey(
 }
 
 export async function readConsoleJobDocument(
-  bucket: ConsoleDocumentBucket,
+  mediaBlobStore: BlobStore,
   deviceId: string,
   documentKey: string,
 ): Promise<string | null> {
   if (!isConsoleReadableDocumentKey(documentKey, deviceId)) {
     return null;
   }
-  const object = await bucket.get(documentKey);
-  if (object === null) {
+  const storedObject = await mediaBlobStore.get(documentKey);
+  if (storedObject === null) {
     return null;
   }
-  return object.text();
+  return storedObject.text();
 }

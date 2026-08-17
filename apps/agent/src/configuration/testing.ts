@@ -1,4 +1,5 @@
 import type { MemorySqlExecutor } from '@/memory/store';
+import type { BlobStore } from '@/platform/blob';
 import type { DeskToolEffects } from '@/tools/types';
 
 type PendingConfirmationRow = {
@@ -85,17 +86,17 @@ export function createInMemoryMcpToolSettingsSqlExecutor(
   return fakeExecutor as MemorySqlExecutor;
 }
 
-export function createFakeMediaBucket(
+export function createFakeMediaBlobStore(
   initialObjectMap: Record<string, string | Uint8Array> = {},
-): Env['MEDIA'] {
+): BlobStore {
   const storedObjectMap = new Map<string, Uint8Array>(
     Object.entries(initialObjectMap).map(([objectKey, content]) => [
       objectKey,
       content instanceof Uint8Array ? content : new TextEncoder().encode(content),
     ]),
   );
-  const partialBucket = {
-    async get(objectKey: string) {
+  return {
+    async get(objectKey) {
       const storedBytes = storedObjectMap.get(objectKey);
       if (storedBytes === undefined) {
         return null;
@@ -105,10 +106,9 @@ export function createFakeMediaBucket(
         size: storedBytes.byteLength,
         body: new Response(storedBytes).body,
         async arrayBuffer() {
-          return storedBytes.buffer.slice(
-            storedBytes.byteOffset,
-            storedBytes.byteOffset + storedBytes.byteLength,
-          );
+          const copiedBuffer = new ArrayBuffer(storedBytes.byteLength);
+          new Uint8Array(copiedBuffer).set(storedBytes);
+          return copiedBuffer;
         },
         async text() {
           return storedText;
@@ -119,7 +119,7 @@ export function createFakeMediaBucket(
         },
       };
     },
-    async put(objectKey: string, content: string | ArrayBuffer | Uint8Array) {
+    async put(objectKey, content) {
       const contentBytes =
         content instanceof Uint8Array
           ? new Uint8Array(content)
@@ -127,12 +127,21 @@ export function createFakeMediaBucket(
             ? new Uint8Array(content)
             : new TextEncoder().encode(content);
       storedObjectMap.set(objectKey, contentBytes);
-      return null;
+    },
+    async delete(objectKey) {
+      storedObjectMap.delete(objectKey);
+    },
+    async list(options) {
+      const entryList = [...storedObjectMap.entries()]
+        .filter(([objectKey]) => objectKey.startsWith(options.prefix))
+        .map(([objectKey, storedBytes]) => ({
+          key: objectKey,
+          size: storedBytes.byteLength,
+          uploadedAtMilliseconds: 0,
+        }));
+      return { entryList, isTruncated: false };
     },
   };
-  // SAFETY: specs exercise only get and put on the media bucket; no other
-  // R2Bucket member is ever read through this fake.
-  return partialBucket as Env['MEDIA'];
 }
 
 export async function buildTestRsaPrivateKeyPem(): Promise<string> {

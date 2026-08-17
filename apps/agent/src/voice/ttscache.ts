@@ -1,9 +1,11 @@
+import type { BlobStore } from '@/platform/blob';
+
 // ElevenLabs bills ~1 credit per character and Apollo repeats itself a lot
 // (confirmations, reminder announcements, short acks), so identical utterances
-// come back from R2. Keyed by voice+model+text: a voice or model change can
-// never play stale audio.
+// come back from the blob store. Keyed by voice+model+text: a voice or model
+// change can never play stale audio.
 export async function synthesizeSpeechThroughCache(input: {
-  readonly mediaBucket: R2Bucket;
+  readonly mediaBlobStore: BlobStore;
   readonly text: string;
   readonly voiceId: string;
   readonly modelId: string;
@@ -17,7 +19,7 @@ export async function synthesizeSpeechThroughCache(input: {
 
   // Cache trouble must never break speech: degrade to a direct synthesis.
   try {
-    const cachedObject = await input.mediaBucket.get(cacheKey);
+    const cachedObject = await input.mediaBlobStore.get(cacheKey);
     if (cachedObject !== null) {
       return await cachedObject.arrayBuffer();
     }
@@ -27,8 +29,8 @@ export async function synthesizeSpeechThroughCache(input: {
 
   const audioBuffer = await input.synthesize();
   try {
-    await input.mediaBucket.put(cacheKey, audioBuffer, {
-      httpMetadata: { contentType: 'application/octet-stream' },
+    await input.mediaBlobStore.put(cacheKey, audioBuffer, {
+      contentType: 'application/octet-stream',
     });
   } catch {
     // Stored nothing this time; the audio is still good.

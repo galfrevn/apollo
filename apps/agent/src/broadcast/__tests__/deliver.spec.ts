@@ -6,7 +6,6 @@ import {
   replayPendingBroadcast,
   sweepExpiredBroadcasts,
 } from '@/broadcast/deliver';
-import type { BroadcastMediaBucket } from '@/broadcast/deliver';
 import { BROADCAST_PENDING_TTL_MILLISECONDS } from '@/broadcast/logic';
 import { createFakeApolloEnvironment } from '@/configuration/testing';
 import { listPendingDeviceMessages } from '@/memory/pending';
@@ -15,6 +14,7 @@ import type {
   PendingDeviceMessageType,
 } from '@/memory/pending';
 import type { MemorySqlExecutor, MemorySqlRow } from '@/memory/store';
+import type { BlobStore } from '@/platform/blob';
 
 type RecordedFrame = string | ArrayBuffer;
 
@@ -74,24 +74,42 @@ function createInMemorySqlExecutor(): MemorySqlExecutor {
   return { execute: executeFakeQuery as MemorySqlExecutor['execute'] };
 }
 
-function createInMemoryMediaBucket(): BroadcastMediaBucket & {
+function createInMemoryMediaBlobStore(): BlobStore & {
   storedObjectMap: Map<string, ArrayBuffer>;
 } {
   const storedObjectMap = new Map<string, ArrayBuffer>();
   return {
     storedObjectMap,
-    put: async (objectKey, value) => {
-      storedObjectMap.set(objectKey, value);
+    async put(objectKey, content) {
+      const contentBytes =
+        content instanceof ArrayBuffer
+          ? new Uint8Array(content)
+          : content instanceof Uint8Array
+            ? content
+            : new TextEncoder().encode(content);
+      const contentBuffer = new ArrayBuffer(contentBytes.byteLength);
+      new Uint8Array(contentBuffer).set(contentBytes);
+      storedObjectMap.set(objectKey, contentBuffer);
     },
-    get: async (objectKey) => {
+    async get(objectKey) {
       const storedBuffer = storedObjectMap.get(objectKey);
       if (storedBuffer === undefined) {
         return null;
       }
-      return { arrayBuffer: async () => storedBuffer };
+      const storedText = new TextDecoder().decode(storedBuffer);
+      return {
+        size: storedBuffer.byteLength,
+        body: null,
+        arrayBuffer: async () => storedBuffer,
+        text: async () => storedText,
+        json: async (): Promise<unknown> => JSON.parse(storedText),
+      };
     },
-    delete: async (objectKey) => {
+    async delete(objectKey) {
       storedObjectMap.delete(objectKey);
+    },
+    async list() {
+      return { entryList: [], isTruncated: false };
     },
   };
 }
@@ -117,6 +135,7 @@ describe('deliverBroadcastText', () => {
       connectionList: [],
       sqlExecutor,
       environment: fakeEnvironment,
+      mediaBlobStore: createInMemoryMediaBlobStore(),
       ttsVoiceId: 'voice',
       isMockVoice: true,
       playChimeEffect: () => {},
@@ -137,6 +156,7 @@ describe('deliverBroadcastText', () => {
       connectionList: [connection],
       sqlExecutor: createInMemorySqlExecutor(),
       environment: fakeEnvironment,
+      mediaBlobStore: createInMemoryMediaBlobStore(),
       ttsVoiceId: 'voice',
       isMockVoice: true,
       playChimeEffect: () => {
@@ -172,18 +192,18 @@ describe('deliverBroadcastText', () => {
 describe('deliverBroadcastAudio', () => {
   it('stores the audio in r2 and queues a row when no device is connected', async () => {
     const sqlExecutor = createInMemorySqlExecutor();
-    const mediaBucket = createInMemoryMediaBucket();
+    const mediaBlobStore = createInMemoryMediaBlobStore();
     const outcome = await deliverBroadcastAudio({
       audioBuffer: buildTestPcmBuffer(9_000),
       broadcastId: 'abc',
       connectionList: [],
       sqlExecutor,
-      mediaBucket,
+      mediaBlobStore,
       playChimeEffect: () => {},
       wait: immediateWait,
     });
     expect(outcome).toBe('queued');
-    expect(mediaBucket.storedObjectMap.has('broadcast-audio/abc.pcm')).toBe(true);
+    expect(mediaBlobStore.storedObjectMap.has('broadcast-audio/abc.pcm')).toBe(true);
     const pendingList = await listPendingDeviceMessages(sqlExecutor);
     expect(pendingList[0]?.type).toBe('broadcast_audio');
     expect(pendingList[0]?.payload).toEqual({
@@ -199,7 +219,7 @@ describe('deliverBroadcastAudio', () => {
       broadcastId: 'abc',
       connectionList: [connection],
       sqlExecutor: createInMemorySqlExecutor(),
-      mediaBucket: createInMemoryMediaBucket(),
+      mediaBlobStore: createInMemoryMediaBlobStore(),
       playChimeEffect: () => {},
       wait: immediateWait,
     });
@@ -224,15 +244,15 @@ describe('deliverBroadcastAudio', () => {
 describe('replayPendingBroadcast', () => {
   it('speaks a queued audio broadcast and deletes its r2 object', async () => {
     const { connection, frameList } = createFrameRecordingConnection();
-    const mediaBucket = createInMemoryMediaBucket();
-    await mediaBucket.put('broadcast-audio/abc.pcm', buildTestPcmBuffer(10_000));
+    const mediaBlobStore = createInMemoryMediaBlobStore();
+    await mediaBlobStore.put('broadcast-audio/abc.pcm', buildTestPcmBuffer(10_000));
     await replayPendingBroadcast({
       pendingMessage: {
         type: 'broadcast_audio',
         payload: { audioKey: 'broadcast-audio/abc.pcm', byteLength: 10_000 },
       },
       connectionList: [connection],
-      mediaBucket,
+      mediaBlobStore,
       environment: fakeEnvironment,
       ttsVoiceId: 'voice',
       isMockVoice: true,
@@ -245,7 +265,7 @@ describe('replayPendingBroadcast', () => {
       'tts_end',
       'turn_end',
     ]);
-    expect(mediaBucket.storedObjectMap.has('broadcast-audio/abc.pcm')).toBe(false);
+    expect(mediaBlobStore.storedObjectMap.has('broadcast-audio/abc.pcm')).toBe(false);
   });
 
   it('skips silently when the r2 object is gone', async () => {
@@ -256,7 +276,7 @@ describe('replayPendingBroadcast', () => {
         payload: { audioKey: 'broadcast-audio/missing.pcm', byteLength: 10_000 },
       },
       connectionList: [connection],
-      mediaBucket: createInMemoryMediaBucket(),
+      mediaBlobStore: createInMemoryMediaBlobStore(),
       environment: fakeEnvironment,
       ttsVoiceId: 'voice',
       isMockVoice: true,
@@ -274,7 +294,7 @@ describe('replayPendingBroadcast', () => {
         payload: { message: 'ya llegué' },
       },
       connectionList: [connection],
-      mediaBucket: createInMemoryMediaBucket(),
+      mediaBlobStore: createInMemoryMediaBlobStore(),
       environment: fakeEnvironment,
       ttsVoiceId: 'voice',
       isMockVoice: true,
@@ -294,8 +314,8 @@ describe('replayPendingBroadcast', () => {
 describe('sweepExpiredBroadcasts', () => {
   it('deletes expired broadcast rows and their audio objects, keeping everything else', async () => {
     const sqlExecutor = createInMemorySqlExecutor();
-    const mediaBucket = createInMemoryMediaBucket();
-    await mediaBucket.put('broadcast-audio/old.pcm', buildTestPcmBuffer(2));
+    const mediaBlobStore = createInMemoryMediaBlobStore();
+    await mediaBlobStore.put('broadcast-audio/old.pcm', buildTestPcmBuffer(2));
     const pendingMessageList: Array<{
       id: string;
       type: PendingDeviceMessageType;
@@ -330,13 +350,13 @@ describe('sweepExpiredBroadcasts', () => {
     const survivingMessageList = await sweepExpiredBroadcasts({
       pendingMessageList,
       sqlExecutor,
-      mediaBucket,
+      mediaBlobStore,
       nowMilliseconds: BROADCAST_PENDING_TTL_MILLISECONDS + 1,
     });
     expect(survivingMessageList.map((message) => message.id)).toEqual([
       'old-reminder',
       'fresh-text',
     ]);
-    expect(mediaBucket.storedObjectMap.has('broadcast-audio/old.pcm')).toBe(false);
+    expect(mediaBlobStore.storedObjectMap.has('broadcast-audio/old.pcm')).toBe(false);
   });
 });

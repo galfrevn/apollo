@@ -6,6 +6,7 @@ import { shouldAnnounceDuringFocus } from '@/focus/logic';
 import { enqueuePendingDeviceMessage } from '@/memory/pending';
 import type { listPendingDeviceMessages } from '@/memory/pending';
 import type { MemorySqlExecutor } from '@/memory/store';
+import type { BlobStore } from '@/platform/blob';
 import { encodeServerToDeviceMessage } from '@/protocol/schema';
 import { TTS_PCM_CHANNEL_COUNT, TTS_PCM_SAMPLE_RATE_HZ } from '@/voice/elevenlabs';
 import { sanitizeTextForSpeech } from '@/voice/sanitize';
@@ -102,6 +103,7 @@ export async function deliverDeskDeviceNotification(input: {
   readonly sqlExecutor: MemorySqlExecutor;
   readonly focusState: DeskFocusState;
   readonly environment: Env;
+  readonly mediaBlobStore: BlobStore;
   readonly deviceId: string;
   readonly ttsVoiceId: string;
   readonly isMockVoice: boolean;
@@ -135,6 +137,7 @@ async function announceNotificationWithTts(input: {
   readonly notification: DeskDeviceNotification;
   readonly connectionList: readonly Connection[];
   readonly environment: Env;
+  readonly mediaBlobStore: BlobStore;
   readonly deviceId: string;
   readonly ttsVoiceId: string;
   readonly isMockVoice: boolean;
@@ -146,6 +149,7 @@ async function announceNotificationWithTts(input: {
     ? encodeMockSpeechAudio(spokenText)
     : await synthesizeApolloSpeech({
         environment: input.environment,
+        mediaBlobStore: input.mediaBlobStore,
         text: spokenText,
         voiceId: input.ttsVoiceId,
       });

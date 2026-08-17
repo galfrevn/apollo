@@ -20,6 +20,7 @@ import {
   recordFirmwarePushAttempt,
   shouldCheckFirmwareManifest,
 } from '@/ota/push';
+import type { BlobStore } from '@/platform/blob';
 import type { DeskTelemetrySnapshot } from '@/telemetry/logic';
 import type { ToolExecutionResult } from '@/tools/types';
 
@@ -33,7 +34,7 @@ export type FirmwareUpgradeArgumentRecord = {
 
 export type FirmwareLifecycleDependencies = {
   readonly sqlExecutor: MemorySqlExecutor;
-  readonly mediaBucket: R2Bucket;
+  readonly mediaBlobStore: BlobStore;
   readonly deviceSharedSecret: string;
   readonly isPushDisabled: boolean;
   readonly uiState: string;
@@ -123,7 +124,7 @@ export async function runFirmwareLifecycle(
         JSON.stringify(changelogState),
       );
     } else if (!(await dependencies.hasScheduledInitiativeRetry('firmware_changelog'))) {
-      const manifest = await readFirmwareManifest(dependencies.mediaBucket);
+      const manifest = await readFirmwareManifest(dependencies.mediaBlobStore);
       const changelogText =
         manifest !== undefined && manifest.version === pendingVersion
           ? manifest.changelog
@@ -168,7 +169,7 @@ export async function runFirmwareLifecycle(
   ) {
     return;
   }
-  const manifest = await readFirmwareManifest(dependencies.mediaBucket);
+  const manifest = await readFirmwareManifest(dependencies.mediaBlobStore);
   const checkedPushState = recordFirmwareManifestCheck(pushState, nowMilliseconds);
   await setSessionPreference(
     sqlExecutor,

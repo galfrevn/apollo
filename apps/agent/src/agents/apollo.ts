@@ -159,6 +159,8 @@ import {
 } from '@/memory/store';
 import { embedTextWithOpenRouter, queryMemoryVectors } from '@/memory/vector';
 import { PUBLIC_ORIGIN_PREFERENCE_KEY, runFirmwareLifecycle } from '@/ota/lifecycle';
+import type { BlobStore } from '@/platform/blob';
+import { createR2BlobStore } from '@/platform/cloudflare/blob';
 import { createDurableObjectSqlExecutor } from '@/platform/cloudflare/sql';
 import { enqueueMemoryIndexJob } from '@/queues/consume';
 import { cycleDeskSpeechMode, resolveDeskSpeechMode } from '@/persona/catalog';
@@ -897,6 +899,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       connectionList: [...this.getConnections(DEVICE_CONNECTION_TAG)],
       sqlExecutor: this.#sqlExecutor(),
       environment: this.env,
+      mediaBlobStore: this.#mediaBlobStore(),
       ttsVoiceId: APOLLO_TTS_VOICE,
       isMockVoice: this.env.MOCK_VOICE === '1',
       playChimeEffect: () => this.#broadcastPlayEffect('chime'),
@@ -952,7 +955,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       broadcastId: crypto.randomUUID(),
       connectionList: [...this.getConnections(DEVICE_CONNECTION_TAG)],
       sqlExecutor: this.#sqlExecutor(),
-      mediaBucket: this.env.MEDIA,
+      mediaBlobStore: this.#mediaBlobStore(),
       playChimeEffect: () => this.#broadcastPlayEffect('chime'),
     });
     return { outcome };
@@ -1120,7 +1123,7 @@ export class Apollo extends Agent<Env, ApolloState> {
   ): Promise<readonly ConsoleJobDocument[]> {
     const input = consoleSecretInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
-    return listConsoleJobDocuments(this.env.MEDIA, this.name ?? 'default');
+    return listConsoleJobDocuments(this.#mediaBlobStore(), this.name ?? 'default');
   }
 
   @callable()
@@ -1131,7 +1134,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     const input = consoleDocumentInputSchema.parse(rawInput);
     await this.#assertDashboardSecret(input.secret);
     const content = await readConsoleJobDocument(
-      this.env.MEDIA,
+      this.#mediaBlobStore(),
       this.name ?? 'default',
       input.documentKey,
     );
@@ -1223,6 +1226,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       sqlExecutor: this.#sqlExecutor(),
       focusState: this.#currentFocusState(),
       environment: this.env,
+      mediaBlobStore: this.#mediaBlobStore(),
       deviceId: this.name ?? 'default',
       ttsVoiceId: APOLLO_TTS_VOICE,
       isMockVoice: this.env.MOCK_VOICE === '1',
@@ -1243,6 +1247,7 @@ export class Apollo extends Agent<Env, ApolloState> {
       sqlExecutor: this.#sqlExecutor(),
       focusState: this.#currentFocusState(),
       environment: this.env,
+      mediaBlobStore: this.#mediaBlobStore(),
       deviceId: this.name ?? 'default',
       ttsVoiceId: APOLLO_TTS_VOICE,
       isMockVoice: this.env.MOCK_VOICE === '1',
@@ -1317,6 +1322,7 @@ export class Apollo extends Agent<Env, ApolloState> {
         sqlExecutor: this.#sqlExecutor(),
         focusState: this.#currentFocusState(),
         environment: this.env,
+        mediaBlobStore: this.#mediaBlobStore(),
         deviceId: this.name ?? 'default',
         ttsVoiceId: APOLLO_TTS_VOICE,
         isMockVoice: this.env.MOCK_VOICE === '1',
@@ -1730,6 +1736,10 @@ export class Apollo extends Agent<Env, ApolloState> {
     return createDurableObjectSqlExecutor(this.ctx.storage.sql);
   }
 
+  #mediaBlobStore(): BlobStore {
+    return createR2BlobStore(this.env.MEDIA);
+  }
+
   async #ensurePreferencesLoaded(): Promise<void> {
     if (this.#didLoadPreferences) {
       return;
@@ -1806,7 +1816,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     const pendingMessageList = await sweepExpiredBroadcasts({
       pendingMessageList: await listPendingDeviceMessages(this.#sqlExecutor()),
       sqlExecutor: this.#sqlExecutor(),
-      mediaBucket: this.env.MEDIA,
+      mediaBlobStore: this.#mediaBlobStore(),
       nowMilliseconds: Date.now(),
     });
     for (const pendingMessage of pendingMessageList) {
@@ -1819,7 +1829,7 @@ export class Apollo extends Agent<Env, ApolloState> {
         await replayPendingBroadcast({
           pendingMessage,
           connectionList: [connection],
-          mediaBucket: this.env.MEDIA,
+          mediaBlobStore: this.#mediaBlobStore(),
           environment: this.env,
           ttsVoiceId: APOLLO_TTS_VOICE,
           isMockVoice: this.env.MOCK_VOICE === '1',
@@ -1922,7 +1932,7 @@ export class Apollo extends Agent<Env, ApolloState> {
         },
         {
           sqlExecutor: this.#sqlExecutor(),
-          mediaBucket: this.env.MEDIA,
+          mediaBlobStore: this.#mediaBlobStore(),
           deviceSharedSecret: this.env.DEVICE_SHARED_SECRET,
           isPushDisabled: this.env.FIRMWARE_PUSH_DISABLED === '1',
           uiState: this.state.uiState,
@@ -2255,6 +2265,7 @@ export class Apollo extends Agent<Env, ApolloState> {
         connection,
         {
           environment: this.env,
+          mediaBlobStore: this.#mediaBlobStore(),
           sqlExecutor: this.#sqlExecutor(),
           uiMachine: this.#uiMachine,
           currentState: this.state,

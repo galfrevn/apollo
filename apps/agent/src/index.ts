@@ -5,6 +5,7 @@ import { authorizeApolloConnection, Apollo } from '@/agents/apollo';
 import { authorizeApolloHttpRequest } from '@/auth/http';
 import { CODING_PROXY_PATH_PREFIX, handleCodingLlmProxyRequest } from '@/coding/proxy';
 import { handleOtaRequest } from '@/ota/routes';
+import { createR2BlobStore } from '@/platform/cloudflare/blob';
 import { consumeApolloQueueBatch } from '@/queues/consume';
 import { ApolloBackground } from '@/workflows/background';
 import { ApolloCoding } from '@/workflows/coding';
@@ -47,7 +48,12 @@ export default {
     }
 
     if (requestUrl.pathname.startsWith('/ota/')) {
-      return handleOtaRequest(request, requestUrl, environment);
+      return handleOtaRequest(
+        request,
+        requestUrl,
+        environment,
+        createR2BlobStore(environment.MEDIA),
+      );
     }
 
     if (requestUrl.pathname.startsWith(`${CODING_PROXY_PATH_PREFIX}/`)) {

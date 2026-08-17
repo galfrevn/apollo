@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import type { BlobStore } from '@/platform/blob';
+
 export const FIRMWARE_MANIFEST_OBJECT_KEY = 'firmware/latest.json';
 
 // The device's Ota::ParseVersion runs std::stoi per dot-segment with no
@@ -19,10 +21,10 @@ export type FirmwareManifest = z.infer<typeof firmwareManifestSchema>;
 // A broken upload must degrade to "no update available", never to a malformed
 // firmware section the device would try to parse.
 export async function readFirmwareManifest(
-  mediaBucket: R2Bucket,
+  mediaBlobStore: BlobStore,
 ): Promise<FirmwareManifest | undefined> {
   try {
-    const manifestObject = await mediaBucket.get(FIRMWARE_MANIFEST_OBJECT_KEY);
+    const manifestObject = await mediaBlobStore.get(FIRMWARE_MANIFEST_OBJECT_KEY);
     if (manifestObject === null) {
       return undefined;
     }
