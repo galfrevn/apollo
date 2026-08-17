@@ -1,9 +1,41 @@
+agent:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/agent/**'
+
 ci:
   - changed-files:
       - any-glob-to-any-file: '.github/**'
+
+console:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/console/**'
+
+deps:
+  - changed-files:
+      - any-glob-to-any-file:
+          - bun.lock
+          - '**/package.json'
 
 docs:
   - changed-files:
       - any-glob-to-any-file:
           - documentation/**
-          - '**/*.md'
+          - '*.md'
+
+firmware:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/firmware/**'
+
+packages:
+  - changed-files:
+      - any-glob-to-any-file: 'packages/**'
+
+skills:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .agents/**
+          - .claude/**
+
+wizard:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/wizard/**'
