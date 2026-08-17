@@ -29,7 +29,8 @@ Thin map from handbook topics to code folders. Prefer the narrative chapters for
 | MCP bridge (device) | `apps/agent/src/mcp/bridge.ts`, `apps/agent/src/tools/device.ts` |
 | Auth / connection roles | `apps/agent/src/auth/` |
 | Queues | `apps/agent/src/queues/` |
-| Workflows | `apps/agent/src/workflows/` |
+| Workflows | `apps/agent/src/workflows/` (Cloudflare shells), `apps/agent/src/runs/` (portable bodies) |
+| Platform ports / adapters | `apps/agent/src/platform/`, `apps/agent/src/platform/cloudflare/` (see [Portability](portability.md)) |
 | Session UI machine | `apps/agent/src/session/` |
 | Config / env types | `apps/agent/src/configuration/`, `apps/agent/wrangler.jsonc` |
 | Firmware (separate repo) | `apps/firmware/apollo-firmware` (git submodule, own handbook) |

@@ -55,6 +55,7 @@ This handbook is meant to be read in order. Later chapters assume the concepts i
 30. [Mapping](reference/mapping.md) — Handbook topics to `apps/agent/src/` folders
 31. [Roadmap](reference/roadmap.md) — Confirmed work, proposals, and open ideas
 32. [Starter](reference/starter.md) — How the public `apollo-starter` snapshot is generated and released
+33. [Portability](reference/portability.md) — Platform ports and the path to self-hosting off Cloudflare
 
 ## The firmware
 

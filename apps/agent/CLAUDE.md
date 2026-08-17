@@ -21,6 +21,8 @@ Durable Objects hold all state: `Apollo` (the agent, SQLite-backed), `ApolloBack
 
 `src/` is grouped by capability — one folder per domain (`voice/`, `memory/`, `tools/`, `mcp/`, `ota/`, `focus/`, …), each holding single-word files. `configuration/` holds pure data only.
 
+Platform coupling is isolated behind ports: interfaces in `src/platform/` (`BlobStore`, `VectorStore`, `JobPublisher`, `RunLauncher`, `StepRunner`), Cloudflare adapters in `src/platform/cloudflare/`, portable workflow bodies in `src/runs/`. New code takes a port, never a binding type; see `documentation/reference/portability.md`.
+
 Tests live beside the code they cover as `__tests__/*.spec.ts`.
 
 The device firmware is a submodule at `apps/firmware/apollo-firmware`; the contract between the two repos is `documentation/runtime/protocol.md`.

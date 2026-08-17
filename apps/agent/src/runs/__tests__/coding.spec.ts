@@ -51,7 +51,7 @@ describe('executeCodingTaskRun', () => {
     const { dependencies, notificationList } = createRecordingDependencies();
 
     const runResult = await executeCodingTaskRun({
-      params: { repository: 'galfrevn/apollo', task: 'auditar', deviceId: 'desk' },
+      params: { repository: 'acme/apollo', task: 'auditar', deviceId: 'desk' },
       instanceId: 'instancia-1',
       steps: stepRunner,
       dependencies: { ...dependencies, createSandbox: undefined },
@@ -82,7 +82,7 @@ describe('executeCodingTaskRun', () => {
       },
       'publish-changes': true,
       'open-pull-request': {
-        url: 'https://github.com/galfrevn/apollo/pull/7',
+        url: 'https://github.com/acme/apollo/pull/7',
         number: 7,
       },
     });
@@ -91,7 +91,7 @@ describe('executeCodingTaskRun', () => {
 
     const runResult = await executeCodingTaskRun({
       params: {
-        repository: 'galfrevn/apollo',
+        repository: 'acme/apollo',
         task: 'arreglar el lint',
         deviceId: 'desk',
       },
@@ -112,7 +112,7 @@ describe('executeCodingTaskRun', () => {
       'destroy-sandbox',
     ]);
     expect(runResult.summary).toContain('pull request 7');
-    expect(runResult.pullRequestUrl).toBe('https://github.com/galfrevn/apollo/pull/7');
+    expect(runResult.pullRequestUrl).toBe('https://github.com/acme/apollo/pull/7');
     expect(notificationList[0]?.documentKey).toBe('coding/desk/instancia-1.md');
     const persistedLog = await mediaBlobStore.get('coding/desk/instancia-1.md');
     await expect(persistedLog?.text()).resolves.toContain('arreglar el lint');

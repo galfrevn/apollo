@@ -84,7 +84,7 @@ describe('executeApolloQueueJob', () => {
     await executeApolloQueueJob(
       {
         type: 'run_coding',
-        repository: 'galfrevn/apollo',
+        repository: 'acme/apollo',
         task: 'arreglar el lint',
         deviceId: 'desk',
       },
@@ -94,7 +94,7 @@ describe('executeApolloQueueJob', () => {
     expect(launchedRunList).toEqual([
       {
         kind: 'coding',
-        repository: 'galfrevn/apollo',
+        repository: 'acme/apollo',
         task: 'arreglar el lint',
         deviceId: 'desk',
       },
