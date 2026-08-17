@@ -6,7 +6,14 @@ export type ForbiddenPatternRule = {
 export const starterManifest = {
   starterName: 'apollo-starter',
   agentDirectory: 'apps/agent',
-  agentCopyList: ['src', 'Dockerfile', 'bunfig.toml', '.dev.vars.example'],
+  agentCopyList: [
+    'src',
+    'Dockerfile',
+    'docker',
+    '.dockerignore',
+    'bunfig.toml',
+    '.dev.vars.example',
+  ],
   rootCopyList: ['LICENSE'],
   skillsDirectory: 'documentation/skills',
   // The handbook stays in the monorepo; skill references to it become links.

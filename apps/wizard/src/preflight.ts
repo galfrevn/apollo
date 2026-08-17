@@ -47,11 +47,17 @@ export function isR2Enabled(): boolean {
   return runWranglerCommand(['r2', 'bucket', 'list']).exitCode === 0;
 }
 
-export function runBootstrapSubcommand(subcommandName: string): boolean {
-  const spawnResult = Bun.spawnSync(['bun', 'scripts/bootstrap.ts', subcommandName], {
-    stdin: 'inherit',
-    stdout: 'inherit',
-    stderr: 'inherit',
-  });
+export function runBootstrapSubcommand(
+  subcommandName: string,
+  extraArgumentList: readonly string[] = [],
+): boolean {
+  const spawnResult = Bun.spawnSync(
+    ['bun', 'scripts/bootstrap.ts', subcommandName, ...extraArgumentList],
+    {
+      stdin: 'inherit',
+      stdout: 'inherit',
+      stderr: 'inherit',
+    },
+  );
   return spawnResult.exitCode === 0;
 }

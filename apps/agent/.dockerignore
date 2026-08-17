@@ -1,0 +1,6 @@
+node_modules
+data
+dist
+.dev.vars
+.apollo.json
+worker-configuration.d.ts

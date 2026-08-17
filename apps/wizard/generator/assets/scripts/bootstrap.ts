@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { readFlagValue } from './flags';
 import { serverMessageSchema } from './messages';
 import { runProvision } from './provision';
-import { reportStep, runWrangler } from './shell';
+import { reportStep, runDocker, runWrangler } from './shell';
 import { generateSharedSecret, parseDevelopmentVariableMap } from './vars';
 
 const DEVELOPMENT_VARIABLES_FILE = '.dev.vars';
@@ -16,6 +16,8 @@ const GENERATED_SECRET_NAME_LIST = [
 ] as const;
 const SECRET_PUSH_EXCLUDED_NAME_LIST = ['MOCK_VOICE'] as const;
 const PROBE_TIMEOUT_MILLISECONDS = 10_000;
+const DOCKER_COMPOSE_FILE = 'docker/compose.yaml';
+const DOCKER_HOST_URL = 'http://localhost:8799';
 
 const healthResponseSchema = z.object({
   ok: z.literal(true),
@@ -41,6 +43,22 @@ async function runPreflight(): Promise<void> {
       ? whoamiResult.stdout.trim().split('\n').slice(-3).join(' | ')
       : 'run `bunx wrangler login` first',
   );
+  await reportSharedPreflight();
+}
+
+async function runDockerPreflight(): Promise<void> {
+  const composeVersionResult = runDocker(['compose', 'version']);
+  reportStep(
+    'docker compose',
+    composeVersionResult.exitCode === 0,
+    composeVersionResult.exitCode === 0
+      ? composeVersionResult.stdout.trim()
+      : 'install Docker (with the compose plugin) and start the daemon first',
+  );
+  await reportSharedPreflight();
+}
+
+async function reportSharedPreflight(): Promise<void> {
   const hasDevelopmentVariables = existsSync(DEVELOPMENT_VARIABLES_FILE);
   reportStep(
     DEVELOPMENT_VARIABLES_FILE,
@@ -61,14 +79,14 @@ async function runPreflight(): Promise<void> {
   }
 }
 
-async function runSecrets(): Promise<void> {
+async function generateMissingSharedSecrets(): Promise<Map<string, string> | undefined> {
   if (!existsSync(DEVELOPMENT_VARIABLES_FILE)) {
     reportStep(
       DEVELOPMENT_VARIABLES_FILE,
       false,
       'missing — copy .dev.vars.example first',
     );
-    return;
+    return undefined;
   }
   let fileContent = await Bun.file(DEVELOPMENT_VARIABLES_FILE).text();
   const variableMap = parseDevelopmentVariableMap(fileContent);
@@ -88,6 +106,14 @@ async function runSecrets(): Promise<void> {
     reportStep(`generate ${secretName}`, true);
   }
   await Bun.write(DEVELOPMENT_VARIABLES_FILE, fileContent);
+  return variableMap;
+}
+
+async function runSecrets(): Promise<void> {
+  const variableMap = await generateMissingSharedSecrets();
+  if (variableMap === undefined) {
+    return;
+  }
   const excludedNameSet = new Set<string>(SECRET_PUSH_EXCLUDED_NAME_LIST);
   for (const [variableName, variableValue] of variableMap) {
     if (variableValue === '' || excludedNameSet.has(variableName)) {
@@ -100,6 +126,45 @@ async function runSecrets(): Promise<void> {
       putResult.exitCode === 0 ? undefined : putResult.stderr.trim().split('\n').at(-1),
     );
   }
+}
+
+// The docker host reads .dev.vars through compose's env_file, so generating
+// the shared secrets locally is the whole job — nothing to push anywhere.
+async function runDockerSecrets(): Promise<void> {
+  await generateMissingSharedSecrets();
+}
+
+async function persistWorkerUrl(workerUrl: string): Promise<void> {
+  let previousStateRecord: Record<string, unknown> = {};
+  if (existsSync(DEPLOYMENT_STATE_FILE)) {
+    const parsedState = z
+      .record(z.unknown())
+      .safeParse(JSON.parse(await Bun.file(DEPLOYMENT_STATE_FILE).text()));
+    if (parsedState.success) {
+      previousStateRecord = parsedState.data;
+    }
+  }
+  await Bun.write(
+    DEPLOYMENT_STATE_FILE,
+    `${JSON.stringify({ ...previousStateRecord, workerUrl }, null, 2)}\n`,
+  );
+}
+
+async function runDockerDeploy(): Promise<void> {
+  const upResult = runDocker([
+    'compose',
+    '-f',
+    DOCKER_COMPOSE_FILE,
+    'up',
+    '-d',
+    '--build',
+  ]);
+  if (upResult.exitCode !== 0) {
+    reportStep('docker compose up', false, upResult.stderr.trim().split('\n').at(-1));
+    return;
+  }
+  await persistWorkerUrl(DOCKER_HOST_URL);
+  reportStep('docker compose up', true, DOCKER_HOST_URL);
 }
 
 async function runDeploy(): Promise<void> {
@@ -118,19 +183,7 @@ async function runDeploy(): Promise<void> {
     );
     return;
   }
-  let previousStateRecord: Record<string, unknown> = {};
-  if (existsSync(DEPLOYMENT_STATE_FILE)) {
-    const parsedState = z
-      .record(z.unknown())
-      .safeParse(JSON.parse(await Bun.file(DEPLOYMENT_STATE_FILE).text()));
-    if (parsedState.success) {
-      previousStateRecord = parsedState.data;
-    }
-  }
-  await Bun.write(
-    DEPLOYMENT_STATE_FILE,
-    `${JSON.stringify({ ...previousStateRecord, workerUrl: deployedUrlMatch[0] }, null, 2)}\n`,
-  );
+  await persistWorkerUrl(deployedUrlMatch[0]);
   reportStep('wrangler deploy', true, deployedUrlMatch[0]);
 }
 
@@ -153,7 +206,7 @@ async function probeDeviceHandshake(
   workerUrl: string,
   deviceSharedSecret: string,
 ): Promise<string> {
-  const webSocketUrl = `${workerUrl.replace(/^https/, 'wss')}/agents/apollo/${DEVICE_INSTANCE_NAME}?token=${encodeURIComponent(deviceSharedSecret)}`;
+  const webSocketUrl = `${workerUrl.replace(/^http/, 'ws')}/agents/apollo/${DEVICE_INSTANCE_NAME}?token=${encodeURIComponent(deviceSharedSecret)}`;
   return new Promise((resolve, reject) => {
     const webSocket = new WebSocket(webSocketUrl);
     const timeoutHandle = setTimeout(() => {
@@ -227,43 +280,68 @@ async function runVerify(urlFlagValue: string | undefined): Promise<void> {
 
 const subcommand = Bun.argv[2];
 const urlFlagValue = readFlagValue(Bun.argv, '--url');
-const bootstrapStageList: readonly {
+const targetFlagValue = readFlagValue(Bun.argv, '--target') ?? 'cloudflare';
+const isDockerTarget = targetFlagValue === 'docker';
+
+type BootstrapStage = {
   readonly stageName: string;
   readonly execute: () => Promise<void> | void;
-}[] = [
-  { stageName: 'preflight', execute: runPreflight },
-  { stageName: 'provision', execute: runProvision },
-  { stageName: 'secrets', execute: runSecrets },
-  { stageName: 'deploy', execute: runDeploy },
-  { stageName: 'verify', execute: () => runVerify(urlFlagValue) },
-];
-switch (subcommand) {
-  case 'preflight':
-    await runPreflight();
-    break;
-  case 'provision':
-    runProvision();
-    break;
-  case 'secrets':
-    await runSecrets();
-    break;
-  case 'deploy':
-    await runDeploy();
-    break;
-  case 'verify':
-    await runVerify(urlFlagValue);
-    break;
-  case 'all':
-    for (const [stageIndex, stage] of bootstrapStageList.entries()) {
+};
+
+// Two deploy targets, one pipeline shape. The docker target has no cloud
+// resources to provision and no secret pushes — compose reads .dev.vars.
+const stageListByTarget: Record<string, readonly BootstrapStage[]> = {
+  cloudflare: [
+    { stageName: 'preflight', execute: runPreflight },
+    { stageName: 'provision', execute: runProvision },
+    { stageName: 'secrets', execute: runSecrets },
+    { stageName: 'deploy', execute: runDeploy },
+    { stageName: 'verify', execute: () => runVerify(urlFlagValue) },
+  ],
+  docker: [
+    { stageName: 'preflight', execute: runDockerPreflight },
+    { stageName: 'secrets', execute: runDockerSecrets },
+    { stageName: 'deploy', execute: runDockerDeploy },
+    { stageName: 'verify', execute: () => runVerify(urlFlagValue) },
+  ],
+};
+const bootstrapStageList = stageListByTarget[targetFlagValue];
+if (bootstrapStageList === undefined) {
+  console.log(`unknown --target ${targetFlagValue}; use cloudflare or docker`);
+  process.exitCode = 1;
+} else {
+  switch (subcommand) {
+    case 'preflight':
+      await (isDockerTarget ? runDockerPreflight() : runPreflight());
+      break;
+    case 'provision':
+      if (isDockerTarget) {
+        console.log('nothing to provision for the docker target');
+      } else {
+        runProvision();
+      }
+      break;
+    case 'secrets':
+      await (isDockerTarget ? runDockerSecrets() : runSecrets());
+      break;
+    case 'deploy':
+      await (isDockerTarget ? runDockerDeploy() : runDeploy());
+      break;
+    case 'verify':
+      await runVerify(urlFlagValue);
+      break;
+    case 'all':
+      for (const [stageIndex, stage] of bootstrapStageList.entries()) {
+        console.log(
+          `\n[${stageIndex + 1}/${bootstrapStageList.length}] ${stage.stageName}`,
+        );
+        await stage.execute();
+      }
+      break;
+    default:
       console.log(
-        `\n[${stageIndex + 1}/${bootstrapStageList.length}] ${stage.stageName}`,
+        'usage: bun run bootstrap <preflight|provision|secrets|deploy|verify|all> [--url https://...] [--target cloudflare|docker]',
       );
-      await stage.execute();
-    }
-    break;
-  default:
-    console.log(
-      'usage: bun run bootstrap <preflight|provision|secrets|deploy|verify|all> [--url https://...]',
-    );
-    process.exitCode = 1;
+      process.exitCode = 1;
+  }
 }

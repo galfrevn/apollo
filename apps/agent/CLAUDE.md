@@ -10,6 +10,7 @@ Run from this directory, or from the repo root via `turbo run <task> --filter=@a
 
 ```bash
 bun run dev          # wrangler dev — uses the *preview* R2 bucket (apollo-media-preview)
+bun run host         # the self-host runtime: a persistent Bun process (src/host/)
 bun test             # bun test, rooted at ./src
 bun run typecheck    # tsc --noEmit
 bun run types        # regenerate worker-configuration.d.ts from wrangler.jsonc

@@ -84,6 +84,21 @@ bun run bootstrap deploy           # wrangler deploy
 bun run bootstrap verify           # /health plus a real device handshake probe
 ```
 
+## Self-hosting without Cloudflare
+
+The same brain runs as a persistent Bun process — SQLite instead of Durable
+Objects, the filesystem instead of R2, everything else identical, console
+included. `docker/` holds the image and compose file; state lives in one
+volume.
+
+```bash
+bun run bootstrap all --target docker   # preflight, secrets, compose up, verify
+```
+
+Or piece by piece: `docker compose -f docker/compose.yaml up -d --build`, then
+point the console and the device at `http://localhost:8799` (the websocket path
+and tokens are identical to the worker). To run it bare, `bun run host`.
+
 Then talk to it without any hardware:
 
 ```sh

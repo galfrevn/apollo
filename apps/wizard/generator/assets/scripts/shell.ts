@@ -23,6 +23,19 @@ export function runWrangler(
   };
 }
 
+export function runDocker(argumentList: readonly string[]): CommandResult {
+  const spawnResult = Bun.spawnSync(['docker', ...argumentList], {
+    stdin: 'ignore',
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
+  return {
+    exitCode: spawnResult.exitCode,
+    stdout: spawnResult.stdout.toString(),
+    stderr: spawnResult.stderr.toString(),
+  };
+}
+
 export function reportStep(stepLabel: string, isOk: boolean, detail?: string): void {
   const marker = isOk ? 'ok' : 'FAIL';
   console.log(`[${marker}] ${stepLabel}${detail ? ` — ${detail}` : ''}`);

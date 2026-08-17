@@ -102,7 +102,28 @@ async function runWizard(): Promise<void> {
     );
   }
 
-  await confirmCloudflareAccount();
+  const deployTarget = requireAnswer(
+    await select({
+      message: 'Where will this Apollo live?',
+      options: [
+        {
+          value: 'cloudflare',
+          label: 'Cloudflare Workers',
+          hint: 'workers.dev URL · Durable Objects · R2',
+        },
+        {
+          value: 'docker',
+          label: 'Docker on this machine',
+          hint: 'persistent Bun process · SQLite + filesystem volume',
+        },
+      ],
+    }),
+  );
+  if (deployTarget === 'cloudflare') {
+    await confirmCloudflareAccount();
+  } else {
+    renderSuccessLine('Docker target', 'no Cloudflare account needed');
+  }
 
   let developmentVariablesContent = await Bun.file(DEVELOPMENT_VARIABLES_FILE).text();
   let identityContent = await Bun.file(IDENTITY_FILE).text();
@@ -194,26 +215,39 @@ async function runWizard(): Promise<void> {
     log.message(recapLine);
   }
 
+  const bootstrapCommandLabel =
+    deployTarget === 'docker'
+      ? 'bun run bootstrap all --target docker'
+      : 'bun run bootstrap all';
   const shouldDeploy = requireAnswer(
     await confirm({
-      message: 'Provision the Cloudflare resources and deploy now? (bootstrap all)',
+      message:
+        deployTarget === 'docker'
+          ? 'Build the image and start the container now? (bootstrap all --target docker)'
+          : 'Provision the Cloudflare resources and deploy now? (bootstrap all)',
     }),
   );
   if (!shouldDeploy) {
-    outro('Saved your answers. Deploy any time with `bun run bootstrap all`.');
+    outro(`Saved your answers. Deploy any time with \`${bootstrapCommandLabel}\`.`);
     return;
   }
-  const didBootstrapSucceed = runBootstrapSubcommand('all');
+  const didBootstrapSucceed = runBootstrapSubcommand(
+    'all',
+    deployTarget === 'docker' ? ['--target', 'docker'] : [],
+  );
   if (!didBootstrapSucceed) {
     outro(
-      'Bootstrap reported failures — the steps above say which. Fix and re-run `bun run bootstrap all`; it is idempotent.',
+      `Bootstrap reported failures — the steps above say which. Fix and re-run \`${bootstrapCommandLabel}\`; it is idempotent.`,
     );
     process.exitCode = 1;
     return;
   }
 
   const variableMap = parseDevelopmentVariableMap(developmentVariablesContent);
-  let workerUrl = 'https://<your-worker>.workers.dev';
+  let workerUrl =
+    deployTarget === 'docker'
+      ? 'http://localhost:8799'
+      : 'https://<your-worker>.workers.dev';
   if (existsSync('.apollo.json')) {
     const deploymentState = deploymentStateSchema.safeParse(
       JSON.parse(await Bun.file('.apollo.json').text()),
@@ -222,7 +256,7 @@ async function runWizard(): Promise<void> {
       workerUrl = deploymentState.data.workerUrl;
     }
   }
-  const deviceWebSocketUrl = `${workerUrl.replace(/^https/, 'wss')}/agents/apollo/desk?token=<DEVICE_SHARED_SECRET>`;
+  const deviceWebSocketUrl = `${workerUrl.replace(/^http/, 'ws')}/agents/apollo/desk?token=<DEVICE_SHARED_SECRET>`;
   outro(
     buildOutroMessage({
       workerUrl,

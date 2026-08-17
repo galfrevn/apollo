@@ -101,6 +101,7 @@ export function buildStarterPackageDocument(input: {
     scripts: {
       dev: 'wrangler dev',
       deploy: 'wrangler deploy',
+      host: 'bun src/host/main.ts',
       types: 'wrangler types',
       typecheck: 'tsc --noEmit',
       test: 'bun test',

@@ -77,28 +77,38 @@ A Bun-based Dockerfile plus a compose file: the agent process, a volume for the 
 | Phase | Scope | Exit criteria |
 |-------|-------|---------------|
 | 1 (done) | Ports + Cloudflare adapters in-repo | Zero behavior change; `bun run check` green; step-name sequences pinned by specs |
-| 2 (walking skeleton done) | Bun host: WS server (device protocol + console framing), scheduler, SQLite/blob/vector/jobs adapters, step runner | A device and the unchanged console complete a full session against the Bun host; workflows resume across a process restart |
-| 3 | Dockerfile + compose; wizard target selection | `docker compose up` yields a working agent; `create-heyapollo` can scaffold for either target |
+| 2 (done) | Bun host: WS server (device protocol + console framing), scheduler, SQLite/blob/vector/jobs adapters, step runner | A device and the unchanged console complete a full session against the Bun host; workflows resume across a process restart |
+| 3 (done) | Dockerfile + compose; wizard target selection | `docker compose up` yields a working agent; `create-heyapollo` can scaffold for either target |
 
-### Phase 2 status
+### Phase 2 and 3 status
 
-`bun run host` (in `apps/agent`) boots the Bun host: `src/host/` wires the
-adapters into a per-device actor, a `Bun.serve` websocket server that speaks
-both framings, a console RPC registry, and a run engine that resumes pending
-workflow instances from step checkpoints on boot. Verified end to end: a mock
-voice turn over the device protocol, and the unchanged console connected to the
-host — identity, state sync, RPC, live telemetry — plus terminal `1008` closes
-on bad tokens. Both spikes from the design above are resolved and pinned by
-specs: the SDK session manager runs on `bun:sqlite` (FTS5 included), and
-`MCPClientManager` constructs against a structural storage shim.
+`bun run host` (in `apps/agent`, and in the starter scaffold) boots the Bun
+host: `src/host/` wires the adapters into a per-device actor, a `Bun.serve`
+websocket server that speaks both framings, a console RPC registry covering
+all 34 durable-object callables, and a run engine that resumes pending
+workflow instances from step checkpoints on boot. Behavior parity with the
+worker includes thread rotation/finalization/resume, the device MCP bridge
+(volume, brightness, status, gestures, OTA push), initiative delivery with
+deferral and retry, the low-battery announcement, the firmware lifecycle off
+telemetry, broadcast audio uploads, and installed MCP servers on
+`MCPClientManager` over the sqlite storage shim — OAuth callback route and
+`cf_agent_mcp_servers` broadcasts included. Verified end to end: mock voice
+turns over the device protocol and the unchanged console connected to the
+host in a real browser (identity, state sync, RPC, live telemetry).
 
-Still on the phase 2 list: thread rotation and finalization on the host (turns
-run on the active-or-legacy session; no rotation yet), the device MCP bridge
-and installed MCP servers (tools degrade with an explicit message), the
-initiative/firmware/OTA-push lifecycles, broadcast audio upload, gesture
-handling, and the remaining console RPCs (MCP quintet, device volume /
-brightness / status, audio upload trio) — the registry answers those with a
-clear "not on this host yet" error the console surfaces per page.
+Phase 3 ships in `apps/agent/docker/` (a Bun image whose build context is the
+package root, so the same Dockerfile serves the monorepo and the starter, plus
+`compose.yaml` with one volume for SQLite + blobs and `env_file: .dev.vars`).
+The starter inherits `docker/`, a `bun run host` script, and a second
+bootstrap pipeline: `bun run bootstrap all --target docker` runs
+preflight → secrets → compose up → verify with no Cloudflare account, and the
+`create-heyapollo` wizard asks where the deployment lives before touching
+wrangler.
+
+The sandbox/coding capability stays Cloudflare-only for now: on the Bun host
+`createSandbox` is undefined and coding degrades exactly like a worker without
+the `Sandbox` binding. A Docker-sibling `CodingSandboxPort` adapter remains
+the one open follow-up.
 
 ## Navigation
 

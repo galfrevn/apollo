@@ -1,0 +1,20 @@
+# Self-hosted Apollo: one persistent container, one volume for everything the
+# agent remembers (SQLite databases and the blob directory). Secrets ride the
+# same .dev.vars file wrangler dev uses.
+services:
+  apollo:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - '8799:8799'
+    env_file:
+      - ../.dev.vars
+    environment:
+      APOLLO_DATA_DIRECTORY: /data
+    volumes:
+      - apollo-data:/data
+    restart: unless-stopped
+
+volumes:
+  apollo-data:
