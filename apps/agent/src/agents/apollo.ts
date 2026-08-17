@@ -156,10 +156,10 @@ import {
   getSessionPreference,
   setSessionPreference,
   type MemorySqlExecutor,
-  type MemorySqlRow,
 } from '@/memory/store';
 import { embedTextWithOpenRouter, queryMemoryVectors } from '@/memory/vector';
 import { PUBLIC_ORIGIN_PREFERENCE_KEY, runFirmwareLifecycle } from '@/ota/lifecycle';
+import { createDurableObjectSqlExecutor } from '@/platform/cloudflare/sql';
 import { enqueueMemoryIndexJob } from '@/queues/consume';
 import { cycleDeskSpeechMode, resolveDeskSpeechMode } from '@/persona/catalog';
 import { resolveDeskFaceEmotion } from '@/persona/face';
@@ -282,20 +282,6 @@ type FinalizeThreadPayload = z.infer<typeof finalizeThreadPayloadSchema>;
 
 type DeviceToolArgumentRecord = Parameters<typeof buildDeviceToolCallPayload>[2];
 type UiStatePushMessage = Extract<ServerToDeviceMessage, { type: 'ui_state' }>;
-
-function createDurableObjectSqlExecutor(sqlStorage: SqlStorage): MemorySqlExecutor {
-  function executeMemorySqlQuery<Row extends MemorySqlRow>(
-    query: string,
-    ...bindValues: unknown[]
-  ): readonly Row[];
-  function executeMemorySqlQuery(
-    query: string,
-    ...bindValues: unknown[]
-  ): readonly MemorySqlRow[] {
-    return sqlStorage.exec(query, ...bindValues).toArray();
-  }
-  return { execute: executeMemorySqlQuery };
-}
 
 export type DeskUiState =
   | 'idle'
