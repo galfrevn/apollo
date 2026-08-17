@@ -20,6 +20,7 @@ import {
   setSessionPreference,
   type MemorySqlExecutor,
 } from '@/memory/store';
+import type { JobPublisher } from '@/platform/jobs';
 import { enqueueMemoryIndexJob } from '@/queues/consume';
 import { chatWithOpenRouter } from '@/voice/llm';
 
@@ -57,7 +58,7 @@ async function drainMemoryIndexIntents(
         () => intent.memoryId,
       );
     }
-    await enqueueMemoryIndexJob(dependencies.environment, {
+    await enqueueMemoryIndexJob(dependencies.jobPublisher, {
       memoryId: existingMemoryId ?? intent.memoryId,
       content: intent.content,
       deviceId: dependencies.deviceId,
@@ -74,6 +75,7 @@ export type OwnerMemoryConsolidationDependencies = {
   readonly sqlExecutor: MemorySqlExecutor;
   readonly session: Session;
   readonly environment: Env;
+  readonly jobPublisher: JobPublisher;
   readonly deviceId: string;
   readonly nowMilliseconds: number;
   readonly createIdentifier: () => string;
@@ -199,7 +201,7 @@ export async function runOwnerMemoryConsolidation(
       nowMilliseconds,
       () => memoryId,
     );
-    await enqueueMemoryIndexJob(dependencies.environment, {
+    await enqueueMemoryIndexJob(dependencies.jobPublisher, {
       memoryId,
       content: genuinelyNewFact.content,
       deviceId: dependencies.deviceId,

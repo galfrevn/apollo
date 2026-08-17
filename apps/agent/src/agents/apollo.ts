@@ -161,8 +161,10 @@ import { embedTextWithOpenRouter, queryMemoryVectors } from '@/memory/vector';
 import { PUBLIC_ORIGIN_PREFERENCE_KEY, runFirmwareLifecycle } from '@/ota/lifecycle';
 import type { BlobStore } from '@/platform/blob';
 import { createR2BlobStore } from '@/platform/cloudflare/blob';
+import { createQueueJobPublisher } from '@/platform/cloudflare/jobs';
 import { createDurableObjectSqlExecutor } from '@/platform/cloudflare/sql';
 import { createVectorizeVectorStore } from '@/platform/cloudflare/vector';
+import type { JobPublisher } from '@/platform/jobs';
 import type { VectorStore } from '@/platform/vector';
 import { enqueueMemoryIndexJob } from '@/queues/consume';
 import { cycleDeskSpeechMode, resolveDeskSpeechMode } from '@/persona/catalog';
@@ -1021,7 +1023,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     await this.#assertDashboardSecret(input.secret);
     const memoryRecord = await addMemoryRecord(this.#sqlExecutor(), input.content);
     await rememberFactInSession(this.session, input.content);
-    await enqueueMemoryIndexJob(this.env, {
+    await enqueueMemoryIndexJob(this.#jobPublisher(), {
       memoryId: memoryRecord.id,
       content: input.content,
       deviceId: this.name ?? 'default',
@@ -1401,6 +1403,7 @@ export class Apollo extends Agent<Env, ApolloState> {
         sqlExecutor: this.#sqlExecutor(),
         session: this.session,
         environment: this.env,
+        jobPublisher: this.#jobPublisher(),
         deviceId: this.name ?? 'default',
         nowMilliseconds: Date.now(),
         createIdentifier: () => crypto.randomUUID(),
@@ -1701,7 +1704,7 @@ export class Apollo extends Agent<Env, ApolloState> {
         // thread- prefix is what resume_conversation later maps back to a
         // session id.
         if (outcome.kind === 'conversation' && outcome.summary !== null) {
-          await enqueueMemoryIndexJob(this.env, {
+          await enqueueMemoryIndexJob(this.#jobPublisher(), {
             memoryId: `${THREAD_VECTOR_MEMORY_ID_PREFIX}${payload.sessionId}`,
             content:
               outcome.title !== null
@@ -1744,6 +1747,10 @@ export class Apollo extends Agent<Env, ApolloState> {
 
   #memoryVectorStore(): VectorStore {
     return createVectorizeVectorStore(this.env.VECTORIZE);
+  }
+
+  #jobPublisher(): JobPublisher {
+    return createQueueJobPublisher(this.env.APOLLO_QUEUE);
   }
 
   async #ensurePreferencesLoaded(): Promise<void> {
@@ -2186,7 +2193,7 @@ export class Apollo extends Agent<Env, ApolloState> {
     await this.#rotateThreadForTurn();
     const deskToolEffects = createDeskToolEffects({
       sqlExecutor: this.#sqlExecutor(),
-      environment: this.env,
+      jobPublisher: this.#jobPublisher(),
       deviceId,
       session: this.session,
       applyFocusMinutes: async (minutes) => {

@@ -7,6 +7,7 @@ import {
 } from '@/lists/store';
 import { rememberFactInSession } from '@/memory/session';
 import { addMemoryRecord, type MemorySqlExecutor } from '@/memory/store';
+import type { JobPublisher } from '@/platform/jobs';
 import {
   enqueueBackgroundJob,
   enqueueCodingJob,
@@ -16,7 +17,7 @@ import type { DeskToolEffects } from '@/tools/types';
 
 export function createDeskToolEffects(input: {
   readonly sqlExecutor: MemorySqlExecutor;
-  readonly environment: Env;
+  readonly jobPublisher: JobPublisher;
   readonly deviceId: string;
   readonly session: Session;
   readonly applyFocusMinutes: (minutes: number) => Promise<void>;
@@ -39,7 +40,7 @@ export function createDeskToolEffects(input: {
     persistMemory: async (content) => {
       const memoryRecord = await addMemoryRecord(input.sqlExecutor, content);
       await rememberFactInSession(input.session, content);
-      await enqueueMemoryIndexJob(input.environment, {
+      await enqueueMemoryIndexJob(input.jobPublisher, {
         memoryId: memoryRecord.id,
         content,
         deviceId: input.deviceId,
@@ -49,13 +50,13 @@ export function createDeskToolEffects(input: {
     applyFocusMinutes: input.applyFocusMinutes,
     clearFocus: input.clearFocus,
     enqueueResearch: async (prompt) => {
-      await enqueueBackgroundJob(input.environment, {
+      await enqueueBackgroundJob(input.jobPublisher, {
         prompt,
         deviceId: input.deviceId,
       });
     },
     enqueueCodingTask: async ({ repository, task }) => {
-      await enqueueCodingJob(input.environment, {
+      await enqueueCodingJob(input.jobPublisher, {
         repository,
         task,
         deviceId: input.deviceId,

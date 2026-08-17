@@ -4,8 +4,11 @@ import { Sandbox } from '@cloudflare/sandbox';
 import { authorizeApolloConnection, Apollo } from '@/agents/apollo';
 import { authorizeApolloHttpRequest } from '@/auth/http';
 import { CODING_PROXY_PATH_PREFIX, handleCodingLlmProxyRequest } from '@/coding/proxy';
+import { embedTextWithOpenRouter } from '@/memory/vector';
 import { handleOtaRequest } from '@/ota/routes';
 import { createR2BlobStore } from '@/platform/cloudflare/blob';
+import { createWorkflowRunLauncher } from '@/platform/cloudflare/runs';
+import { createVectorizeVectorStore } from '@/platform/cloudflare/vector';
 import { consumeApolloQueueBatch } from '@/queues/consume';
 import { ApolloBackground } from '@/workflows/background';
 import { ApolloCoding } from '@/workflows/coding';
@@ -76,6 +79,18 @@ export default {
   },
 
   async queue(batch: MessageBatch<unknown>, environment: Env): Promise<void> {
-    await consumeApolloQueueBatch(batch, environment);
+    await consumeApolloQueueBatch(batch, {
+      vectorStore: createVectorizeVectorStore(environment.VECTORIZE),
+      runLauncher: createWorkflowRunLauncher({
+        backgroundWorkflow: environment.BACKGROUND,
+        codingWorkflow: environment.CODING,
+      }),
+      embedText: (text) =>
+        embedTextWithOpenRouter({
+          openRouterApiKey: environment.OPENROUTER_API_KEY,
+          modelId: environment.OPENROUTER_EMBEDDING_MODEL,
+          text,
+        }),
+    });
   },
 } satisfies ExportedHandler<Env>;
