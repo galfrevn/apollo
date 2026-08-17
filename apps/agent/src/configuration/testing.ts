@@ -1,5 +1,6 @@
 import type { MemorySqlExecutor } from '@/memory/store';
 import type { BlobStore } from '@/platform/blob';
+import type { StepOptions, StepRunner } from '@/platform/steps';
 import type { DeskToolEffects } from '@/tools/types';
 
 type PendingConfirmationRow = {
@@ -142,6 +143,36 @@ export function createFakeMediaBlobStore(
       return { entryList, isTruncated: false };
     },
   };
+}
+
+// Records the step-name sequence a run function produces — the sequence IS
+// the memoization key set, so specs pin it against accidental renames. Steps
+// present in cannedResultMap return their canned value without running the
+// callback (network-touching steps); every other callback executes for real.
+export function createFakeStepRunner(cannedResultMap: Record<string, unknown> = {}): {
+  readonly stepRunner: StepRunner;
+  readonly stepNameList: readonly string[];
+} {
+  const stepNameList: string[] = [];
+  async function runFakeStep<Result>(
+    stepName: string,
+    optionsOrCallback: StepOptions | (() => Promise<Result>),
+    maybeCallback?: () => Promise<Result>,
+  ): Promise<Result> {
+    stepNameList.push(stepName);
+    if (stepName in cannedResultMap) {
+      // SAFETY: each canned value is authored to match the shape the run
+      // function expects back from that named step.
+      return cannedResultMap[stepName] as Result;
+    }
+    const callback =
+      typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback;
+    if (callback === undefined) {
+      throw new Error('runFakeStep requires a callback');
+    }
+    return callback();
+  }
+  return { stepRunner: { do: runFakeStep }, stepNameList };
 }
 
 export async function buildTestRsaPrivateKeyPem(): Promise<string> {
