@@ -15,7 +15,7 @@ async function createManagerOnSqlite() {
   // SAFETY: the manager and its OAuth provider use exactly the surface the
   // shim implements (verified against the dist source; pinned by this spec).
   return new MCPClientManager('apollo', '0.0.1', {
-    storage: storageShim as unknown as DurableObjectStorage,
+    storage: storageShim as DurableObjectStorage,
   });
 }
 

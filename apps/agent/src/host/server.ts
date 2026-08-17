@@ -38,6 +38,7 @@ const CONSOLE_CORS_HEADER_MAP = {
 export type ApolloHostServer = {
   readonly port: number;
   broadcastConsoleState(state: ApolloState): void;
+  broadcastConsoleMessage(encodedMessage: string): void;
   stop(): void;
 };
 
@@ -74,6 +75,16 @@ export function createApolloHostServer(input: {
           configuration.environment,
           input.mediaBlobStore,
         );
+      }
+      const callbackPathMatch = requestUrl.pathname.match(
+        /^\/agents\/apollo\/([^/]+)\/callback$/,
+      );
+      if (callbackPathMatch !== null && input.rpcDependencies.mcpManager !== undefined) {
+        const callbackResponse =
+          await input.rpcDependencies.mcpManager.handleOauthCallback(request);
+        if (callbackResponse !== null) {
+          return callbackResponse;
+        }
       }
       const agentPathMatch = requestUrl.pathname.match(/^\/agents\/apollo\/([^/]+)$/);
       if (agentPathMatch !== null) {
@@ -148,6 +159,7 @@ export function createApolloHostServer(input: {
             parsedMessage.request.method,
             parsedMessage.request.args,
             rpcDependencies,
+            webSocket.data.requestOrigin,
           );
           connection.send(encodeConsoleRpcSuccess(parsedMessage.request.id, result));
         } catch (error) {
@@ -179,6 +191,11 @@ export function createApolloHostServer(input: {
       const encodedStateMessage = encodeConsoleStateMessage(state);
       for (const connection of consoleConnectionSet) {
         connection.send(encodedStateMessage);
+      }
+    },
+    broadcastConsoleMessage(encodedMessage: string) {
+      for (const connection of consoleConnectionSet) {
+        connection.send(encodedMessage);
       }
     },
     stop() {

@@ -214,6 +214,123 @@ describe('apollo host', () => {
     consoleClient.socket.close();
   });
 
+  test('the device mcp bridge answers a console volume rpc through a live device', async () => {
+    const device = await openFrameCollector(`/agents/apollo/desk?token=${DEVICE_SECRET}`);
+    await device.waitForFrame((frame) => isJsonFrameOfType(frame, 'ui_state'));
+    device.socket.addEventListener('message', (event) => {
+      if (typeof event.data !== 'string') {
+        return;
+      }
+      const parsedFrame = JSON.parse(event.data) as {
+        type?: string;
+        payload?: { id: number; method?: string };
+      };
+      if (parsedFrame.type === 'mcp' && parsedFrame.payload?.method === 'tools/call') {
+        device.socket.send(
+          JSON.stringify({
+            type: 'mcp',
+            ts: Date.now(),
+            payload: {
+              jsonrpc: '2.0',
+              id: parsedFrame.payload.id,
+              result: { content: [{ type: 'text', text: 'volumen en 40' }] },
+            },
+          }),
+        );
+      }
+    });
+
+    const consoleClient = await openFrameCollector(
+      `/agents/apollo/desk?token=${DASHBOARD_SECRET}`,
+    );
+    consoleClient.socket.send(
+      JSON.stringify({
+        type: 'rpc',
+        id: 'rpc-volume',
+        method: 'setConsoleDeviceVolume',
+        args: [{ secret: DASHBOARD_SECRET, volume: 40 }],
+      }),
+    );
+    const volumeResultFrame = await consoleClient.waitForFrame(
+      (frame) =>
+        frame.kind === 'json' &&
+        typeof frame.payload === 'object' &&
+        frame.payload !== null &&
+        'id' in frame.payload &&
+        frame.payload.id === 'rpc-volume',
+    );
+    expect(volumeResultFrame.kind === 'json' && volumeResultFrame.payload).toMatchObject({
+      success: true,
+      result: { ok: true },
+    });
+    device.socket.close();
+    consoleClient.socket.close();
+  });
+
+  test('a voice turn rotates onto a thread the console can list', async () => {
+    const device = await openFrameCollector(`/agents/apollo/desk?token=${DEVICE_SECRET}`);
+    await device.waitForFrame((frame) => isJsonFrameOfType(frame, 'ui_state'));
+    device.socket.send(
+      JSON.stringify({ type: 'text_input', text: 'anotá esto', ts: Date.now() }),
+    );
+    await device.waitForFrame((frame) => isJsonFrameOfType(frame, 'turn_end'));
+    device.socket.close();
+
+    const consoleClient = await openFrameCollector(
+      `/agents/apollo/desk?token=${DASHBOARD_SECRET}`,
+    );
+    consoleClient.socket.send(
+      JSON.stringify({
+        type: 'rpc',
+        id: 'rpc-threads',
+        method: 'listConsoleThreads',
+        args: [{ secret: DASHBOARD_SECRET }],
+      }),
+    );
+    const threadListFrame = await consoleClient.waitForFrame(
+      (frame) =>
+        frame.kind === 'json' &&
+        typeof frame.payload === 'object' &&
+        frame.payload !== null &&
+        'id' in frame.payload &&
+        frame.payload.id === 'rpc-threads',
+    );
+    const threadListPayload =
+      threadListFrame.kind === 'json'
+        ? (threadListFrame.payload as { success: boolean; result: { title: string }[] })
+        : undefined;
+    expect(threadListPayload?.success).toBe(true);
+    expect(threadListPayload?.result.length).toBeGreaterThanOrEqual(1);
+    consoleClient.socket.close();
+  });
+
+  test('mcp servers list answers empty over rpc', async () => {
+    const consoleClient = await openFrameCollector(
+      `/agents/apollo/desk?token=${DASHBOARD_SECRET}`,
+    );
+    consoleClient.socket.send(
+      JSON.stringify({
+        type: 'rpc',
+        id: 'rpc-mcp',
+        method: 'listMcpServers',
+        args: [{ secret: DASHBOARD_SECRET }],
+      }),
+    );
+    const mcpListFrame = await consoleClient.waitForFrame(
+      (frame) =>
+        frame.kind === 'json' &&
+        typeof frame.payload === 'object' &&
+        frame.payload !== null &&
+        'id' in frame.payload &&
+        frame.payload.id === 'rpc-mcp',
+    );
+    expect(mcpListFrame.kind === 'json' && mcpListFrame.payload).toMatchObject({
+      success: true,
+      result: [],
+    });
+    consoleClient.socket.close();
+  });
+
   test('a wrong token closes with the terminal policy violation code', async () => {
     const closeCode = await new Promise<number>((resolve) => {
       const socket = new WebSocket(

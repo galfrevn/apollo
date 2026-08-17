@@ -27,10 +27,7 @@ import { replayPendingBroadcast, sweepExpiredBroadcasts } from '@/broadcast/deli
 import { APOLLO_TTS_VOICE } from '@/configuration/identity';
 import { createInactiveDeskFocusState, tickDeskFocus } from '@/focus/logic';
 import type { DeskFocusState } from '@/focus/logic';
-import {
-  flattenRecentHistoryToTranscript,
-  OWNER_MEMORY_CONSOLIDATION_CRON,
-} from '@/memory/consolidate';
+import { OWNER_MEMORY_CONSOLIDATION_CRON } from '@/memory/consolidate';
 import { runOwnerMemoryConsolidation } from '@/memory/nightly';
 import { deletePendingDeviceMessage, listPendingDeviceMessages } from '@/memory/pending';
 import { LEGACY_THREAD_SESSION_ID } from '@/memory/session';
@@ -38,10 +35,28 @@ import { getSessionPreference, setSessionPreference } from '@/memory/store';
 import type { MemorySqlExecutor } from '@/memory/store';
 import { PUBLIC_ORIGIN_PREFERENCE_KEY } from '@/ota/lifecycle';
 import type { BlobStore } from '@/platform/blob';
+import type { HostInitiativeEngine } from '@/host/initiative';
+import type { HostMcpManager } from '@/host/mcp';
+import type { HostThreadEngine } from '@/host/threads';
+import {
+  buildDeviceToolCallPayload,
+  createDeviceMcpRequestRegistry,
+  DEVICE_TOOL_CALL_TIMEOUT_MILLISECONDS,
+  summarizeDeviceToolResult,
+  type DeviceToolArgumentRecord,
+} from '@/mcp/bridge';
+import {
+  buildTurnToolDefinitionMap,
+  callInstalledMcpTool,
+  discoverInstalledMcpToolList,
+} from '@/mcp/runtime';
+import { listMcpToolSettings } from '@/mcp/settings';
+import { hasScheduledInitiativeRetryForSource } from '@/initiative/logic';
+import { runFirmwareLifecycle } from '@/ota/lifecycle';
 import type { HostSchedule, HostScheduler } from '@/platform/bun/scheduler';
 import type { JobPublisher } from '@/platform/jobs';
 import type { VectorStore } from '@/platform/vector';
-import { resolveDeskSpeechMode } from '@/persona/catalog';
+import { cycleDeskSpeechMode, resolveDeskSpeechMode } from '@/persona/catalog';
 import { resolveDeskFaceEmotion } from '@/persona/face';
 import {
   encodeServerToDeviceMessage,
@@ -59,13 +74,13 @@ import {
   type DeskTelemetrySnapshot,
 } from '@/telemetry/logic';
 import { createBuiltinToolDefinitionMap } from '@/tools/catalog';
+import type { ToolDefinition, ToolExecutionResult } from '@/tools/types';
 import {
   deletePendingToolConfirmations,
   readPendingToolConfirmation,
   savePendingToolConfirmation,
 } from '@/tools/pending';
 import { ACTIVE_THREAD_SESSION_PREFERENCE_KEY } from '@/threads/lifecycle';
-import { listThreadSessionIdsActiveSince } from '@/threads/store';
 import type { PendingToolConfirmation } from '@/tools/types';
 import type { DeskWeatherSnapshot } from '@/weather/fetch';
 import {
@@ -118,6 +133,21 @@ export function createApolloHostActor(dependencies: ApolloHostActorDependencies)
     readonly receivedAtMilliseconds: number;
   } | null = null;
   let isConsolidatingMemory = false;
+  const deviceMcpRequestRegistry = createDeviceMcpRequestRegistry();
+  let attachedEngines:
+    | {
+        readonly threadEngine: HostThreadEngine;
+        readonly initiativeEngine: HostInitiativeEngine;
+        readonly mcpManager: HostMcpManager | undefined;
+      }
+    | undefined;
+
+  function requireEngines() {
+    if (attachedEngines === undefined) {
+      throw new Error('attachEngines must run before the actor serves traffic');
+    }
+    return attachedEngines;
+  }
 
   const isMockVoice = (): boolean => environment.MOCK_VOICE === '1';
   const activeSession = (): Session =>
@@ -237,6 +267,42 @@ export function createApolloHostActor(dependencies: ApolloHostActorDependencies)
     });
   }
 
+  async function callDeviceTool(
+    deviceToolName: string,
+    argumentRecord: DeviceToolArgumentRecord,
+  ): Promise<ToolExecutionResult> {
+    if (deviceConnectionSet.size === 0) {
+      return { ok: false, summary: 'El dispositivo no está conectado.' };
+    }
+    const { requestId, responsePromise } = deviceMcpRequestRegistry.createPendingRequest(
+      DEVICE_TOOL_CALL_TIMEOUT_MILLISECONDS,
+    );
+    broadcastToDevices({
+      type: 'mcp',
+      payload: buildDeviceToolCallPayload(requestId, deviceToolName, argumentRecord),
+    });
+    return summarizeDeviceToolResult(await responsePromise);
+  }
+
+  async function buildHostTurnToolDefinitionMap(
+    effects: Parameters<typeof buildTurnToolDefinitionMap>[0]['callInstalledMcpTool'],
+  ): Promise<ReadonlyMap<string, ToolDefinition>> {
+    const mcpManager = requireEngines().mcpManager;
+    if (mcpManager === undefined) {
+      return createBuiltinToolDefinitionMap();
+    }
+    const [discoveredToolList, settingList] = await Promise.all([
+      discoverInstalledMcpToolList(mcpManager.manager),
+      listMcpToolSettings(sqlExecutor),
+    ]);
+    return buildTurnToolDefinitionMap({
+      discoveredToolList,
+      settingList,
+      serverRecordMap: mcpManager.buildServerRecordMap(),
+      callInstalledMcpTool: effects,
+    });
+  }
+
   async function ensureTelemetrySnapshotLoaded(): Promise<void> {
     if (lastTelemetrySnapshot !== undefined) {
       return;
@@ -261,6 +327,7 @@ export function createApolloHostActor(dependencies: ApolloHostActorDependencies)
   ): Promise<void> {
     isSpeechAborted = false;
     await ensureTelemetrySnapshotLoaded();
+    await requireEngines().threadEngine.rotateForTurn();
     const deskToolEffects = createDeskToolEffects({
       sqlExecutor,
       jobPublisher: dependencies.jobPublisher,
@@ -320,18 +387,21 @@ export function createApolloHostActor(dependencies: ApolloHostActorDependencies)
           role: match.role,
           content: match.content,
         })),
-      resumeConversationThread: async () => undefined,
-      // The device MCP bridge and installed MCP servers arrive in a later
-      // phase 2 increment; the tools degrade with an explicit failure.
-      callDeviceTool: async () => ({
-        ok: false,
-        summary: 'El puente MCP del dispositivo todavía no corre en este host',
-      }),
-      callInstalledMcpTool: async () => ({
-        ok: false,
-        summary: 'Los servidores MCP instalados todavía no corren en este host',
-      }),
+      resumeConversationThread: async (input) =>
+        requireEngines().threadEngine.resumeConversationThread(input.query),
+      callDeviceTool: async ({ deviceToolName, argumentRecord }) =>
+        callDeviceTool(deviceToolName, argumentRecord),
+      callInstalledMcpTool: async (call) => {
+        const mcpManager = requireEngines().mcpManager;
+        if (mcpManager === undefined) {
+          return { ok: false, summary: 'Los servidores MCP no están habilitados' };
+        }
+        return callInstalledMcpTool(mcpManager.manager, call);
+      },
     });
+    const toolDefinitionMap = await buildHostTurnToolDefinitionMap(
+      deskToolEffects.callInstalledMcpTool,
+    );
 
     try {
       await executeApolloTurn(
@@ -357,7 +427,7 @@ export function createApolloHostActor(dependencies: ApolloHostActorDependencies)
           session: activeSession(),
           deviceId: deviceName,
           effects: deskToolEffects,
-          toolDefinitionMap: createBuiltinToolDefinitionMap(),
+          toolDefinitionMap,
           isSpeechAborted: () => isSpeechAborted,
           allocateTtsSequence: () => {
             ttsSequence += 1;
@@ -511,39 +581,6 @@ export function createApolloHostActor(dependencies: ApolloHostActorDependencies)
     broadcastToDevices(dashboardPayload);
   }
 
-  async function gatherThreadTranscriptSince(
-    sinceMilliseconds: number,
-    transcriptByteBudget: number,
-  ): Promise<{ readonly transcriptText: string; readonly hasNewActivity: boolean }> {
-    const activeThreadSessionIdList = listThreadSessionIdsActiveSince(
-      sqlExecutor,
-      sinceMilliseconds,
-    );
-    if (activeThreadSessionIdList.length === 0) {
-      return { transcriptText: '', hasNewActivity: false };
-    }
-    const transcriptPartList: string[] = [];
-    let remainingByteBudget = transcriptByteBudget;
-    for (const threadSessionId of activeThreadSessionIdList) {
-      if (remainingByteBudget <= 0) {
-        break;
-      }
-      const recentHistory = await sessionManager
-        .getSession(threadSessionId)
-        .getRecentHistory(remainingByteBudget, 1);
-      const transcriptText = flattenRecentHistoryToTranscript(recentHistory.messages);
-      if (transcriptText.length === 0) {
-        continue;
-      }
-      transcriptPartList.push(transcriptText);
-      remainingByteBudget -= transcriptText.length;
-    }
-    return {
-      transcriptText: transcriptPartList.join('\n\n'),
-      hasNewActivity: true,
-    };
-  }
-
   async function dispatchSchedule(schedule: HostSchedule): Promise<void> {
     if (schedule.callback === 'deliverReminder') {
       const payload = deliverReminderPayloadSchema.parse(schedule.payload);
@@ -580,7 +617,8 @@ export function createApolloHostActor(dependencies: ApolloHostActorDependencies)
       return;
     }
     if (schedule.callback === 'consolidateOwnerMemory') {
-      if (isConsolidatingMemory) {
+      // Mock mode has no LLM to call; a dev session must not burn tokens.
+      if (isMockVoice() || isConsolidatingMemory) {
         return;
       }
       isConsolidatingMemory = true;
@@ -594,11 +632,30 @@ export function createApolloHostActor(dependencies: ApolloHostActorDependencies)
           nowMilliseconds: Date.now(),
           createIdentifier: () => crypto.randomUUID(),
           gatherTranscriptSince: async (sinceMilliseconds, transcriptByteBudget) =>
-            gatherThreadTranscriptSince(sinceMilliseconds, transcriptByteBudget),
+            requireEngines().threadEngine.gatherThreadTranscriptSince(
+              sinceMilliseconds,
+              transcriptByteBudget,
+            ),
         });
       } finally {
         isConsolidatingMemory = false;
       }
+      return;
+    }
+    if (schedule.callback === 'finalizeThread') {
+      await requireEngines().threadEngine.finalizeThread(schedule.payload);
+      return;
+    }
+    if (schedule.callback === 'maybeFinalizeIdleThread') {
+      await requireEngines().threadEngine.maybeFinalizeIdleThread();
+      return;
+    }
+    if (schedule.callback === 'retryInitiativeUtterance') {
+      await requireEngines().initiativeEngine.retryInitiativeUtterance(schedule.payload);
+      return;
+    }
+    if (schedule.callback === 'purgeExpiredCommandThreads') {
+      await requireEngines().threadEngine.purgeExpiredCommandThreads();
       return;
     }
     console.log(
@@ -640,6 +697,111 @@ export function createApolloHostActor(dependencies: ApolloHostActorDependencies)
         );
       }
       await deletePendingDeviceMessage(sqlExecutor, pendingMessage.id);
+    }
+  }
+
+  async function handleGesture(
+    connection: HostConnection,
+    gesture: Extract<DeviceToServerMessage, { type: 'gesture' }>['gesture'],
+  ): Promise<void> {
+    if (gesture === 'tap') {
+      const previousUiState = state.uiState;
+      if (previousUiState === 'dashboard') {
+        applyUiEvent('CLOSE_DASHBOARD');
+      } else if (previousUiState === 'idle') {
+        applyUiEvent('OPEN_DASHBOARD');
+      }
+      pushUiState(connection);
+      if (previousUiState === 'idle' && state.uiState === 'dashboard') {
+        await pushDashboard(connection);
+      }
+      return;
+    }
+    if (gesture === 'double_tap') {
+      // Muting used to live here. With press-and-hold the microphone is only
+      // ever open while a finger is down, so there is nothing to mute.
+      return;
+    }
+    const direction = gesture === 'swipe_right' ? 1 : -1;
+    const nextSpeechMode = cycleDeskSpeechMode(state.speechMode, direction);
+    await setSessionPreference(sqlExecutor, 'speechMode', nextSpeechMode.id);
+    // No caption on purpose: the mode change is announced by the accent ring
+    // color (and the switch sound), not by a text label.
+    setState({ ...state, speechMode: nextSpeechMode.id, caption: null });
+    pushUiState(connection);
+  }
+
+  async function handleTelemetry(
+    deviceMessage: Extract<DeviceToServerMessage, { type: 'telemetry' }>,
+  ): Promise<void> {
+    const snapshot: DeskTelemetrySnapshot = {
+      battery: deviceMessage.battery,
+      charging: deviceMessage.charging,
+      volume: deviceMessage.volume,
+      wifiRssi: deviceMessage.wifiRssi,
+      firmwareVersion: deviceMessage.firmwareVersion,
+      receivedAtMs: Date.now(),
+    };
+    // The previous snapshot is read before the overwrite because the firmware
+    // lifecycle diffs versions across it — after a restart the in-memory copy
+    // is gone, which is exactly the post-OTA-reboot case.
+    let previousSnapshot = lastTelemetrySnapshot;
+    if (previousSnapshot === undefined) {
+      const storedSnapshot = await getSessionPreference(
+        sqlExecutor,
+        TELEMETRY_SNAPSHOT_PREFERENCE_KEY,
+      );
+      if (storedSnapshot !== null) {
+        previousSnapshot = parseStoredTelemetrySnapshot(storedSnapshot);
+      }
+    }
+    const didChargingEdgeOccur =
+      previousSnapshot?.charging !== undefined &&
+      snapshot.charging !== undefined &&
+      previousSnapshot.charging !== snapshot.charging;
+    lastTelemetrySnapshot = snapshot;
+    await setSessionPreference(
+      sqlExecutor,
+      TELEMETRY_SNAPSHOT_PREFERENCE_KEY,
+      JSON.stringify(snapshot),
+    );
+
+    const { initiativeEngine } = requireEngines();
+    await initiativeEngine.handleLowBatteryAnnouncement(snapshot);
+    try {
+      await runFirmwareLifecycle(
+        {
+          previousFirmwareVersion: previousSnapshot?.firmwareVersion,
+          snapshot,
+          didChargingEdgeOccur,
+        },
+        {
+          sqlExecutor,
+          mediaBlobStore: dependencies.mediaBlobStore,
+          deviceSharedSecret: environment.DEVICE_SHARED_SECRET,
+          isPushDisabled: environment.FIRMWARE_PUSH_DISABLED === '1',
+          uiState: state.uiState,
+          isFocusActive: currentFocusState().active,
+          hasPendingConfirmation: state.pendingConfirmId !== null,
+          isAnnouncementInFlight: initiativeEngine.isAnnouncementInFlight(),
+          nowMilliseconds: Date.now(),
+          deliverInitiativeUtterance: (utterance) =>
+            initiativeEngine.deliverInitiativeUtterance(utterance),
+          hasScheduledInitiativeRetry: async (source) =>
+            hasScheduledInitiativeRetryForSource(await scheduler.listSchedules(), source),
+          callDeviceTool: (deviceToolName, argumentRecord) =>
+            callDeviceTool(deviceToolName, argumentRecord),
+        },
+      );
+    } catch (error) {
+      // OTA plumbing must never take telemetry handling down with it.
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          message: 'firmware_lifecycle_failed',
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
     }
   }
 
@@ -709,19 +871,15 @@ export function createApolloHostActor(dependencies: ApolloHostActorDependencies)
         break;
       }
       case 'telemetry': {
-        lastTelemetrySnapshot = {
-          battery: deviceMessage.battery,
-          charging: deviceMessage.charging,
-          volume: deviceMessage.volume,
-          wifiRssi: deviceMessage.wifiRssi,
-          firmwareVersion: deviceMessage.firmwareVersion,
-          receivedAtMs: Date.now(),
-        };
-        await setSessionPreference(
-          sqlExecutor,
-          TELEMETRY_SNAPSHOT_PREFERENCE_KEY,
-          JSON.stringify(lastTelemetrySnapshot),
-        );
+        await handleTelemetry(deviceMessage);
+        break;
+      }
+      case 'gesture': {
+        await handleGesture(connection, deviceMessage.gesture);
+        break;
+      }
+      case 'mcp': {
+        deviceMcpRequestRegistry.resolvePendingRequest(deviceMessage.payload);
         break;
       }
       case 'playback_ack': {
@@ -733,7 +891,6 @@ export function createApolloHostActor(dependencies: ApolloHostActorDependencies)
         break;
       }
       default: {
-        // gesture and mcp ride later phase 2 increments (device MCP bridge).
         break;
       }
     }
@@ -742,6 +899,17 @@ export function createApolloHostActor(dependencies: ApolloHostActorDependencies)
   return {
     getState: () => state,
     setState,
+    attachEngines(engines: NonNullable<typeof attachedEngines>): void {
+      attachedEngines = engines;
+    },
+    callDeviceTool,
+    currentFocusState,
+    getActiveThreadSessionIdSetter: () => ({
+      get: () => activeThreadSessionId,
+      set: (sessionId: string | undefined) => {
+        activeThreadSessionId = sessionId;
+      },
+    }),
     getDeviceConnectionCount: () => deviceConnectionSet.size,
     getDeviceConnectionList: () => [...deviceConnectionSet],
     getTelemetrySnapshot: () => lastTelemetrySnapshot,
@@ -790,6 +958,13 @@ export function createApolloHostActor(dependencies: ApolloHostActorDependencies)
           OWNER_MEMORY_CONSOLIDATION_CRON,
           'consolidateOwnerMemory',
         );
+      }
+      if (
+        !scheduleList.some(
+          (schedule) => schedule.callback === 'purgeExpiredCommandThreads',
+        )
+      ) {
+        await scheduler.scheduleEvery(86_400, 'purgeExpiredCommandThreads');
       }
     },
     async handleDeviceConnect(

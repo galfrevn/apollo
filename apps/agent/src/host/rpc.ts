@@ -1,8 +1,10 @@
 import { z } from 'zod';
 
 import type { ApolloHostActor } from '@/host/actor';
+import type { BroadcastUploadRegistry } from '@/host/broadcast';
+import type { HostMcpManager } from '@/host/mcp';
 import { isDeviceSharedSecretValid } from '@/auth/token';
-import { deliverBroadcastText } from '@/broadcast/deliver';
+import { deliverBroadcastAudio, deliverBroadcastText } from '@/broadcast/deliver';
 import { buildConsoleStatusSnapshot } from '@/console/status';
 import {
   mapSessionMessagesToConsoleHistory,
@@ -17,9 +19,14 @@ import {
   consoleAddListItemInputSchema,
   consoleAddMemoryInputSchema,
   consoleBroadcastTextInputSchema,
+  consoleBroadcastUploadBeginInputSchema,
+  consoleBroadcastUploadChunkInputSchema,
+  consoleBroadcastUploadCommitInputSchema,
   consoleCancelReminderInputSchema,
   consoleCreateReminderInputSchema,
   consoleDeleteMemoryInputSchema,
+  consoleDeviceBrightnessInputSchema,
+  consoleDeviceVolumeInputSchema,
   consoleDocumentInputSchema,
   consoleMemoryBrowseInputSchema,
   consoleRemoveListItemInputSchema,
@@ -30,6 +37,26 @@ import {
   consoleWeatherInputSchema,
 } from '@/console/rpc';
 import { APOLLO_TTS_VOICE } from '@/configuration/identity';
+import { resolveDiscoveredMcpToolSafety } from '@/mcp/adapter';
+import { buildNamespacedMcpToolName } from '@/mcp/naming';
+import {
+  buildInstalledMcpServerSummaryList,
+  discoverInstalledMcpToolList,
+} from '@/mcp/runtime';
+import {
+  installMcpServerInputSchema,
+  mcpSecretInputSchema,
+  removeMcpServerInputSchema,
+  retryMcpServerInputSchema,
+  setMcpToolEnabledInputSchema,
+} from '@/mcp/servers';
+import {
+  deleteMcpToolSettingsForServer,
+  listMcpToolSettings,
+  saveMcpToolSetting,
+} from '@/mcp/settings';
+import { PUBLIC_ORIGIN_PREFERENCE_KEY } from '@/ota/lifecycle';
+import { getSessionPreference } from '@/memory/store';
 import { LEGACY_THREAD_SESSION_ID, rememberFactInSession } from '@/memory/session';
 import { addMemoryRecord, setSessionPreference } from '@/memory/store';
 import type { MemorySqlExecutor } from '@/memory/store';
@@ -62,6 +89,8 @@ export type HostRpcDependencies = {
   readonly mediaBlobStore: BlobStore;
   readonly vectorStore: VectorStore;
   readonly jobPublisher: JobPublisher;
+  readonly broadcastUploadRegistry: BroadcastUploadRegistry;
+  readonly mcpManager: HostMcpManager | undefined;
 };
 
 // The durable object exposes these as @callable methods; on this host they are
@@ -72,6 +101,7 @@ export async function executeConsoleRpcMethod(
   methodName: string,
   argumentList: readonly unknown[],
   dependencies: HostRpcDependencies,
+  requestOrigin: string,
 ): Promise<unknown> {
   const { actor, sqlExecutor, scheduler, environment, deviceName } = dependencies;
 
@@ -275,9 +305,161 @@ export async function executeConsoleRpcMethod(
       await actor.notifyBackgroundResult(firstArgument);
       return undefined;
     }
+    case 'setConsoleDeviceVolume': {
+      const input = consoleDeviceVolumeInputSchema.parse(firstArgument);
+      await assertDashboardSecret(input.secret);
+      return actor.callDeviceTool('self.audio_speaker.set_volume', {
+        volume: input.volume,
+      });
+    }
+    case 'setConsoleDeviceBrightness': {
+      const input = consoleDeviceBrightnessInputSchema.parse(firstArgument);
+      await assertDashboardSecret(input.secret);
+      return actor.callDeviceTool('self.screen.set_brightness', {
+        brightness: input.brightness,
+      });
+    }
+    case 'getConsoleDeviceStatus': {
+      const input = consoleSecretInputSchema.parse(firstArgument);
+      await assertDashboardSecret(input.secret);
+      return actor.callDeviceTool('self.get_device_status', {});
+    }
+    case 'beginConsoleBroadcastAudioUpload': {
+      const input = consoleBroadcastUploadBeginInputSchema.parse(firstArgument);
+      await assertDashboardSecret(input.secret);
+      return dependencies.broadcastUploadRegistry.begin({
+        totalBytes: input.totalBytes,
+        chunkCount: input.chunkCount,
+      });
+    }
+    case 'appendConsoleBroadcastAudioChunk': {
+      const input = consoleBroadcastUploadChunkInputSchema.parse(firstArgument);
+      await assertDashboardSecret(input.secret);
+      return dependencies.broadcastUploadRegistry.append({
+        uploadId: input.uploadId,
+        chunkIndex: input.chunkIndex,
+        base64Chunk: input.base64Chunk,
+      });
+    }
+    case 'commitConsoleBroadcastAudioUpload': {
+      const input = consoleBroadcastUploadCommitInputSchema.parse(firstArgument);
+      await assertDashboardSecret(input.secret);
+      const audioBuffer = dependencies.broadcastUploadRegistry.commit(input.uploadId);
+      const outcome = await deliverBroadcastAudio({
+        audioBuffer,
+        broadcastId: crypto.randomUUID(),
+        connectionList: actor.getDeviceConnectionList(),
+        sqlExecutor,
+        mediaBlobStore: dependencies.mediaBlobStore,
+        playChimeEffect: () =>
+          actor.broadcastToDevices({ type: 'play_effect', name: 'chime' }),
+      });
+      return { outcome };
+    }
+    case 'installMcpServer': {
+      const input = installMcpServerInputSchema.parse(firstArgument);
+      await assertDashboardSecret(input.secret);
+      const mcpManager = requireMcpManager();
+      // Mirrors the durable object: without an explicit callbackHost the
+      // callback URL derives from the origin the console dialed; the stored
+      // device origin wins when present because OAuth callbacks must land on
+      // a host the browser can reach after the redirect.
+      const storedPublicOrigin = await getSessionPreference(
+        sqlExecutor,
+        PUBLIC_ORIGIN_PREFERENCE_KEY,
+      );
+      const installResult = await mcpManager.addServer({
+        name: input.name,
+        url: input.url,
+        ...(input.authToken === undefined ? {} : { authToken: input.authToken }),
+        callbackHost: storedPublicOrigin ?? requestOrigin,
+      });
+      return {
+        serverId: installResult.serverId,
+        state: installResult.state,
+        authUrl: installResult.authUrl,
+      };
+    }
+    case 'uninstallMcpServer': {
+      const input = removeMcpServerInputSchema.parse(firstArgument);
+      await assertDashboardSecret(input.secret);
+      const mcpManager = requireMcpManager();
+      await mcpManager.manager.removeServer(input.serverId);
+      await deleteMcpToolSettingsForServer(sqlExecutor, input.serverId);
+      return listMcpServerSummaryList();
+    }
+    case 'listMcpServers': {
+      const input = mcpSecretInputSchema.parse(firstArgument);
+      await assertDashboardSecret(input.secret);
+      return listMcpServerSummaryList();
+    }
+    case 'retryMcpServer': {
+      const input = retryMcpServerInputSchema.parse(firstArgument);
+      await assertDashboardSecret(input.secret);
+      const mcpManager = requireMcpManager();
+      // Reconnects the existing installation with its stored transport — auth
+      // provider and headers included — instead of re-running install.
+      await mcpManager.manager.connectToServer(input.serverId);
+      await mcpManager.manager.discoverIfConnected(input.serverId);
+      return listMcpServerSummaryList();
+    }
+    case 'enableMcpTool': {
+      return setMcpToolEnabled(firstArgument, true);
+    }
+    case 'disableMcpTool': {
+      return setMcpToolEnabled(firstArgument, false);
+    }
     default: {
       throw new Error(`El método ${methodName} todavía no corre en este host`);
     }
+  }
+
+  function requireMcpManager(): HostMcpManager {
+    if (dependencies.mcpManager === undefined) {
+      throw new Error('Los servidores MCP no están habilitados en este host');
+    }
+    return dependencies.mcpManager;
+  }
+
+  async function listMcpServerSummaryList() {
+    const mcpManager = requireMcpManager();
+    const [discoveredToolList, settingList] = await Promise.all([
+      discoverInstalledMcpToolList(mcpManager.manager),
+      listMcpToolSettings(sqlExecutor),
+    ]);
+    return buildInstalledMcpServerSummaryList({
+      serverRecordMap: mcpManager.buildServerRecordMap(),
+      discoveredToolList,
+      settingList,
+    });
+  }
+
+  async function setMcpToolEnabled(rawInput: unknown, isEnabled: boolean) {
+    const input = setMcpToolEnabledInputSchema.parse(rawInput);
+    await assertDashboardSecret(input.secret);
+    const mcpManager = requireMcpManager();
+    const discoveredTool = (await discoverInstalledMcpToolList(mcpManager.manager)).find(
+      (candidate) =>
+        candidate.serverId === input.serverId && candidate.name === input.toolName,
+    );
+    // Disabling must work while the server is unreachable — that is exactly
+    // when the owner reaches for it.
+    if (isEnabled && discoveredTool === undefined) {
+      throw new Error(`Unknown MCP tool: ${input.serverId}/${input.toolName}`);
+    }
+    const resolvedSafety =
+      input.safety ??
+      (discoveredTool === undefined
+        ? 'unsafe'
+        : resolveDiscoveredMcpToolSafety(discoveredTool));
+    await saveMcpToolSetting(sqlExecutor, {
+      namespacedName: buildNamespacedMcpToolName(input.serverId, input.toolName),
+      serverId: input.serverId,
+      toolName: input.toolName,
+      isEnabled,
+      safety: resolvedSafety,
+    });
+    return listMcpServerSummaryList();
   }
 
   async function setSpeechMode(speechModeId: string) {

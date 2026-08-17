@@ -6,9 +6,13 @@ import { join } from 'node:path';
 
 import type { ApolloState } from '@/agents/apollo';
 import { createApolloHostActor } from '@/host/actor';
+import { createBroadcastUploadRegistry } from '@/host/broadcast';
 import { parseHostConfiguration } from '@/host/configuration';
+import { createHostInitiativeEngine } from '@/host/initiative';
+import { createHostMcpManager } from '@/host/mcp';
 import { createHostRunEngine } from '@/host/runs';
 import { createApolloHostServer } from '@/host/server';
+import { createHostThreadEngine } from '@/host/threads';
 import { buildApolloSessionManager, compactThreadMessageList } from '@/memory/session';
 import { embedTextWithOpenRouter } from '@/memory/vector';
 import { createFileBlobStore } from '@/platform/bun/blob';
@@ -122,6 +126,41 @@ export async function startApolloHost(
     onStateChanged: (state) => stateBroadcast.notify(state),
   });
 
+  const mcpServersChanged = {
+    notify: () => {},
+  };
+  const mcpManager = await createHostMcpManager({
+    database,
+    deviceName: configuration.deviceName,
+    onServersChanged: () => mcpServersChanged.notify(),
+  });
+
+  const activeThreadAccessor = actor.getActiveThreadSessionIdSetter();
+  const threadEngine = createHostThreadEngine({
+    deviceName: configuration.deviceName,
+    environment,
+    sqlExecutor,
+    sessionManager,
+    scheduler,
+    vectorStore,
+    jobPublisher: jobQueue.publisher,
+    getActiveThreadSessionId: () => activeThreadAccessor.get(),
+    setActiveThreadSessionId: (sessionId) => activeThreadAccessor.set(sessionId),
+  });
+  const initiativeEngine = createHostInitiativeEngine({
+    deviceName: configuration.deviceName,
+    environment,
+    sqlExecutor,
+    scheduler,
+    mediaBlobStore,
+    getFocusEndsAt: () => actor.getState().focusEndsAt,
+    currentFocusState: () => actor.currentFocusState(),
+    getDeviceConnectionList: () => actor.getDeviceConnectionList(),
+    playEffect: (effectName) =>
+      actor.broadcastToDevices({ type: 'play_effect', name: effectName }),
+  });
+  actor.attachEngines({ threadEngine, initiativeEngine, mcpManager });
+
   const server = createApolloHostServer({
     configuration,
     actor,
@@ -135,9 +174,24 @@ export async function startApolloHost(
       mediaBlobStore,
       vectorStore,
       jobPublisher: jobQueue.publisher,
+      broadcastUploadRegistry: createBroadcastUploadRegistry(),
+      mcpManager,
     },
   });
   stateBroadcast.notify = (state) => server.broadcastConsoleState(state);
+  mcpServersChanged.notify = () => {
+    server.broadcastConsoleMessage(
+      JSON.stringify({
+        type: 'cf_agent_mcp_servers',
+        mcp: {
+          servers: mcpManager.buildServerRecordMap(),
+          tools: mcpManager.manager.listTools(),
+          prompts: mcpManager.manager.listPrompts(),
+          resources: mcpManager.manager.listResources(),
+        },
+      }),
+    );
+  };
 
   await actor.start();
   await scheduler.start();
