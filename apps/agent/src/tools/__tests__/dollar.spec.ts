@@ -1,10 +1,13 @@
-import { describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
 
+import { createFakeApolloEnvironment } from '@/configuration/testing';
 import type { DollarRate } from '@/rates/dollar';
 import {
+  dollarRateTool,
   formatDollarRateForSpeech,
   summarizeDollarRateListForSpeech,
 } from '@/tools/dollar';
+import type { ToolExecutionContext } from '@/tools/types';
 
 function buildRate(overrides: Partial<DollarRate> = {}): DollarRate {
   return {
@@ -36,6 +39,45 @@ describe('formatDollarRateForSpeech', () => {
     expect(formatDollarRateForSpeech(buildRate({ venta: null }))).toBe(
       'Blue: sin cotización',
     );
+  });
+});
+
+const unavailableFetch = async () =>
+  new Response('upstream unavailable', { status: 503 });
+const malformedListFetch = async () =>
+  new Response(JSON.stringify([{ casa: 'blue', nombre: 'Blue', venta: 1480 }]), {
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+describe('dollarRateTool fallback responses', () => {
+  const originalFetch = globalThis.fetch;
+  const context: ToolExecutionContext = {
+    environment: createFakeApolloEnvironment(),
+    nowMilliseconds: 0,
+  };
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('returns a speakable error when a typed rate request fails upstream', async () => {
+    globalThis.fetch = Object.assign(unavailableFetch, { preconnect: () => {} });
+
+    const response = await dollarRateTool.handler({ type: 'blue' }, context);
+
+    expect(response).toEqual({
+      ok: false,
+      summary: 'No pude traer la cotización (dolarapi request failed with status 503)',
+    });
+  });
+
+  it('returns a speakable error when the summary payload is malformed', async () => {
+    globalThis.fetch = Object.assign(malformedListFetch, { preconnect: () => {} });
+
+    const response = await dollarRateTool.handler({}, context);
+
+    expect(response.ok).toBe(false);
+    expect(response.summary).toContain('No pude traer la cotización');
   });
 });
 
