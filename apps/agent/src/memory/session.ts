@@ -33,23 +33,54 @@ type ThreadCompactionResult = {
   readonly summary: string;
 };
 
-export function createApolloSessionManager(
-  agent: Apollo,
-  environment: Env,
-): SessionManager {
+// Structural twin of the SDK's unexported SqlProvider: the whole host
+// requirement of the session manager is this one synchronous tagged template.
+export type SessionSqlProvider = {
+  sql<Row = Record<string, string | number | boolean | null>>(
+    strings: TemplateStringsArray,
+    ...values: (string | number | boolean | null)[]
+  ): Row[];
+};
+
+// The subset of R2Bucket that R2SkillProvider actually reads; a filesystem
+// blob store can satisfy it on a non-Cloudflare host.
+export type SkillDocumentBucket = {
+  list(options: {
+    readonly prefix?: string;
+    readonly cursor?: string;
+    readonly include?: ('httpMetadata' | 'customMetadata')[];
+  }): Promise<{
+    readonly objects: readonly {
+      readonly key: string;
+      readonly customMetadata?: Record<string, string>;
+    }[];
+    readonly truncated: boolean;
+    readonly cursor?: string;
+  }>;
+  get(objectKey: string): Promise<{ text(): Promise<string> } | null>;
+};
+
+export function buildApolloSessionManager(input: {
+  readonly sqlProvider: SessionSqlProvider;
+  readonly getSpeechModeId: () => string;
+  readonly skillBucket: SkillDocumentBucket;
+  readonly compactMessageList: (
+    messageList: SessionMessage[],
+  ) => Promise<ThreadCompactionResult | null>;
+}): SessionManager {
   return (
-    SessionManager.create(agent)
+    SessionManager.create(input.sqlProvider)
       .withContext('soul', {
         provider: {
           get: async () => {
-            return buildApolloSoulPrompt(agent.state.speechMode);
+            return buildApolloSoulPrompt(input.getSpeechModeId());
           },
         },
       })
       .withContext('memory', {
         description: 'Hechos y preferencias aprendidas del usuario',
         maxTokens: 1100,
-        provider: new AgentContextProvider(agent, SHARED_MEMORY_CONTEXT_KEY),
+        provider: new AgentContextProvider(input.sqlProvider, SHARED_MEMORY_CONTEXT_KEY),
       })
       // Deliberately without a provider: the SDK namespaces it per session, so
       // each thread carries only its own handoff note.
@@ -59,18 +90,34 @@ export function createApolloSessionManager(
       })
       .withContext('knowledge', {
         description: 'Base de conocimiento buscable (FTS)',
-        provider: new AgentSearchProvider(agent),
+        provider: new AgentSearchProvider(input.sqlProvider),
       })
       .withContext('skills', {
         description: 'Documentos largos en R2 (load on demand)',
-        provider: new R2SkillProvider(environment.MEDIA, { prefix: 'skills/' }),
+        // SAFETY: R2SkillProvider only calls list (keys + customMetadata) and
+        // get(...).text(), which SkillDocumentBucket carries; the session spec
+        // exercises this against a non-R2 bucket.
+        provider: new R2SkillProvider(input.skillBucket as R2Bucket, {
+          prefix: 'skills/',
+        }),
       })
       .withCachedPrompt()
-      .onCompaction(async (messageList) =>
-        compactThreadMessageList(environment, messageList),
-      )
+      .onCompaction(input.compactMessageList)
       .compactAfter(THREAD_COMPACTION_TOKEN_THRESHOLD)
   );
+}
+
+export function createApolloSessionManager(
+  agent: Apollo,
+  environment: Env,
+): SessionManager {
+  return buildApolloSessionManager({
+    sqlProvider: agent,
+    getSpeechModeId: () => agent.state.speechMode,
+    skillBucket: environment.MEDIA,
+    compactMessageList: async (messageList) =>
+      compactThreadMessageList(environment, messageList),
+  });
 }
 
 // A marathon thread (or a repeatedly resumed one) can outgrow its token

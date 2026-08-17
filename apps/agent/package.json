@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
+    "host": "bun src/host/main.ts",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
     "types": "wrangler types",

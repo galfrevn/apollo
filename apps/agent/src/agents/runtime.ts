@@ -39,6 +39,10 @@ import {
 import { synthesizeApolloSpeech } from '@/voice/synthesize';
 import { wrapPcmAsWavBuffer } from '@/voice/wav';
 
+// Structurally just `send`, so the Bun host can pass a raw websocket wrapper
+// where the durable object passes an SDK Connection.
+export type TurnConnection = Pick<Connection, 'send'>;
+
 type DeskUiStateDeviceMessage = Extract<ServerToDeviceMessage, { type: 'ui_state' }>;
 type TtsStartDeviceMessage = Extract<ServerToDeviceMessage, { type: 'tts_start' }>;
 
@@ -72,7 +76,7 @@ export type ApolloTurnRuntimeDependencies = {
 };
 
 export async function executeApolloTurn(
-  connection: Connection,
+  connection: TurnConnection,
   dependencies: ApolloTurnRuntimeDependencies,
   turnPart: {
     readonly text?: string;

@@ -99,7 +99,7 @@ export function encodeMockSpeechAudio(spokenText: string): ArrayBuffer {
 
 export async function deliverDeskDeviceNotification(input: {
   readonly notification: DeskDeviceNotification;
-  readonly connectionList: readonly Connection[];
+  readonly connectionList: readonly AnnounceableConnection[];
   readonly sqlExecutor: MemorySqlExecutor;
   readonly focusState: DeskFocusState;
   readonly environment: Env;
@@ -135,7 +135,7 @@ export async function deliverDeskDeviceNotification(input: {
 
 async function announceNotificationWithTts(input: {
   readonly notification: DeskDeviceNotification;
-  readonly connectionList: readonly Connection[];
+  readonly connectionList: readonly AnnounceableConnection[];
   readonly environment: Env;
   readonly mediaBlobStore: BlobStore;
   readonly deviceId: string;
